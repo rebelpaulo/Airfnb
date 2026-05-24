@@ -55,6 +55,9 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   const setupMax   = num(sp.setup_max);
   const power      = first(sp.power);
   const sanitation = first(sp.sanitation);
+  // FilterModal persists this as `catering` (food/drinks/food_and_drinks);
+  // backed by airfnb_trucks.serves.
+  const serves     = first(sp.catering);
 
   const supa = await supabaseServer();
 
@@ -74,6 +77,12 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (dietary?.length)  q = q.overlaps("dietary_options", dietary);
   if (setupMax)         q = q.lte("setup_minutes", setupMax);
   if (power && POWER_MAX_KW[power] != null) q = q.lte("power_required_kw", POWER_MAX_KW[power]);
+  if (serves && ["food","drinks","food_and_drinks"].includes(serves)) {
+    // 'food_and_drinks' trucks satisfy any of the three picks; otherwise an
+    // exact match on the simpler picks.
+    if (serves === "food_and_drinks") q = q.eq("serves", "food_and_drinks");
+    else                              q = q.in("serves", [serves, "food_and_drinks"]);
+  }
   if (sanitation) {
     // A truck that needs more amenities than the event provides shouldn't show.
     // Wizard semantics: organizer says what they offer; truck must require ≤ that.
@@ -103,6 +112,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (setupMax)         activeFilters.push({ key: "setup_max", label: `Montagem ≤ ${setupMax}min` });
   if (power)            activeFilters.push({ key: "power",     label: `Energia: ${power}` });
   if (sanitation)       activeFilters.push({ key: "sanitation",label: `WC: ${sanitation}` });
+  if (serves)           activeFilters.push({ key: "catering",  label: `Catering: ${serves.replace("_and_", " & ")}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>

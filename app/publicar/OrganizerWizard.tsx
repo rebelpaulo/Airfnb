@@ -244,7 +244,14 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
             <input type="range" min={20} max={5000} step={10} value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
           </Field>
           <Field label="Trucks Recomendados">
-            <input type="number" min={1} max={20} value={trucksWanted} onChange={(e) => setTrucksWanted(Number(e.target.value))} />
+            <input type="number" min={1} max={10}
+              value={trucksWanted}
+              onChange={(e) => {
+                // Clamp client-side so the user can't type 11+ and hit the
+                // airfnb_event_requests.slots_needed check constraint (1..10).
+                const v = Math.min(10, Math.max(1, Number(e.target.value) || 1));
+                setTrucksWanted(v);
+              }} />
             <small style={{ color: "var(--muted)", fontSize: 12 }}>
               💡 Sugestão: 1 truck por cada 120–200 pax (depende do tipo de evento).
             </small>
