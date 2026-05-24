@@ -31,6 +31,9 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     .select(`
       id, owner_id, slug, name, tagline, description, base_city, capacity,
       base_price, price_per_pax, service_radius_km,
+      min_event_pax, max_event_pax,
+      cuisine_types, dietary_options, setup_minutes, teardown_minutes,
+      power_required_kw, sanitation_required,
       status, rating_avg, rating_count, homologation_expires_at, insurance_expires_at
     `)
     .eq("id", id)
@@ -54,23 +57,29 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   // inclusive: a doc that expires "today" is still valid for the whole day.
   const docValid = (kind: string) =>
     docs.some((d) =>
-      (d.kind ?? "").toLowerCase().includes(kind) &&
+      d.kind === kind &&
       (!d.expires_at || new Date(d.expires_at) >= today),
     );
 
   const checklist: Checklist[] = [
-    { key: "name",        label: "Nome",                         weight: 5,  done: !!truck.name?.trim() },
-    { key: "tagline",     label: "Tagline",                      weight: 5,  done: !!truck.tagline?.trim() },
-    { key: "description", label: "Descrição",                    weight: 10, done: (truck.description ?? "").trim().length >= 80 },
-    { key: "city",        label: "Cidade base",                  weight: 5,  done: !!truck.base_city?.trim() },
-    { key: "capacity",    label: "Capacidade (pax)",             weight: 5,  done: !!truck.capacity },
-    { key: "price",       label: "Preço base + preço por pax",   weight: 10, done: !!truck.base_price && !!truck.price_per_pax },
-    { key: "categories",  label: "Categorias (≥ 1)",             weight: 10, done: cats.length >= 1 },
-    { key: "cover",       label: "Foto de capa",                 weight: 10, done: images.some((i) => i.is_cover) },
-    { key: "gallery",     label: "Fotos extra (≥ 3 no total)",   weight: 10, done: images.length >= 3 },
-    { key: "menu",        label: "Itens de menu (≥ 5)",          weight: 15, done: menu.length >= 5 },
-    { key: "haccp",       label: "Documento HACCP válido",       weight: 7,  done: docValid("haccp") },
-    { key: "insurance",   label: "Seguro válido",                weight: 8,  done: docValid("seguro") || docValid("insur") },
+    // Step 1 — Básico (35%)
+    { key: "name",        label: "Nome do truck",                            weight: 5,  done: !!truck.name?.trim() },
+    { key: "city",        label: "Localidade base e raio",                   weight: 5,  done: !!truck.base_city?.trim() && !!truck.service_radius_km },
+    { key: "capacity",    label: "Capacidade (pax)",                         weight: 5,  done: !!truck.capacity },
+    { key: "pax_range",   label: "Faixa de eventos (min/max pax)",           weight: 5,  done: !!truck.min_event_pax && !!truck.max_event_pax },
+    { key: "price",       label: "Preço base + preço por pax",               weight: 10, done: !!truck.base_price && !!truck.price_per_pax },
+    { key: "description", label: "Descrição (≥ 80 caracteres)",              weight: 5,  done: (truck.description ?? "").trim().length >= 80 },
+    // Step 2 — Cozinha (15%)
+    { key: "cuisines",    label: "Tipos de cozinha (≥ 1)",                   weight: 5,  done: (truck.cuisine_types ?? []).length >= 1 },
+    { key: "categories",  label: "Especialidades (≥ 1)",                     weight: 10, done: cats.length >= 1 },
+    // Step 3 — Logística (10%)
+    { key: "logistics",   label: "Logística (montagem / energia / saneamento)", weight: 10, done: !!truck.setup_minutes && !!truck.teardown_minutes && truck.power_required_kw != null && !!truck.sanitation_required },
+    // Step 4 — Mídia (40%)
+    { key: "cover",       label: "Foto de capa",                             weight: 10, done: images.some((i) => i.is_cover) },
+    { key: "gallery",     label: "Galeria (≥ 4 fotos no total)",             weight: 10, done: images.length >= 4 },
+    { key: "doc_asae",    label: "Certificado ASAE",                         weight: 8,  done: docValid("asae") },
+    { key: "doc_comerc",  label: "Certificado Comercial",                    weight: 6,  done: docValid("comercial") },
+    { key: "doc_finan",   label: "Certificado Finanças",                     weight: 6,  done: docValid("financas") },
   ];
   const progress = checklist.reduce((sum, c) => sum + (c.done ? c.weight : 0), 0);
   const canSubmit = progress >= 100 && truck.status === "draft";
@@ -88,12 +97,11 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     // Re-fetch everything server-side and recompute the checklist — never
     // trust the UI's `canSubmit` boolean. A user could craft a request
     // bypassing the button.
-    const [tRes, iRes, mRes, cRes, dRes] = await Promise.all([
+    const [tRes, iRes, cRes, dRes] = await Promise.all([
       (supa as any).from("airfnb_trucks")
-        .select("id, owner_id, status, name, tagline, description, base_city, capacity, base_price, price_per_pax")
+        .select("id, owner_id, status, name, description, base_city, service_radius_km, capacity, min_event_pax, max_event_pax, base_price, price_per_pax, cuisine_types, setup_minutes, teardown_minutes, power_required_kw, sanitation_required")
         .eq("id", id).maybeSingle(),
       (supa as any).from("airfnb_truck_images").select("id, is_cover").eq("truck_id", id),
-      (supa as any).from("airfnb_menu_items").select("id").eq("truck_id", id),
       (supa as any).from("airfnb_truck_categories").select("category_id").eq("truck_id", id),
       (supa as any).from("airfnb_truck_documents").select("id, kind, expires_at").eq("truck_id", id),
     ]);
@@ -103,7 +111,6 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     if (t.status !== "draft") throw new Error("Só trucks em rascunho podem ser submetidos.");
 
     const imgs = (iRes.data as any[]) ?? [];
-    const items = (mRes.data as any[]) ?? [];
     const cats  = (cRes.data as any[]) ?? [];
     const ds    = (dRes.data as any[]) ?? [];
     const now = new Date();
@@ -111,23 +118,25 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     // expiration day, so compare with >= and not >.
     const docOk = (kind: string) =>
       ds.some((d) =>
-        (d.kind ?? "").toLowerCase().includes(kind) &&
+        d.kind === kind &&
         (!d.expires_at || new Date(d.expires_at) >= now),
       );
 
     const score = [
       [5,  !!t.name?.trim()],
-      [5,  !!t.tagline?.trim()],
-      [10, (t.description ?? "").trim().length >= 80],
-      [5,  !!t.base_city?.trim()],
+      [5,  !!t.base_city?.trim() && !!t.service_radius_km],
       [5,  !!t.capacity],
+      [5,  !!t.min_event_pax && !!t.max_event_pax],
       [10, !!t.base_price && !!t.price_per_pax],
+      [5,  (t.description ?? "").trim().length >= 80],
+      [5,  (t.cuisine_types ?? []).length >= 1],
       [10, cats.length >= 1],
+      [10, !!t.setup_minutes && !!t.teardown_minutes && t.power_required_kw != null && !!t.sanitation_required],
       [10, imgs.some((i) => i.is_cover)],
-      [10, imgs.length >= 3],
-      [15, items.length >= 5],
-      [7,  docOk("haccp")],
-      [8,  docOk("seguro") || docOk("insur")],
+      [10, imgs.length >= 4],
+      [8,  docOk("asae")],
+      [6,  docOk("comercial")],
+      [6,  docOk("financas")],
     ].reduce((s, [w, ok]) => s + ((ok as boolean) ? (w as number) : 0), 0);
 
     if (score < 100) {
