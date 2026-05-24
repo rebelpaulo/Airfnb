@@ -4,10 +4,34 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabaseServer } from "@/lib/supabase/server";
 
+const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Air F&B — Marketplace de Food Trucks para Eventos",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "Air F&B — Marketplace de Food Trucks para Eventos",
+    template: "%s · Air F&B",
+  },
   description:
     "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+  applicationName: "Air F&B",
+  openGraph: {
+    type: "website",
+    siteName: "Air F&B",
+    title: "Air F&B — Marketplace de Food Trucks para Eventos",
+    description:
+      "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+    locale: "pt_PT",
+    url: APP_URL,
+    images: [{ url: "/logo-airfb-white.png", width: 1200, height: 630, alt: "Air F&B" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Air F&B — Marketplace de Food Trucks para Eventos",
+    description:
+      "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+    images: ["/logo-airfb-white.png"],
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

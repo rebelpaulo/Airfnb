@@ -1,4 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sobre nós",
+  description: "A Air F&B liga organizadores a food trucks certificados — curadoria, homologação e pagamento sem complicações.",
+  alternates: { canonical: "/sobre-nos" },
+};
 
 export default function SobreNosPage() {
   return (
