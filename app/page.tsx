@@ -61,7 +61,12 @@ export default async function HomePage() {
     <>
       {/* ====== HERO ====== */}
       <section className="hero">
-        <div className="logo-mark">air<span className="amp">&amp;</span>fb</div>
+        <img
+          src="/logo-airfb-white.png"
+          alt="Air F&amp;B"
+          className="logo-mark"
+          style={{ height: "clamp(110px, 18vw, 230px)", width: "auto", margin: "0 auto", display: "block" }}
+        />
         <p className="tagline">A maior oferta de Food Trucks para o teu evento à distância de um click.</p>
 
         {/*

@@ -49,7 +49,9 @@ export function Header({ user }: Props) {
   return (
     <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
       <div className="brand">
-        <Link className="logo" href="/">air<span>f.</span>b</Link>
+        <Link className="logo" href="/" aria-label="Air F&amp;B">
+          <img src="/logo-airfb-white.png" alt="Air F&amp;B" style={{ height: 36, width: "auto", display: "block" }} />
+        </Link>
       </div>
       <ul className="main-nav">
         <li><Link href="/catalogo">Encontrar Trucks</Link></li>
