@@ -1230,6 +1230,39 @@ img { display: block; max-width: 100%; height: auto; }
   color: var(--orange-deep);
 }
 
+/* ----- 4-step truck wizard (shares the chip vocabulary with .wizard) ----- */
+.wizard-shell input,
+.wizard-shell textarea,
+.wizard-shell select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--line);
+  font-family: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: var(--ink);
+}
+.wizard-shell .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.wizard-shell .chip {
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--line);
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.wizard-shell .chip[data-active="true"] {
+  background: var(--orange);
+  color: #fff;
+  border-color: var(--orange);
+}
+
 /* =====================================================================
    AUTH (login/signup)
    ===================================================================== */
