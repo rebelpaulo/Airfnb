@@ -1,0 +1,16 @@
+# supabase/config.toml.example
+# Copy to config.toml after `supabase init`.
+project_id = "airfnb"
+
+[functions.send-email]
+verify_jwt = true   # only callers with a valid Supabase JWT can invoke (use service_role from server)
+
+[functions.stripe-webhook]
+verify_jwt = false  # Stripe will not send a Supabase JWT — signature is validated inside the function
+
+# Recommended secrets to set:
+#   supabase secrets set RESEND_API_KEY=re_xxx
+#   supabase secrets set FROM_EMAIL="Air F&B <ola@airfnb.example>"
+#   supabase secrets set ALLOWED_TEMPLATES="booking_inquiry_received,proposal_sent,booking_confirmed,booking_cancelled,payment_received,review_request,contact_reply,newsletter_confirm"
+#   supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx
+#   supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx
