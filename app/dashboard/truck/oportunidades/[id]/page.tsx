@@ -100,21 +100,11 @@ export default async function OportunidadeDetailPage({
       throw new Error("Só trucks activos podem candidatar-se.");
     }
 
-    // Rate limit: 50 candidaturas/truck/day. Fail CLOSED — if the RPC errors
-    // (network blip, function missing, permission), reject the apply rather
-    // than silently bypassing the cap. A BEFORE INSERT trigger also enforces
-    // this at the DB level (defense in depth) but we surface a friendlier
-    // message here.
-    const { data: rateOk, error: rateErr } = await (supa as any).rpc("airfnb_check_rate_limit", {
-      p_action:           "application_submit",
-      p_bucket:           truckId,
-      p_limit_per_window: 50,
-      p_window_seconds:   86400,
-    });
-    if (rateErr) throw new Error(`Não foi possível validar o rate-limit: ${rateErr.message}`);
-    if (rateOk === false) {
-      throw new Error("Limite diário de candidaturas atingido para este truck. Tenta amanhã.");
-    }
+    // Rate limit (50/truck/day) is enforced by a BEFORE INSERT trigger on
+    // airfnb_applications. We don't precheck here because the precheck would
+    // ALSO call the mutating RPC and double-charge the bucket (halving the
+    // effective cap to 25). The trigger raises a Portuguese error we surface
+    // verbatim in the catch below.
 
     // Re-check request eligibility deterministically. Without this we'd let
     // the user submit, see the row blocked by RLS, and get a cryptic error
