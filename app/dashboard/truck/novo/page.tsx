@@ -47,6 +47,9 @@ export default async function NovoTruckPage() {
       console.warn("airfnb_profiles.role upgrade failed:", roleErr.message);
     }
 
+    // New trucks start as `draft`. The owner finishes filling everything in
+    // /dashboard/truck/[id] (progress bar) and submits for review — only then
+    // do they appear in the public catalog after admin approval.
     const { data: row, error } = await (supa as any)
       .from("airfnb_trucks")
       .insert({
@@ -60,7 +63,7 @@ export default async function NovoTruckPage() {
         base_price: basePrice,
         price_per_pax: pricePerPax,
         service_radius_km: radius,
-        status: "active",
+        status: "draft",
       })
       .select("id")
       .single();
@@ -79,7 +82,9 @@ export default async function NovoTruckPage() {
         sort_order: 0,
       });
     }
-    redirect("/dashboard/truck");
+    // Land the owner on the management page so they can see the progress bar
+    // and finish the remaining fields before submitting for admin review.
+    redirect(`/dashboard/truck/${row.id}`);
   }
 
   return (
