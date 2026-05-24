@@ -129,6 +129,10 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   // ---- Step 5: selection mode ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
 
+  // Honeypot: hidden field invisible to humans but eagerly filled by naive
+  // form-scraping bots. If non-empty at submit, abort the insert silently.
+  const [honeypot, setHoneypot] = useState("");
+
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
@@ -147,7 +151,29 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
     setBusy(true);
     setErr(null);
     try {
+      // Honeypot tripwire — silently no-op (don't reveal the trap exists).
+      // The user goes back to the form thinking it submitted; we just don't
+      // create the row.
+      if (honeypot.trim() !== "") {
+        setBusy(false);
+        router.push("/dashboard/organizer");
+        return;
+      }
+
       const supa = supabaseBrowser();
+
+      // Rate limit: cap event requests per organizer (10/day). Blocks
+      // duplicate-spam without bothering legitimate organizers.
+      const { data: rateOk } = await (supa as any).rpc("airfnb_check_rate_limit", {
+        p_action:           "event_request_create",
+        p_bucket:           userId,
+        p_limit_per_window: 10,
+        p_window_seconds:   86400,
+      });
+      if (rateOk === false) {
+        throw new Error("Atingiste o limite diário de pedidos publicados (10). Tenta amanhã.");
+      }
+
       // selection_mode → discovery_mode mapping for the marketplace match logic
       const discovery =
         selectionMode === "pick_myself" ? "curated" :
@@ -212,6 +238,18 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
   return (
     <div className="wizard-shell" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 16, padding: 26 }}>
+      {/* Honeypot — visually hidden + aria-hidden so humans never see or
+          tab into it; bots that auto-fill every input trip the no-op path. */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={honeypot}
+        onChange={(e) => setHoneypot(e.target.value)}
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
       <DotStepper step={step} total={5} />
       {err && <div style={{ background: "#FFE6DF", color: "#8B1100", padding: "10px 14px", borderRadius: 10, margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 
