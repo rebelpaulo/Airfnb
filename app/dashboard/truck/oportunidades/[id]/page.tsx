@@ -100,15 +100,18 @@ export default async function OportunidadeDetailPage({
       throw new Error("Só trucks activos podem candidatar-se.");
     }
 
-    // Rate limit: cap applications per truck (50/day) — generous enough for
-    // legitimate use, blocks bulk-spam. Bucketed by truck so a multi-truck
-    // owner isn't penalised for one busy account.
-    const { data: rateOk } = await (supa as any).rpc("airfnb_check_rate_limit", {
+    // Rate limit: 50 candidaturas/truck/day. Fail CLOSED — if the RPC errors
+    // (network blip, function missing, permission), reject the apply rather
+    // than silently bypassing the cap. A BEFORE INSERT trigger also enforces
+    // this at the DB level (defense in depth) but we surface a friendlier
+    // message here.
+    const { data: rateOk, error: rateErr } = await (supa as any).rpc("airfnb_check_rate_limit", {
       p_action:           "application_submit",
       p_bucket:           truckId,
       p_limit_per_window: 50,
       p_window_seconds:   86400,
     });
+    if (rateErr) throw new Error(`Não foi possível validar o rate-limit: ${rateErr.message}`);
     if (rateOk === false) {
       throw new Error("Limite diário de candidaturas atingido para este truck. Tenta amanhã.");
     }

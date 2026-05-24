@@ -162,14 +162,16 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
       const supa = supabaseBrowser();
 
-      // Rate limit: cap event requests per organizer (10/day). Blocks
-      // duplicate-spam without bothering legitimate organizers.
-      const { data: rateOk } = await (supa as any).rpc("airfnb_check_rate_limit", {
+      // Rate limit: 10 pedidos/organizer/day. Fail CLOSED on RPC error so
+      // we don't silently bypass the cap. A BEFORE INSERT trigger also
+      // enforces this server-side; this is the friendly client-first check.
+      const { data: rateOk, error: rateErr } = await (supa as any).rpc("airfnb_check_rate_limit", {
         p_action:           "event_request_create",
         p_bucket:           userId,
         p_limit_per_window: 10,
         p_window_seconds:   86400,
       });
+      if (rateErr) throw new Error(`Não foi possível validar o rate-limit: ${rateErr.message}`);
       if (rateOk === false) {
         throw new Error("Atingiste o limite diário de pedidos publicados (10). Tenta amanhã.");
       }
