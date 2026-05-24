@@ -115,6 +115,7 @@ export function TruckWizard({ userId, categories }: Props) {
             max_event_pax: maxPax,
             base_price: priceMin === "" ? null : priceMin,
             price_per_pax: priceMax === "" ? null : priceMax,
+            catering_type: cateringType,
           })
           .eq("id", truckId);
         if (error) throw new Error(error.message);
@@ -131,6 +132,7 @@ export function TruckWizard({ userId, categories }: Props) {
           max_event_pax:      maxPax,
           base_price:         priceMin === "" ? null : priceMin,
           price_per_pax:      priceMax === "" ? null : priceMax,
+          catering_type:      cateringType,
           status:             "draft",
         }).select("id").single();
         if (error) throw new Error(error.message);
@@ -159,12 +161,16 @@ export function TruckWizard({ userId, categories }: Props) {
       }).eq("id", truckId);
       if (error) throw new Error(error.message);
 
-      // categories: wipe + reinsert (small set, simple to reason about)
-      await (supa as any).from("airfnb_truck_categories").delete().eq("truck_id", truckId);
+      // categories: wipe + reinsert (small set, simple to reason about).
+      // If either side fails we abort — leaving step 2 advanced with stale
+      // categories would be confusing and silently lose the owner's input.
+      const delRes = await (supa as any).from("airfnb_truck_categories").delete().eq("truck_id", truckId);
+      if (delRes.error) throw new Error(delRes.error.message);
       if (categoryIds.length) {
-        await (supa as any).from("airfnb_truck_categories").insert(
+        const insRes = await (supa as any).from("airfnb_truck_categories").insert(
           categoryIds.map((cid) => ({ truck_id: truckId, category_id: cid })),
         );
+        if (insRes.error) throw new Error(insRes.error.message);
       }
       setStep(3);
     } catch (e) {

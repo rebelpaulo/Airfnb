@@ -16,13 +16,22 @@ alter table public.airfnb_trucks
   add column if not exists cuisine_types       text[]               default '{}',
   add column if not exists dietary_options     airfnb_dietary_tag[] default '{}',
   add column if not exists teardown_minutes    int                  default 60,
-  add column if not exists sanitation_required text                 default 'none';
+  add column if not exists sanitation_required text                 default 'none',
+  add column if not exists catering_type       text                 default 'fixed';
 
 -- Constrain sanitation_required to a small vocabulary
 do $$ begin
   alter table public.airfnb_trucks
     add constraint airfnb_trucks_sanitation_required_chk
     check (sanitation_required in ('none','wc_proximo','wc_dedicado'));
+exception when duplicate_object then null;
+end $$;
+
+-- Catering type chip in step 1 (fixed price / % over sales / mixed)
+do $$ begin
+  alter table public.airfnb_trucks
+    add constraint airfnb_trucks_catering_type_chk
+    check (catering_type in ('fixed','percent','mixed'));
 exception when duplicate_object then null;
 end $$;
 

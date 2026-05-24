@@ -29,6 +29,32 @@ $$;
 revoke all on function public.airfnb_is_truck_owner(uuid) from public;
 grant execute on function public.airfnb_is_truck_owner(uuid) to authenticated;
 
+-- Text overload: storage.objects.name is text, and a malformed path like
+-- "foo/bar.pdf" would raise on `'foo'::uuid` during RLS evaluation —
+-- turning a permission denial into a 500. Validate the uuid shape first
+-- and return false on anything that isn't well-formed.
+create or replace function public.airfnb_is_truck_owner(p_truck_text text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_uuid uuid;
+begin
+  if p_truck_text is null or p_truck_text !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then
+    return false;
+  end if;
+  v_uuid := p_truck_text::uuid;
+  return exists (
+    select 1 from public.airfnb_trucks
+     where id = v_uuid and owner_id = auth.uid()
+  );
+end $$;
+revoke all on function public.airfnb_is_truck_owner(text) from public;
+grant execute on function public.airfnb_is_truck_owner(text) to authenticated;
+
 -- ---------- airfnb-truck-images (public-read, owner-write) ----------
 do $$ begin
   begin
@@ -42,7 +68,7 @@ do $$ begin
       on storage.objects for insert to authenticated
       with check (
         bucket_id = 'airfnb-truck-images'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 
@@ -51,11 +77,11 @@ do $$ begin
       on storage.objects for update to authenticated
       using (
         bucket_id = 'airfnb-truck-images'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       )
       with check (
         bucket_id = 'airfnb-truck-images'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 
@@ -64,7 +90,7 @@ do $$ begin
       on storage.objects for delete to authenticated
       using (
         bucket_id = 'airfnb-truck-images'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 end $$;
@@ -76,7 +102,7 @@ do $$ begin
       on storage.objects for select to authenticated
       using (
         bucket_id = 'airfnb-documents'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 
@@ -85,7 +111,7 @@ do $$ begin
       on storage.objects for insert to authenticated
       with check (
         bucket_id = 'airfnb-documents'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 
@@ -94,11 +120,11 @@ do $$ begin
       on storage.objects for update to authenticated
       using (
         bucket_id = 'airfnb-documents'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       )
       with check (
         bucket_id = 'airfnb-documents'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 
@@ -107,7 +133,7 @@ do $$ begin
       on storage.objects for delete to authenticated
       using (
         bucket_id = 'airfnb-documents'
-        and public.airfnb_is_truck_owner(split_part(name, '/', 1)::uuid)
+        and public.airfnb_is_truck_owner(split_part(name, '/', 1))
       );
   exception when duplicate_object then null; end;
 end $$;

@@ -51,8 +51,11 @@ export function TruckPdfUpload({
         contentType: "application/pdf",
       });
       if (upErr) throw new Error(upErr.message);
-      // Bucket is private — signed URL is generated on demand for owners
-      const { data: { publicUrl } } = supa.storage.from(BUCKET).getPublicUrl(path);
+      // Bucket is private — store the object PATH only. The reader (admin or
+      // owner) generates a signed URL on demand. Saving `getPublicUrl()` would
+      // give a 404 link to any future consumer that hits it.
+      // Sign a short-lived URL just for the just-uploaded preview state.
+      const { data: signed } = await supa.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
 
       // one row per (truck, kind) — delete then insert. Avoids needing a
       // unique constraint that the original schema doesn't declare.
@@ -60,13 +63,14 @@ export function TruckPdfUpload({
       const { error: insErr } = await (supa as any).from("airfnb_truck_documents").insert({
         truck_id: truckId,
         kind,
-        url: publicUrl,
+        url: path,                       // object key, not a URL
         expires_at: expires || null,
       });
       if (insErr) throw new Error(insErr.message);
 
-      setUrl(publicUrl);
-      onChange?.(publicUrl);
+      // local preview uses the signed URL (it's owner viewing right after upload)
+      setUrl(signed?.signedUrl ?? null);
+      onChange?.(signed?.signedUrl ?? null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {

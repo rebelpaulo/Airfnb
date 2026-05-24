@@ -168,11 +168,19 @@ function mimeToExt(mime: string): string {
 }
 
 async function compressTo(file: File, maxMb: number): Promise<Blob> {
+  const cap = maxMb * 1024 * 1024;
   let blob = await reencode(file, 1600, 0.85);
-  if (blob.size <= maxMb * 1024 * 1024) return blob;
+  if (blob.size <= cap) return blob;
   blob = await reencode(file, 1200, 0.78);
-  if (blob.size <= maxMb * 1024 * 1024) return blob;
-  return reencode(file, 900, 0.7);
+  if (blob.size <= cap) return blob;
+  blob = await reencode(file, 900, 0.7);
+  // After the most aggressive pass we still surface the cap rather than
+  // silently uploading an oversize image — RLS/storage limits would fail later
+  // anyway, but the owner deserves an immediate, actionable error.
+  if (blob.size > cap) {
+    throw new Error(`Imagem demasiado grande mesmo após compressão (${(blob.size / 1024 / 1024).toFixed(1)}MB > ${maxMb}MB). Reduz a resolução antes de carregar.`);
+  }
+  return blob;
 }
 
 function reencode(file: File, maxDim: number, quality: number): Promise<Blob> {
