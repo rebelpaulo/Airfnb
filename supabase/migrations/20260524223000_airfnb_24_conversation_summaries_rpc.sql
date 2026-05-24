@@ -27,28 +27,26 @@ as $$
   )
   select
     mp.conversation_id,
-    (select m.body
-       from public.airfnb_messages m
-      where m.conversation_id = mp.conversation_id
-      order by m.created_at desc
-      limit 1) as last_message_body,
-    (select m.created_at
-       from public.airfnb_messages m
-      where m.conversation_id = mp.conversation_id
-      order by m.created_at desc
-      limit 1) as last_message_at,
-    (select m.sender_id
-       from public.airfnb_messages m
-      where m.conversation_id = mp.conversation_id
-      order by m.created_at desc
-      limit 1) as last_message_sender,
+    last_msg.body       as last_message_body,
+    last_msg.created_at as last_message_at,
+    last_msg.sender_id  as last_message_sender,
     (select count(*)::int
        from public.airfnb_messages m
       where m.conversation_id = mp.conversation_id
         and m.sender_id is distinct from auth.uid()
         and (mp.last_read_at is null or m.created_at > mp.last_read_at)
     ) as unread_count
-  from my_parts mp;
+  from my_parts mp
+  -- LATERAL pulls the last message as ONE row, so body/sender/created_at
+  -- are guaranteed to come from the same record. Three separate subqueries
+  -- could return mismatched fields on created_at ties.
+  left join lateral (
+    select m.body, m.created_at, m.sender_id
+      from public.airfnb_messages m
+     where m.conversation_id = mp.conversation_id
+     order by m.created_at desc, m.id desc
+     limit 1
+  ) last_msg on true;
 $$;
 
 revoke execute on function public.airfnb_conversation_summaries() from public, anon;
