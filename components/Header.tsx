@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { Logo } from "@/components/Logo";
 
 type Props = {
   user: {
@@ -50,7 +51,7 @@ export function Header({ user }: Props) {
     <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
       <div className="brand">
         <Link className="logo" href="/" aria-label="Air F&amp;B">
-          <img src="/logo-airfb-white.png" alt="Air F&amp;B" style={{ height: 36, width: "auto", display: "block" }} />
+          <Logo variant="white" height={36} />
         </Link>
       </div>
       <ul className="main-nav">
