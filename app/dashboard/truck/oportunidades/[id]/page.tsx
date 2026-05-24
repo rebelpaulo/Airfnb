@@ -103,16 +103,18 @@ export default async function OportunidadeDetailPage({
     // Re-check request eligibility deterministically. Without this we'd let
     // the user submit, see the row blocked by RLS, and get a cryptic error
     // instead of a clear "this brief closed / deadline passed" message.
-    const nowIso = new Date().toISOString();
+    // PostgREST serialises timestamptz with an explicit offset, so string
+    // comparison against an ISO "Z" string is fragile — parse to ms.
+    const nowMs = Date.now();
     const { data: req } = await (supa as any)
       .from("airfnb_event_requests")
       .select("id, status, start_at, applications_deadline")
       .eq("id", id)
       .maybeSingle();
     if (!req) throw new Error("Pedido não encontrado.");
-    if (req.status !== "open")               throw new Error("Este pedido já não está aberto a candidaturas.");
-    if (req.start_at < nowIso)               throw new Error("O evento já decorreu.");
-    if (req.applications_deadline && req.applications_deadline < nowIso) {
+    if (req.status !== "open")                            throw new Error("Este pedido já não está aberto a candidaturas.");
+    if (Date.parse(req.start_at) < nowMs)                 throw new Error("O evento já decorreu.");
+    if (req.applications_deadline && Date.parse(req.applications_deadline) < nowMs) {
       throw new Error("Prazo de candidatura expirado.");
     }
 

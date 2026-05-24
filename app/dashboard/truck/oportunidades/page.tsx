@@ -44,12 +44,17 @@ export default async function OportunidadesPage() {
   const truckIdsArr = myTrucks.map((t: any) => t.id);
   const truckNameById = new Map<string, string>(myTrucks.map((t: any) => [t.id, t.name]));
   const reqIdsArr = reqs.map((r: any) => r.id);
-  const { data: scoreRows } = reqIdsArr.length
+  const { data: scoreRows, error: scoreErr } = reqIdsArr.length
     ? await (supa as any).rpc("airfnb_match_scores_batch", {
         p_truck_ids:   truckIdsArr,
         p_request_ids: reqIdsArr,
       })
-    : { data: [] as any[] };
+    : { data: [] as any[], error: null };
+  // Surface RPC failures explicitly — silently treating an error as "no
+  // matches" would mislead the owner into thinking there's no work for them.
+  if (scoreErr) {
+    throw new Error(`Não foi possível calcular os matches agora: ${scoreErr.message}`);
+  }
 
   // Best-truck-per-request dedup (keep highest score)
   const best = new Map<string, { match_score: number; truck_name: string; truck_id: string }>();
