@@ -31,7 +31,18 @@ export default function SignupPage() {
 
     // upgrade profile role (trigger created it with default 'organizer')
     if (data.user && role === "owner") {
-      await (supa as any).from("airfnb_profiles").update({ role: "owner", full_name: name }).eq("id", data.user.id);
+      const { error: profileErr } = await (supa as any)
+        .from("airfnb_profiles")
+        .update({ role: "owner", full_name: name })
+        .eq("id", data.user.id);
+      if (profileErr) {
+        setBusy(false);
+        setErr(
+          "Conta criada, mas não conseguimos definir o teu papel como Truck. " +
+          "Faz login e tenta de novo a partir do dashboard."
+        );
+        return;
+      }
     }
     setBusy(false);
     router.push(next);

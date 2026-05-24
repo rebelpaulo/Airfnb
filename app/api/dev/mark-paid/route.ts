@@ -1,19 +1,33 @@
 // DEV-ONLY helper: simulate a Stripe payment so you can test the full flow
-// without configuring Stripe. Hard-gated by environment.
+// without configuring Stripe. Hard-gated by environment + secret header.
 import { NextResponse } from "next/server";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-// Available only outside production OR with explicit opt-in. In any other case
-// the route returns 404 so it is indistinguishable from "not deployed".
-function isAllowed() {
+/**
+ * Gating policy:
+ *   - In non-production: always available (developer convenience).
+ *   - In production: requires ALL of:
+ *       1. ENABLE_DEV_PAY=1
+ *       2. DEV_PAY_TOKEN env set (non-empty)
+ *       3. Request carries header `x-dev-pay-token` matching DEV_PAY_TOKEN
+ *   Any other case returns 404 (indistinguishable from "route not deployed").
+ *
+ * Even with the env vars set, a leaked token is the only thing an attacker can
+ * use — and the response is still constrained to the truck owner's own pending
+ * lock fees (verified below). Real payments should always use Stripe.
+ */
+function isAllowed(req: Request): boolean {
   if (process.env.NODE_ENV !== "production") return true;
-  return process.env.ENABLE_DEV_PAY === "1";
+  if (process.env.ENABLE_DEV_PAY !== "1") return false;
+  const expected = process.env.DEV_PAY_TOKEN;
+  if (!expected) return false;
+  return req.headers.get("x-dev-pay-token") === expected;
 }
 
 export async function POST(req: Request) {
-  if (!isAllowed()) {
+  if (!isAllowed(req)) {
     return new NextResponse(null, { status: 404 });
   }
 

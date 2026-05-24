@@ -4,8 +4,8 @@ Schema completo do Air F&B, prefixado `airfnb_` para coexistir com outras apps n
 
 ## Estrutura
 
-```
-migrations/        # 13 ficheiros SQL ordenados (timestamp_name.sql)
+```text
+migrations/        # ficheiros SQL ordenados (timestamp_name.sql)
 functions/         # edge functions: send-email, stripe-webhook
 config.toml.example
 ```

@@ -100,8 +100,11 @@ const SUPABASE_URL              = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+type AuthOk = { ok: true; kind: "service" | "user"; userId?: string };
+type AuthFail = { ok: false; status: number; msg: string };
+
 /** Validate the caller is either the service role OR a real authenticated user. */
-async function authorize(req: Request): Promise<{ ok: true } | { ok: false; status: number; msg: string }> {
+async function authorize(req: Request): Promise<AuthOk | AuthFail> {
   const authz = req.headers.get("authorization") ?? "";
   if (!authz.toLowerCase().startsWith("bearer ")) {
     return { ok: false, status: 401, msg: "missing bearer token" };
@@ -111,7 +114,7 @@ async function authorize(req: Request): Promise<{ ok: true } | { ok: false; stat
 
   // Path 1: service role — exact match against the configured key.
   if (SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY) {
-    return { ok: true };
+    return { ok: true, kind: "service" };
   }
 
   // Path 2: ask the Supabase Auth API whether this is a valid user JWT.
@@ -128,8 +131,13 @@ async function authorize(req: Request): Promise<{ ok: true } | { ok: false; stat
   if (!user?.id) {
     return { ok: false, status: 401, msg: "invalid user" };
   }
-  return { ok: true };
+  return { ok: true, kind: "user", userId: user.id };
 }
+
+// Templates that end-users (not service role) are allowed to trigger directly.
+// Service role can use any template. This keeps the function from becoming a
+// generic spam relay for anyone with a valid Supabase Auth JWT.
+const USER_ALLOWED_TEMPLATES: ReadonlyArray<TemplateKey> = ["contact_reply"];
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -144,6 +152,19 @@ Deno.serve(async (req) => {
   if (!body?.to || !body.template) return json({ error: "missing to/template" }, 400);
   if (ALLOWED.length && !ALLOWED.includes(body.template))
     return json({ error: `template not allowed: ${body.template}` }, 403);
+
+  // Narrow the user-token surface: only the service role can send arbitrary templates
+  // to arbitrary recipients. Logged-in users may only trigger a small whitelist
+  // (single recipient, predefined templates) to prevent the function being used
+  // as a spam relay.
+  if (authResult.kind === "user") {
+    if (!USER_ALLOWED_TEMPLATES.includes(body.template)) {
+      return json({ error: "template not allowed for user token" }, 403);
+    }
+    if (Array.isArray(body.to)) {
+      return json({ error: "user token must specify a single recipient" }, 403);
+    }
+  }
 
   const tpl = TEMPLATES[body.template];
   if (!tpl) return json({ error: `unknown template: ${body.template}` }, 400);

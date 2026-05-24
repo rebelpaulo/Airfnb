@@ -38,7 +38,14 @@ export default async function NovoTruckPage() {
     const catIds = formData.getAll("category_id").map((v) => Number(v));
 
     // ensure profile is upgraded to owner
-    await (supa as any).from("airfnb_profiles").update({ role: "owner" }).eq("id", user.id);
+    const { error: roleErr } = await (supa as any)
+      .from("airfnb_profiles")
+      .update({ role: "owner" })
+      .eq("id", user.id);
+    if (roleErr) {
+      // log but don't block — owning a truck row is itself authoritative for owner-side flows
+      console.warn("airfnb_profiles.role upgrade failed:", roleErr.message);
+    }
 
     const { data: row, error } = await (supa as any)
       .from("airfnb_trucks")

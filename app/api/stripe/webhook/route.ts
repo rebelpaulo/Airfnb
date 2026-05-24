@@ -43,7 +43,8 @@ export async function POST(req: Request) {
         .eq("application_id", applicationId);
       if (upLockFee.error) throw new Error(`lock_fee update: ${upLockFee.error.message}`);
 
-      const insPayment = await (admin as any).from("airfnb_payments").insert({
+      // upsert is idempotent on webhook retries (unique index on provider_ref, see migration 14)
+      const insPayment = await (admin as any).from("airfnb_payments").upsert({
         booking_id: null,
         amount: (s.amount_total ?? 0) / 100,
         currency: (s.currency ?? "eur").toUpperCase(),
@@ -53,8 +54,8 @@ export async function POST(req: Request) {
         status: "paid",
         provider_ref: piRef,
         paid_at: new Date().toISOString(),
-      });
-      if (insPayment.error) throw new Error(`payment insert: ${insPayment.error.message}`);
+      }, { onConflict: "provider_ref" });
+      if (insPayment.error) throw new Error(`payment upsert: ${insPayment.error.message}`);
 
       const upBooking = await (admin as any)
         .from("airfnb_bookings")
