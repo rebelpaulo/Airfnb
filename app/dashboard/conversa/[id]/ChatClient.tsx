@@ -17,13 +17,13 @@ export function ChatClient({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  const supa = supabaseBrowser();
 
+  // supabaseBrowser() reads env at call time and throws if NEXT_PUBLIC_*
+  // is missing. Building it inside useEffect / handlers avoids SSR crashes
+  // when env isn't configured at build time.
   useEffect(() => {
-    // Reset local message state whenever the conversation changes — otherwise
-    // navigating between conversations on the same client instance would leak
-    // messages from the previous one until the realtime channel catches up.
     setMessages(initialMessages);
+    const supa = supabaseBrowser();
 
     const ch = supa
       .channel(`conv:${conversationId}`)
@@ -39,8 +39,7 @@ export function ChatClient({
       // Always close the channel; ignore errors to avoid noisy console on unmount.
       supa.removeChannel(ch).catch(() => undefined);
     };
-  // supa + initialMessages are stable per mount; depending on them would
-  // cause double-subscribe.
+  // initialMessages is stable per mount; including it would cause double-subscribe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
@@ -52,6 +51,7 @@ export function ChatClient({
     setBusy(true);
     const body = text.trim();
     setText("");
+    const supa = supabaseBrowser();
     const { error } = await (supa as any).from("airfnb_messages").insert({
       conversation_id: conversationId,
       sender_id: currentUserId,
