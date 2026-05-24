@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
+import { FilterModal } from "./FilterModal";
 
 export const revalidate = 60;
 
@@ -8,7 +9,11 @@ export const revalidate = 60;
 // Normalize defensively so .trim()/.toLowerCase() don't crash at runtime.
 type Raw = string | string[] | undefined;
 type SearchParams = Promise<{
-  city?: Raw; cat?: Raw; pax?: Raw; from?: Raw; to?: Raw;
+  city?: Raw; cat?: Raw; cats?: Raw; pax?: Raw;
+  price_min?: Raw; price_max?: Raw; catering?: Raw;
+  cuisines?: Raw; dietary?: Raw;
+  setup_max?: Raw; power?: Raw; sanitation?: Raw;
+  from?: Raw; to?: Raw;
 }>;
 
 function first(v: Raw): string | undefined {
@@ -16,12 +21,40 @@ function first(v: Raw): string | undefined {
   const s = Array.isArray(v) ? v[0] : v;
   return typeof s === "string" ? s.trim() || undefined : undefined;
 }
+function csv(v: Raw): string[] | undefined {
+  const s = first(v);
+  if (!s) return undefined;
+  const parts = s.split(",").map((x) => x.trim()).filter(Boolean);
+  return parts.length ? parts : undefined;
+}
+function num(v: Raw): number | undefined {
+  const s = first(v);
+  if (!s) return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+const POWER_MAX_KW: Record<string, number> = {
+  nao_preciso: 0,
+  ate_3kw:     3,
+  "3_a_10kw":  10,
+  mais_10kw:   100,
+};
 
 export default async function CatalogoPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const city = first(sp.city);
-  const cat  = first(sp.cat);
-  const pax  = first(sp.pax);
+  const city       = first(sp.city);
+  // `cat` (legacy single) and `cats` (modal multi) both supported; merged
+  const catSingle  = first(sp.cat);
+  const cats       = csv(sp.cats) ?? (catSingle ? [catSingle] : undefined);
+  const pax        = num(sp.pax);
+  const priceMin   = num(sp.price_min);
+  const priceMax   = num(sp.price_max);
+  const cuisines   = csv(sp.cuisines);
+  const dietary    = csv(sp.dietary);
+  const setupMax   = num(sp.setup_max);
+  const power      = first(sp.power);
+  const sanitation = first(sp.sanitation);
 
   const supa = await supabaseServer();
 
@@ -32,30 +65,64 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     .order("id", { ascending: true })
     .limit(60);
 
-  if (city) q = q.ilike("base_city", `%${city}%`);
-  if (cat)  q = q.contains("category_slugs", [cat]);
-  const paxNum = pax ? Number(pax) : NaN;
-  if (Number.isFinite(paxNum) && paxNum > 0) q = q.gte("capacity", paxNum);
-
-  const { data, error } = await q;
-  if (error) {
-    // Don't crash the page — show the catalog as empty and log the failure for ops.
-    console.error("catalogo query failed", error.message);
+  if (city)             q = q.ilike("base_city", `%${city}%`);
+  if (cats?.length)     q = q.overlaps("category_slugs", cats);
+  if (pax)              q = q.gte("capacity", pax);
+  if (priceMin)         q = q.gte("base_price", priceMin);
+  if (priceMax)         q = q.lte("base_price", priceMax);
+  if (cuisines?.length) q = q.overlaps("cuisine_types", cuisines);
+  if (dietary?.length)  q = q.overlaps("dietary_options", dietary);
+  if (setupMax)         q = q.lte("setup_minutes", setupMax);
+  if (power && POWER_MAX_KW[power] != null) q = q.lte("power_required_kw", POWER_MAX_KW[power]);
+  if (sanitation) {
+    // A truck that needs more amenities than the event provides shouldn't show.
+    // Wizard semantics: organizer says what they offer; truck must require ≤ that.
+    const allowed = sanitation === "wc_dedicado" ? ["none","wc_proximo","wc_dedicado"]
+                  : sanitation === "wc_proximo"  ? ["none","wc_proximo"]
+                  : ["none"];
+    q = q.in("sanitation_required", allowed);
   }
-  const trucks = (data as any[]) ?? [];
+
+  const { data: trucks = [], error } = await q;
+  if (error) console.error("catalogo query failed", error.message);
+
+  const { data: categoriesData } = await (supa as any)
+    .from("airfnb_categories")
+    .select("id, slug, name_pt, icon")
+    .order("name_pt");
+  const categories = categoriesData ?? [];
 
   const activeFilters: Array<{ key: string; label: string }> = [];
-  if (city) activeFilters.push({ key: "city", label: `Cidade: ${city}` });
-  if (cat)  activeFilters.push({ key: "cat",  label: `Categoria: ${cat}` });
-  if (Number.isFinite(paxNum) && paxNum > 0) activeFilters.push({ key: "pax", label: `≥ ${paxNum} pax` });
+  if (city)             activeFilters.push({ key: "city",      label: `Cidade: ${city}` });
+  if (cats?.length)     activeFilters.push({ key: "cats",      label: `Especialidades: ${cats.join(", ")}` });
+  if (pax)              activeFilters.push({ key: "pax",       label: `≥ ${pax} pax` });
+  if (priceMin)         activeFilters.push({ key: "price_min", label: `Min € ${priceMin}` });
+  if (priceMax)         activeFilters.push({ key: "price_max", label: `Max € ${priceMax}` });
+  if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `Cozinhas: ${cuisines.join(", ")}` });
+  if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `Dietas: ${dietary.join(", ")}` });
+  if (setupMax)         activeFilters.push({ key: "setup_max", label: `Montagem ≤ ${setupMax}min` });
+  if (power)            activeFilters.push({ key: "power",     label: `Energia: ${power}` });
+  if (sanitation)       activeFilters.push({ key: "sanitation",label: `WC: ${sanitation}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>
       <nav className="breadcrumb">
-        <Link href="/">Início</Link> &nbsp;/&nbsp; <span>Catálogo</span>
+        <Link href="/">Página Inicial</Link> &nbsp;/&nbsp; <span>Catálogo</span>
       </nav>
-      <h1 className="section-title">Catálogo de Food Trucks</h1>
-      <p style={{ color: "var(--muted)", marginTop: -10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
+        <h1 className="section-title" style={{ margin: 0 }}>Catálogo de Food Trucks</h1>
+        <FilterModal
+          initial={{
+            city, pax,
+            priceMin, priceMax,
+            cateringType: first(sp.catering),
+            cuisines, specialties: cats, dietary,
+            setupMax, power, sanitation,
+          }}
+          categories={categories}
+        />
+      </div>
+      <p style={{ color: "var(--muted)", marginTop: 6 }}>
         Inspira-te ou convida directamente para o teu evento.
       </p>
 
