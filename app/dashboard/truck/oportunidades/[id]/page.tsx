@@ -113,8 +113,11 @@ export default async function OportunidadeDetailPage({
       .maybeSingle();
     if (!req) throw new Error("Pedido não encontrado.");
     if (req.status !== "open")                            throw new Error("Este pedido já não está aberto a candidaturas.");
-    if (Date.parse(req.start_at) < nowMs)                 throw new Error("O evento já decorreu.");
-    if (req.applications_deadline && Date.parse(req.applications_deadline) < nowMs) {
+    if (Date.parse(req.start_at) <= nowMs)                throw new Error("O evento já decorreu.");
+    // Use <= to match the RLS policy boundary (which allows applications_deadline > now()).
+    // Otherwise we'd let the request through at the exact boundary and then surface
+    // an RLS-rejected cryptic error instead of our friendly message.
+    if (req.applications_deadline && Date.parse(req.applications_deadline) <= nowMs) {
       throw new Error("Prazo de candidatura expirado.");
     }
 
