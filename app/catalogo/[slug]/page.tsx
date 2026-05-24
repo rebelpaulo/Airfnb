@@ -1,8 +1,47 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
 import { truckCover, TRUCK_PLACEHOLDER } from "@/lib/img";
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> },
+): Promise<Metadata> {
+  const { slug } = await params;
+  const supa = await supabaseServer();
+  const { data: t } = await (supa as any)
+    .from("airfnb_v_truck_card")
+    .select("name, tagline, base_city, cover_url, rating_avg, rating_count")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!t) return { title: "Truck não encontrado" };
+
+  const title = `${t.name}${t.base_city ? ` · ${t.base_city}` : ""}`;
+  const description =
+    (t.tagline as string | null) ??
+    `${t.name}, food truck${t.base_city ? ` em ${t.base_city}` : ""} disponível para o teu evento.`;
+  const cover = truckCover(t.cover_url);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/catalogo/${slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `/catalogo/${slug}`,
+      type: "website",
+      images: cover ? [{ url: cover, width: 1200, height: 630, alt: t.name }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: cover ? [cover] : undefined,
+    },
+  };
+}
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -47,8 +86,51 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     });
   }
 
+  // Schema.org Restaurant for richer Google SERP cards + aggregateRating
+  // when we have ratings, breadcrumbs for the catalogo→truck path.
+  const coverForLd = images.find((i: any) => i.is_cover)?.url ?? images[0]?.url;
+  const restaurantLd = {
+    "@context":   "https://schema.org",
+    "@type":      "Restaurant",
+    name:         truck.name,
+    description:  truck.description ?? truck.tagline ?? undefined,
+    url:          `/catalogo/${truck.slug}`,
+    image:        coverForLd ? truckCover(coverForLd) : undefined,
+    address:      truck.base_city ? { "@type": "PostalAddress", addressLocality: truck.base_city, addressCountry: "PT" } : undefined,
+    servesCuisine: cats.length ? cats : undefined,
+    priceRange:   truck.base_price ? `€${truck.base_price}+` : undefined,
+    aggregateRating: Number(truck.rating_count) > 0
+      ? {
+          "@type":     "AggregateRating",
+          ratingValue: Number(truck.rating_avg).toFixed(1),
+          reviewCount: Number(truck.rating_count),
+          bestRating:  5,
+          worstRating: 1,
+        }
+      : undefined,
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type":    "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Página inicial", item: "/" },
+      { "@type": "ListItem", position: 2, name: "Catálogo",       item: "/catalogo" },
+      { "@type": "ListItem", position: 3, name: truck.name,        item: `/catalogo/${truck.slug}` },
+    ],
+  };
+
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 1100 }}>
+      <script
+        type="application/ld+json"
+        // JSON.stringify drops `undefined` fields and the truck data is server-rendered,
+        // so the payload is safe to inject without sanitization.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <nav className="breadcrumb">
         <Link href="/catalogo">Catálogo</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
       </nav>

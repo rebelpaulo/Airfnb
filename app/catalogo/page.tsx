@@ -1,7 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
 import { FilterModal } from "./FilterModal";
+
+export const metadata: Metadata = {
+  title: "Catálogo de Food Trucks",
+  description: "Explora food trucks certificados em Portugal. Filtra por localização, capacidade, cozinha e dietas.",
+  alternates: { canonical: "/catalogo" },
+};
 
 export const revalidate = 60;
 
