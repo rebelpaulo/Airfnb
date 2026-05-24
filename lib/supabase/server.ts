@@ -1,6 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { AirfnbDatabase } from "@/types/database";
+
+type SupaCookie = { name: string; value: string; options?: CookieOptions };
 
 export async function supabaseServer() {
   const store = await cookies();
@@ -10,11 +13,11 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (xs) => {
+        setAll: (xs: SupaCookie[]) => {
           try {
             xs.forEach(({ name, value, options }) => store.set(name, value, options));
           } catch {
-            /* called from server component during render — ignore */
+            /* called from a server component during render — ignore */
           }
         },
       },
@@ -22,9 +25,8 @@ export async function supabaseServer() {
   );
 }
 
+/** Service-role client. Use ONLY in trusted server actions or route handlers. */
 export function supabaseAdmin() {
-  // service-role client. Use only in trusted server actions/route handlers.
-  const { createClient } = require("@supabase/supabase-js");
   return createClient<AirfnbDatabase>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

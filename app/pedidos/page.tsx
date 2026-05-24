@@ -10,7 +10,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Sear
   const sp = await searchParams;
   const supa = await supabaseServer();
 
-  let q = supa
+  let q = (supa as any)
     .from("airfnb_event_requests")
     .select("id, title, kind, city, start_at, expected_pax, budget_min, budget_max, slots_needed")
     .eq("status", "open")
@@ -57,7 +57,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Sear
         </div>
       ) : (
         <div className="request-grid">
-          {requests.map((r) => (
+          {requests.map((r: any) => (
             <Link key={r.id} href={`/pedidos/${r.id}`} className="request-card">
               <h3>{r.title}</h3>
               <div className="row">

@@ -96,15 +96,49 @@ const TEMPLATES: Record<TemplateKey, (d: Record<string, unknown>) => { subject: 
   }),
 };
 
+const SUPABASE_URL              = Deno.env.get("SUPABASE_URL");
+const SUPABASE_ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+/** Validate the caller is either the service role OR a real authenticated user. */
+async function authorize(req: Request): Promise<{ ok: true } | { ok: false; status: number; msg: string }> {
+  const authz = req.headers.get("authorization") ?? "";
+  if (!authz.toLowerCase().startsWith("bearer ")) {
+    return { ok: false, status: 401, msg: "missing bearer token" };
+  }
+  const token = authz.slice(7).trim();
+  if (!token) return { ok: false, status: 401, msg: "empty bearer token" };
+
+  // Path 1: service role — exact match against the configured key.
+  if (SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: true };
+  }
+
+  // Path 2: ask the Supabase Auth API whether this is a valid user JWT.
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { ok: false, status: 500, msg: "auth not configured" };
+  }
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    return { ok: false, status: 401, msg: "invalid jwt" };
+  }
+  const user = await res.json().catch(() => null);
+  if (!user?.id) {
+    return { ok: false, status: 401, msg: "invalid user" };
+  }
+  return { ok: true };
+}
+
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
   if (pre) return pre;
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   if (!RESEND_API_KEY)       return json({ error: "RESEND_API_KEY not configured" }, 500);
 
-  // require an authenticated caller (service role or a logged-in user)
-  const authz = req.headers.get("authorization");
-  if (!authz) return json({ error: "missing authorization" }, 401);
+  const authResult = await authorize(req);
+  if (!authResult.ok) return json({ error: authResult.msg }, authResult.status);
 
   const body = (await req.json().catch(() => null)) as Payload | null;
   if (!body?.to || !body.template) return json({ error: "missing to/template" }, 400);

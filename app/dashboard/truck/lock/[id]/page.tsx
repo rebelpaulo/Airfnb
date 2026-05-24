@@ -9,7 +9,7 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/truck/lock/${id}`);
 
-  const { data: app } = await supa
+  const { data: app } = await (supa as any)
     .from("airfnb_applications")
     .select(`
       id, status, proposed_price, deal_type,
@@ -21,10 +21,8 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
     .maybeSingle();
 
   if (!app) notFound();
-  // @ts-expect-error nested
   if (app.airfnb_trucks?.owner_id !== user.id) redirect("/dashboard/truck");
 
-  // @ts-expect-error nested
   const lockFee = Array.isArray(app.airfnb_lock_fees) ? app.airfnb_lock_fees[0] : app.airfnb_lock_fees;
   if (!lockFee) notFound();
   if (lockFee.status === "paid") {
@@ -68,15 +66,16 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
     redirect(`/dashboard/truck?paid=${id}`);
   }
 
-  const showDev = !process.env.STRIPE_SECRET_KEY;
+  // dev-pay button only outside production, OR explicit opt-in.
+  const showDev =
+    !process.env.STRIPE_SECRET_KEY &&
+    (process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_PAY === "1");
 
   return (
     <div className="dash">
       <h1>Lock-fee para confirmar</h1>
       <div className="stat-strip">
-        {/* @ts-expect-error nested */}
         <div className="stat"><div className="label">Evento</div><div className="value" style={{ fontSize: 18 }}>{app.airfnb_event_requests?.title}</div></div>
-        {/* @ts-expect-error nested */}
         <div className="stat"><div className="label">Cidade</div><div className="value" style={{ fontSize: 22 }}>{app.airfnb_event_requests?.city}</div></div>
         <div className="stat"><div className="label">Total a pagar</div><div className="value">{money(lockFee.amount)}</div></div>
         <div className="stat"><div className="label">Prazo</div><div className="value" style={{ fontSize: 18 }}>

@@ -1,0 +1,243 @@
+-- airfnb_12_deal_types_discovery_modes_split_lockfee
+-- applied at 20260524140010
+
+
+-- =========================================================================
+-- 1. New enums
+-- =========================================================================
+create type public.airfnb_deal_type     as enum ('fixed','percent','mixed');
+create type public.airfnb_discovery_mode as enum ('curated','broadcast','auto_match');
+
+-- =========================================================================
+-- 2. Extend applications with the truck's deal proposal
+-- =========================================================================
+alter table public.airfnb_applications
+  add column deal_type                  airfnb_deal_type default 'fixed',
+  add column proposed_fixed_to_organizer numeric(10,2)  default 0  check (proposed_fixed_to_organizer >= 0),
+  add column proposed_revenue_share_pct  numeric(5,2)   default 0  check (proposed_revenue_share_pct between 0 and 100);
+
+-- consistency: if deal_type=fixed the % must be 0; if percent the fixed must be 0
+alter table public.airfnb_applications
+  add constraint airfnb_app_deal_consistency check (
+    case deal_type
+      when 'fixed'   then proposed_revenue_share_pct = 0
+      when 'percent' then proposed_fixed_to_organizer = 0
+      when 'mixed'   then proposed_fixed_to_organizer > 0 and proposed_revenue_share_pct > 0
+    end
+  );
+
+-- =========================================================================
+-- 3. Extend event_requests with discovery + accepted deals + slot breakdown
+-- =========================================================================
+alter table public.airfnb_event_requests
+  add column discovery_mode                    airfnb_discovery_mode default 'broadcast',
+  add column accepted_deal_types               text[]  default array['fixed','percent','mixed'],
+  add column min_fixed_fee                     numeric(10,2),
+  add column min_revenue_share_pct             numeric(5,2),
+  add column recommended_slots                 int,
+  add column slot_breakdown                    jsonb,
+  add column application_response_window_hours int default 48;
+
+-- =========================================================================
+-- 4. Lock fee split (platform €25 + organizer share €25 = €50 total)
+-- =========================================================================
+alter table public.airfnb_lock_fees
+  add column platform_fee     numeric(10,2) default 25 check (platform_fee >= 0),
+  add column organizer_share  numeric(10,2) default 25 check (organizer_share >= 0);
+
+-- keep amount as the sum (will be set by accept_application / triggers)
+-- backfill existing rows (defensive — should be zero in fresh DB)
+update public.airfnb_lock_fees set platform_fee = 25, organizer_share = 25 where platform_fee is null;
+
+-- =========================================================================
+-- 5. Recommended slot calculator (per event kind)
+-- =========================================================================
+create or replace function public.airfnb_recommend_slots(p_kind airfnb_event_kind, p_pax int)
+returns int language sql immutable set search_path = public as $$
+  select greatest(1, ceil(p_pax::numeric / case p_kind
+    when 'wedding'    then 120
+    when 'corporate'  then 150
+    when 'festival'   then 200
+    when 'conference' then 100
+    when 'birthday'   then 130
+    when 'private'    then 130
+    else 150
+  end))::int;
+$$;
+
+-- auto-set recommended_slots on event_requests insert if not provided
+create or replace function public.airfnb_set_recommended_slots() returns trigger
+  language plpgsql security invoker set search_path = public as $$
+begin
+  if new.recommended_slots is null and new.kind is not null and new.expected_pax is not null then
+    new.recommended_slots := public.airfnb_recommend_slots(new.kind, new.expected_pax);
+  end if;
+  -- also default slots_needed to recommended if creator did not set it explicitly
+  if new.slots_needed = 1 and new.recommended_slots is not null and new.recommended_slots > 1 then
+    new.slots_needed := new.recommended_slots;
+  end if;
+  return new;
+end $$;
+create trigger airfnb_trg_req_recommend
+  before insert on public.airfnb_event_requests
+  for each row execute function public.airfnb_set_recommended_slots();
+
+-- =========================================================================
+-- 6. Lock-fee calculator returns the breakdown as jsonb
+-- =========================================================================
+drop function if exists public.airfnb_calculate_lock_fee(uuid);
+
+create or replace function public.airfnb_calculate_lock_fee(p_application uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare
+  v_platform_fee     numeric := 25;
+  v_organizer_share  numeric := 25;
+begin
+  -- placeholder for future logic: tier-based pricing, promotions, etc.
+  -- always returns the deterministic split for now.
+  perform 1 from public.airfnb_applications where id = p_application;
+  return jsonb_build_object(
+    'platform_fee',    v_platform_fee,
+    'organizer_share', v_organizer_share,
+    'total',           v_platform_fee + v_organizer_share
+  );
+end $$;
+revoke execute on function public.airfnb_calculate_lock_fee(uuid) from public, anon, authenticated;
+grant  execute on function public.airfnb_calculate_lock_fee(uuid) to service_role;
+
+-- =========================================================================
+-- 7. Rewrite accept_application to use the split + persist deal terms
+-- =========================================================================
+create or replace function public.airfnb_accept_application(p_application uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  app           public.airfnb_applications%rowtype;
+  req           public.airfnb_event_requests%rowtype;
+  v_booking     uuid;
+  v_lockfee_id  uuid;
+  v_conv_id     uuid;
+  v_fee_split   jsonb;
+  v_total       numeric;
+  v_platform    numeric;
+  v_organizer   numeric;
+  v_awarded     int;
+begin
+  select * into app from public.airfnb_applications where id = p_application for update;
+  if app is null then raise exception 'application not found'; end if;
+  if app.status not in ('submitted','shortlisted') then
+    raise exception 'application cannot be accepted (status=%)', app.status;
+  end if;
+
+  select * into req from public.airfnb_event_requests where id = app.request_id for update;
+  if req is null then raise exception 'request not found'; end if;
+
+  if auth.uid() is null or (auth.uid() <> req.organizer_id and not public.airfnb_is_admin()) then
+    raise exception 'not authorized';
+  end if;
+  if req.status not in ('open','reviewing') then
+    raise exception 'request is not accepting applications (status=%)', req.status;
+  end if;
+
+  v_fee_split := public.airfnb_calculate_lock_fee(p_application);
+  v_total     := (v_fee_split->>'total')::numeric;
+  v_platform  := (v_fee_split->>'platform_fee')::numeric;
+  v_organizer := (v_fee_split->>'organizer_share')::numeric;
+
+  update public.airfnb_applications
+     set status = 'accepted', decided_at = now()
+   where id = p_application;
+
+  insert into public.airfnb_bookings (
+    event_id, organizer_id, status, starts_at, ends_at,
+    pax_count, total_amount, currency, notes, application_id
+  ) values (
+    null, req.organizer_id, 'pending_lock_fee', req.start_at, req.end_at,
+    req.expected_pax, app.proposed_price, 'EUR', req.notes, app.id
+  ) returning id into v_booking;
+
+  insert into public.airfnb_booking_trucks (booking_id, truck_id, agreed_price)
+  values (v_booking, app.truck_id, app.proposed_price);
+
+  insert into public.airfnb_lock_fees (
+    application_id, amount, platform_fee, organizer_share,
+    due_until, status, currency
+  ) values (
+    app.id, v_total, v_platform, v_organizer,
+    now() + (req.application_response_window_hours || ' hours')::interval, 'pending', 'EUR'
+  ) returning id into v_lockfee_id;
+
+  insert into public.airfnb_conversations (booking_id, application_id)
+  values (v_booking, app.id) returning id into v_conv_id;
+
+  insert into public.airfnb_conversation_participants (conversation_id, user_id)
+  values (v_conv_id, req.organizer_id);
+
+  insert into public.airfnb_conversation_participants (conversation_id, user_id)
+  select v_conv_id, t.owner_id from public.airfnb_trucks t where t.id = app.truck_id;
+
+  insert into public.airfnb_notifications (user_id, kind, payload)
+    select t.owner_id, 'application.accepted',
+           jsonb_build_object(
+             'application_id', app.id,
+             'request_id',     req.id,
+             'lock_fee_id',    v_lockfee_id,
+             'total',          v_total,
+             'platform_fee',   v_platform,
+             'organizer_share',v_organizer,
+             'deal_type',      app.deal_type,
+             'fixed_to_organizer',  app.proposed_fixed_to_organizer,
+             'revenue_share_pct',   app.proposed_revenue_share_pct,
+             'due_until',      now() + (req.application_response_window_hours || ' hours')::interval
+           )
+      from public.airfnb_trucks t where t.id = app.truck_id;
+
+  select count(*) into v_awarded
+    from public.airfnb_applications a2
+    where a2.request_id = req.id and a2.status = 'accepted';
+  if v_awarded >= req.slots_needed then
+    update public.airfnb_event_requests
+       set status = 'awarded', awarded_at = coalesce(awarded_at, now())
+     where id = req.id;
+  end if;
+
+  return jsonb_build_object(
+    'booking_id',      v_booking,
+    'lock_fee_id',     v_lockfee_id,
+    'lock_fee',        v_fee_split,
+    'conversation_id', v_conv_id
+  );
+end $$;
+revoke execute on function public.airfnb_accept_application(uuid) from public, anon;
+grant  execute on function public.airfnb_accept_application(uuid) to authenticated;
+
+-- =========================================================================
+-- 8. Recommend trucks for a request (sugestões organizer-side)
+-- =========================================================================
+create or replace function public.airfnb_recommend_trucks_for_request(p_request uuid, p_limit int default 12)
+returns table (
+  truck_id     uuid,
+  name         text,
+  base_city    text,
+  rating_avg   numeric,
+  match_score  numeric,
+  already_invited boolean,
+  already_applied boolean
+)
+language sql stable security invoker set search_path = public as $$
+  select
+    t.id, t.name, t.base_city, t.rating_avg,
+    public.airfnb_match_score(t.id, p_request) as match_score,
+    exists (
+      select 1 from public.airfnb_request_invitations ri
+      where ri.request_id = p_request and ri.truck_id = t.id
+    ) as already_invited,
+    exists (
+      select 1 from public.airfnb_applications a
+      where a.request_id = p_request and a.truck_id = t.id
+    ) as already_applied
+    from public.airfnb_trucks t
+   where t.status = 'active'
+   order by match_score desc, t.rating_avg desc
+   limit greatest(1, p_limit);
+$$;
+;

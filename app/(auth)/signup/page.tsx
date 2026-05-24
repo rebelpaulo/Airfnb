@@ -31,7 +31,7 @@ export default function SignupPage() {
 
     // upgrade profile role (trigger created it with default 'organizer')
     if (data.user && role === "owner") {
-      await supa.from("airfnb_profiles").update({ role: "owner", full_name: name }).eq("id", data.user.id);
+      await (supa as any).from("airfnb_profiles").update({ role: "owner", full_name: name }).eq("id", data.user.id);
     }
     setBusy(false);
     router.push(next);

@@ -7,7 +7,7 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const supa = await supabaseServer();
-  const { data: openRequestsData } = await supa
+  const { data: openRequestsData } = await (supa as any)
     .from("airfnb_event_requests")
     .select("id, title, city, start_at, expected_pax, budget_min, budget_max, kind")
     .eq("status", "open")
@@ -15,7 +15,7 @@ export default async function HomePage() {
     .limit(6);
   const openRequests = openRequestsData ?? [];
 
-  const { data: featuredTrucksData } = await supa
+  const { data: featuredTrucksData } = await (supa as any)
     .from("airfnb_v_truck_card")
     .select("*")
     .eq("featured", true)
@@ -77,7 +77,7 @@ export default async function HomePage() {
           <div className="container">
             <h2 className="section-title">Pedidos abertos agora</h2>
             <div className="truck-grid cols-4">
-              {openRequests.map((r) => (
+              {openRequests.map((r: any) => (
                 <Link key={r.id} href={`/pedidos/${r.id}`} className="truck-card">
                   <div className="thumb" style={{ background: "linear-gradient(135deg,#FFE0D2,#FF6133)", display:"flex", alignItems:"flex-end", padding:"16px", color:"#fff" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 56, opacity: .65, marginRight: "auto" }}>event</span>

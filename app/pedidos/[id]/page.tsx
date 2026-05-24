@@ -7,7 +7,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supa = await supabaseServer();
 
-  const { data: req } = await supa
+  const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
     .select("*")
     .eq("id", id)
@@ -16,7 +16,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
   if (!req) notFound();
 
   const { data: { user } } = await supa.auth.getUser();
-  const { count: applicationCount } = await supa
+  const { count: applicationCount } = await (supa as any)
     .from("airfnb_applications")
     .select("id", { count: "exact", head: true })
     .eq("request_id", id);
@@ -25,14 +25,14 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
   let myTruckId: string | null = null;
   let alreadyApplied = false;
   if (user) {
-    const { data: myTruck } = await supa
+    const { data: myTruck } = await (supa as any)
       .from("airfnb_trucks")
       .select("id")
       .eq("owner_id", user.id)
       .maybeSingle();
     if (myTruck) {
       myTruckId = myTruck.id;
-      const { count } = await supa
+      const { count } = await (supa as any)
         .from("airfnb_applications")
         .select("id", { count: "exact", head: true })
         .eq("request_id", id)
@@ -71,7 +71,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
 
       <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 30 }}>Modalidades aceites</h2>
       <ul>
-        {req.accepted_deal_types?.map((dt) => (
+        {req.accepted_deal_types?.map((dt: string) => (
           <li key={dt}>
             {dt === "fixed" && "Truck paga fixo ao organizador"}
             {dt === "percent" && "Truck paga % da facturação"}

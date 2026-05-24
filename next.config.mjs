@@ -6,6 +6,7 @@ const config = {
       { protocol: "https", hostname: "rvcvyeodglovmptcuyiz.supabase.co" }
     ]
   },
-  experimental: { typedRoutes: true }
+  // typedRoutes disabled — re-enable once /blog, /ajuda, /privacidade pages exist
+  experimental: { typedRoutes: false }
 };
 export default config;

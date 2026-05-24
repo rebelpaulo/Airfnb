@@ -37,7 +37,7 @@ export function ChatClient({
     setBusy(true);
     const body = text.trim();
     setText("");
-    const { error } = await supa.from("airfnb_messages").insert({
+    const { error } = await (supa as any).from("airfnb_messages").insert({
       conversation_id: conversationId,
       sender_id: currentUserId,
       body,

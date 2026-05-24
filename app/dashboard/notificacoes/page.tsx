@@ -8,7 +8,7 @@ export default async function NotificacoesPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/notificacoes");
 
-  const { data: notifData } = await supa
+  const { data: notifData } = await (supa as any)
     .from("airfnb_notifications")
     .select("*")
     .eq("user_id", user.id)
@@ -20,7 +20,7 @@ export default async function NotificacoesPage() {
     "use server";
     const id = String(formData.get("id"));
     const supa = await supabaseServer();
-    await supa.from("airfnb_notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+    await (supa as any).from("airfnb_notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     revalidatePath("/dashboard/notificacoes");
   }
 

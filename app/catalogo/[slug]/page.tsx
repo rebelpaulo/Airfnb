@@ -8,7 +8,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
   const { slug } = await params;
   const supa = await supabaseServer();
 
-  const { data: truck } = await supa
+  const { data: truck } = await (supa as any)
     .from("airfnb_trucks")
     .select(`
       *,
@@ -20,17 +20,14 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     .maybeSingle();
   if (!truck) notFound();
 
-  // @ts-expect-error nested
   const images = (truck.airfnb_truck_images ?? []).sort((a:any,b:any)=> (b.is_cover?1:0)-(a.is_cover?1:0) || a.sort_order-b.sort_order);
-  // @ts-expect-error nested
   const menu = (truck.airfnb_menu_items ?? []);
-  // @ts-expect-error nested
   const cats = (truck.airfnb_truck_categories ?? []).map((tc:any)=> tc.airfnb_categories?.name_pt).filter(Boolean);
 
   const { data: { user } } = await supa.auth.getUser();
   let myOpenRequests: { id: string; title: string }[] = [];
   if (user) {
-    const { data: openReqs } = await supa
+    const { data: openReqs } = await (supa as any)
       .from("airfnb_event_requests")
       .select("id, title")
       .eq("organizer_id", user.id)
@@ -43,7 +40,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     "use server";
     const reqId = String(formData.get("request_id"));
     const supa = await supabaseServer();
-    await supa.from("airfnb_request_invitations").insert({
+    await (supa as any).from("airfnb_request_invitations").insert({
       request_id: reqId,
       truck_id: truck!.id,
       invited_by: (await supa.auth.getUser()).data.user!.id,

@@ -8,14 +8,14 @@ export default async function MinhasCandidaturasPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/aplicacoes");
 
-  const { data: myTruck } = await supa
+  const { data: myTruck } = await (supa as any)
     .from("airfnb_trucks")
     .select("id, name")
     .eq("owner_id", user.id)
     .maybeSingle();
   if (!myTruck) redirect("/dashboard/truck/novo");
 
-  const { data: appsData } = await supa
+  const { data: appsData } = await (supa as any)
     .from("airfnb_applications")
     .select(`id, status, proposed_price, created_at,
              airfnb_event_requests ( id, title, start_at, city, status )`)

@@ -8,7 +8,7 @@ export default async function TruckPerfilPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/perfil");
 
-  const { data: truck } = await supa
+  const { data: truck } = await (supa as any)
     .from("airfnb_trucks")
     .select("*")
     .eq("owner_id", user.id)
@@ -28,7 +28,7 @@ export default async function TruckPerfilPage() {
       price_per_pax: Number(formData.get("price_per_pax") ?? 0) || null,
       service_radius_km: Number(formData.get("service_radius_km") ?? 50) || 50,
     };
-    await supa.from("airfnb_trucks").update(patch).eq("id", truck!.id);
+    await (supa as any).from("airfnb_trucks").update(patch).eq("id", truck!.id);
     revalidatePath("/dashboard/truck/perfil");
   }
 

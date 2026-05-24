@@ -75,7 +75,7 @@ async function onSessionCompleted(ev: Stripe.Event) {
   const bookingId = s.client_reference_id ?? s.metadata?.booking_id;
   if (!bookingId) return;
 
-  await supa.from("airfnb_payments").insert({
+  await mustSucceed("payments.insert", supa.from("airfnb_payments").insert({
     booking_id: bookingId,
     amount: (s.amount_total ?? 0) / 100,
     currency: (s.currency ?? "eur").toUpperCase(),
@@ -83,12 +83,12 @@ async function onSessionCompleted(ev: Stripe.Event) {
     status: "paid",
     provider_ref: typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id,
     paid_at: new Date().toISOString(),
-  });
+  }));
 
-  await supa.from("airfnb_bookings")
+  await mustSucceed("bookings.update", supa.from("airfnb_bookings")
     .update({ status: "paid" })
     .eq("id", bookingId)
-    .in("status", ["confirmed", "accepted", "proposal_sent", "inquiry"]);
+    .in("status", ["confirmed", "accepted", "proposal_sent", "inquiry"]));
 
   await enqueueEmail("payment_received", { booking_id: bookingId, amount: (s.amount_total ?? 0) / 100 });
   await log("stripe.session_completed", { booking_id: bookingId });
@@ -98,31 +98,41 @@ async function onPaymentSucceeded(ev: Stripe.Event) {
   const pi = ev.data.object as Stripe.PaymentIntent;
   const bookingId = pi.metadata?.booking_id;
   if (!bookingId) return;
-  await supa.from("airfnb_payments")
+  await mustSucceed("payments.update", supa.from("airfnb_payments")
     .update({ status: "paid", paid_at: new Date().toISOString() })
-    .eq("provider_ref", pi.id);
+    .eq("provider_ref", pi.id));
   await log("stripe.payment_succeeded", { booking_id: bookingId, pi: pi.id });
 }
 
 async function onPaymentFailed(ev: Stripe.Event) {
   const pi = ev.data.object as Stripe.PaymentIntent;
-  await supa.from("airfnb_payments")
+  await mustSucceed("payments.update_failed", supa.from("airfnb_payments")
     .update({ status: "failed" })
-    .eq("provider_ref", pi.id);
+    .eq("provider_ref", pi.id));
   await log("stripe.payment_failed", { pi: pi.id, last_error: pi.last_payment_error?.message });
 }
 
 async function onRefunded(ev: Stripe.Event) {
   const ch = ev.data.object as Stripe.Charge;
   const bookingId = ch.metadata?.booking_id;
-  await supa.from("airfnb_payments")
+  await mustSucceed("payments.update_refunded", supa.from("airfnb_payments")
     .update({ status: "refunded" })
-    .eq("provider_ref", ch.payment_intent as string);
+    .eq("provider_ref", ch.payment_intent as string));
   if (bookingId) {
-    await supa.from("airfnb_bookings").update({ status: "refunded" }).eq("id", bookingId);
+    await mustSucceed("bookings.update_refunded", supa.from("airfnb_bookings")
+      .update({ status: "refunded" }).eq("id", bookingId));
     await enqueueEmail("booking_cancelled", { booking_id: bookingId, refund: (ch.amount_refunded ?? 0) / 100 });
   }
   await log("stripe.refunded", { charge: ch.id });
+}
+
+// Force a Supabase query builder to throw if the request returns a non-null `error`.
+// supabase-js silently resolves with `{ error }` instead of throwing on most failures.
+async function mustSucceed(label: string, q: PromiseLike<{ error: unknown }>): Promise<void> {
+  const { error } = await q;
+  if (error) {
+    throw new Error(`${label}: ${typeof error === "object" && error && "message" in error ? String((error as { message: unknown }).message) : String(error)}`);
+  }
 }
 
 // ---- helpers ----------------------------------------------------------------

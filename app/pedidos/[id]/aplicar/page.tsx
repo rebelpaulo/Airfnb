@@ -9,14 +9,14 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/pedidos/${id}/aplicar`);
 
-  const { data: req } = await supa
+  const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
     .select("*")
     .eq("id", id)
     .maybeSingle();
   if (!req) notFound();
 
-  const { data: myTruck } = await supa
+  const { data: myTruck } = await (supa as any)
     .from("airfnb_trucks")
     .select("id, name")
     .eq("owner_id", user.id)
@@ -29,18 +29,31 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
 
-    const truckId = String(formData.get("truck_id"));
+    // Re-resolve the caller's own truck server-side. Never trust the form's truck_id —
+    // a hidden field is tamperable and someone could submit an application "as" another truck.
+    const { data: myTruck } = await (supa as any)
+      .from("airfnb_trucks")
+      .select("id")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    if (!myTruck) throw new Error("Sem food truck registado nesta conta.");
+
     const dealType = String(formData.get("deal_type")) as "fixed" | "percent" | "mixed";
+    if (!["fixed", "percent", "mixed"].includes(dealType)) throw new Error("Tipo de combinação inválido.");
+
     const fixedTo = Number(formData.get("fixed_to_organizer") ?? 0);
     const sharePct = Number(formData.get("revenue_share_pct") ?? 0);
     const proposedPrice = Number(formData.get("proposed_price"));
     const cover = String(formData.get("cover_message") ?? "").trim();
 
+    if (!isFinite(proposedPrice) || proposedPrice < 0) throw new Error("Preço proposto inválido.");
     if (cover.length < 50) throw new Error("A mensagem de apresentação deve ter pelo menos 50 caracteres.");
+    if (sharePct < 0 || sharePct > 100) throw new Error("Percentagem inválida (0-100).");
+    if (fixedTo < 0) throw new Error("Fixo inválido.");
 
-    const { error } = await supa.from("airfnb_applications").insert({
+    const { error } = await (supa as any).from("airfnb_applications").insert({
       request_id: id,
-      truck_id: truckId,
+      truck_id: myTruck.id,
       proposed_price: proposedPrice,
       cover_message: cover,
       deal_type: dealType,

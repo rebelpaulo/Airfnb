@@ -8,7 +8,7 @@ export default async function TruckDashboard() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck");
 
-  const { data: myTruck } = await supa
+  const { data: myTruck } = await (supa as any)
     .from("airfnb_trucks")
     .select("id, name, rating_avg, rating_count, base_city")
     .eq("owner_id", user.id)
@@ -28,14 +28,14 @@ export default async function TruckDashboard() {
   }
 
   // matching open requests via RPC
-  const { data: feedData } = await supa.rpc("airfnb_find_matching_requests" as any, {
+  const { data: feedData } = await (supa as any).rpc("airfnb_find_matching_requests" as any, {
     p_truck: myTruck.id,
     p_limit: 12,
   });
   const feed = feedData ?? [];
 
   // my applications
-  const { data: appsData } = await supa
+  const { data: appsData } = await (supa as any)
     .from("airfnb_applications")
     .select(`
       id, status, proposed_price, created_at,
@@ -54,7 +54,7 @@ export default async function TruckDashboard() {
         <div className="stat"><div className="label">Reviews</div><div className="value">{myTruck.rating_count}</div></div>
         <div className="stat"><div className="label">Cidade base</div><div className="value" style={{ fontSize: 22 }}>{myTruck.base_city ?? "—"}</div></div>
         <div className="stat"><div className="label">Candidaturas activas</div><div className="value">
-          {apps.filter((a) => a.status === "submitted" || a.status === "shortlisted").length}
+          {apps.filter((a: any) => a.status === "submitted" || a.status === "shortlisted").length}
         </div></div>
       </div>
 

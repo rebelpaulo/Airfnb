@@ -6,14 +6,14 @@ export default async function NovoTruckPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/novo");
 
-  const { data: existing } = await supa
+  const { data: existing } = await (supa as any)
     .from("airfnb_trucks")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
   if (existing) redirect("/dashboard/truck/perfil");
 
-  const { data: categoriesData } = await supa
+  const { data: categoriesData } = await (supa as any)
     .from("airfnb_categories")
     .select("id, slug, name_pt, icon")
     .order("name_pt");
@@ -38,9 +38,9 @@ export default async function NovoTruckPage() {
     const catIds = formData.getAll("category_id").map((v) => Number(v));
 
     // ensure profile is upgraded to owner
-    await supa.from("airfnb_profiles").update({ role: "owner" }).eq("id", user.id);
+    await (supa as any).from("airfnb_profiles").update({ role: "owner" }).eq("id", user.id);
 
-    const { data: row, error } = await supa
+    const { data: row, error } = await (supa as any)
       .from("airfnb_trucks")
       .insert({
         owner_id: user.id,
@@ -60,12 +60,12 @@ export default async function NovoTruckPage() {
     if (error) throw new Error(error.message);
 
     if (catIds.length) {
-      await supa.from("airfnb_truck_categories").insert(
+      await (supa as any).from("airfnb_truck_categories").insert(
         catIds.map((cid) => ({ truck_id: row.id, category_id: cid }))
       );
     }
     if (coverUrl) {
-      await supa.from("airfnb_truck_images").insert({
+      await (supa as any).from("airfnb_truck_images").insert({
         truck_id: row.id,
         url: coverUrl,
         is_cover: true,
@@ -111,7 +111,7 @@ export default async function NovoTruckPage() {
 
       <label>Categorias</label>
       <div className="chips">
-        {categories.map((c) => (
+        {categories.map((c: any) => (
           <label key={c.id} className="chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <input type="checkbox" name="category_id" value={c.id} style={{ margin: 0 }} />
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{c.icon ?? "restaurant"}</span>

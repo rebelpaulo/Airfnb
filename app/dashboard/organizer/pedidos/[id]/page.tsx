@@ -10,7 +10,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/organizer/pedidos/${id}`);
 
-  const { data: req } = await supa
+  const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
     .select("*")
     .eq("id", id)
@@ -19,7 +19,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   if (!req) notFound();
   if (req.organizer_id !== user.id) redirect("/dashboard/organizer");
 
-  const { data: applicationsData } = await supa
+  const { data: applicationsData } = await (supa as any)
     .from("airfnb_applications")
     .select(`
       id, status, proposed_price, cover_message, deal_type,
@@ -34,14 +34,14 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     "use server";
     const aid = String(formData.get("application_id"));
     const supa = await supabaseServer();
-    await supa.rpc("airfnb_shortlist_application" as any, { p_application: aid });
+    await (supa as any).rpc("airfnb_shortlist_application" as any, { p_application: aid });
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
   async function accept(formData: FormData) {
     "use server";
     const aid = String(formData.get("application_id"));
     const supa = await supabaseServer();
-    const { error } = await supa.rpc("airfnb_accept_application" as any, { p_application: aid });
+    const { error } = await (supa as any).rpc("airfnb_accept_application" as any, { p_application: aid });
     if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
@@ -50,7 +50,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     const aid = String(formData.get("application_id"));
     const reason = String(formData.get("reason") ?? "");
     const supa = await supabaseServer();
-    await supa.rpc("airfnb_reject_application" as any, { p_application: aid, p_reason: reason });
+    await (supa as any).rpc("airfnb_reject_application" as any, { p_application: aid, p_reason: reason });
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
 

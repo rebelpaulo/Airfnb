@@ -7,15 +7,15 @@ export default async function OrganizerDashboard() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/organizer");
 
-  const { data: requestsData } = await supa
+  const { data: requestsData } = await (supa as any)
     .from("airfnb_event_requests")
     .select("id, title, status, start_at, city, expected_pax")
     .eq("organizer_id", user.id)
     .order("created_at", { ascending: false });
   const requests = requestsData ?? [];
 
-  const open = requests.filter((r) => r.status === "open" || r.status === "reviewing").length;
-  const awarded = requests.filter((r) => r.status === "awarded").length;
+  const open = requests.filter((r: any) => r.status === "open" || r.status === "reviewing").length;
+  const awarded = requests.filter((r: any) => r.status === "awarded").length;
   const total = requests.length;
 
   return (
@@ -36,7 +36,7 @@ export default async function OrganizerDashboard() {
         </div>
       ) : (
         <div className="request-grid">
-          {requests.map((r) => (
+          {requests.map((r: any) => (
             <Link key={r.id} href={`/dashboard/organizer/pedidos/${r.id}`} className="request-card">
               <h3>{r.title}</h3>
               <div className="row">

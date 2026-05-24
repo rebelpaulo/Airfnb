@@ -17,7 +17,7 @@ export default async function PublicarPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/publicar&as=organizer");
 
-  const { data: categories } = await supa
+  const { data: categories } = await (supa as any)
     .from("airfnb_categories")
     .select("id, slug, name_pt, icon")
     .order("name_pt");
@@ -40,7 +40,7 @@ export default async function PublicarPage() {
     const deals = formData.getAll("accepted_deal_types").map(String);
     const notes = String(formData.get("notes") ?? "").trim();
 
-    const { data: row, error } = await supa
+    const { data: row, error } = await (supa as any)
       .from("airfnb_event_requests")
       .insert({
         organizer_id: user.id,

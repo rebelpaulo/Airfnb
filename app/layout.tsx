@@ -16,7 +16,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   let role: string | null = null;
   if (user) {
-    const { data: prof } = await supa
+    const { data: prof } = await (supa as any)
       .from("airfnb_profiles")
       .select("role")
       .eq("id", user.id)
