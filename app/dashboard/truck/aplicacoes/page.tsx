@@ -8,18 +8,22 @@ export default async function MinhasCandidaturasPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/aplicacoes");
 
-  const { data: myTruck } = await (supa as any)
+  // Multi-truck companies have more than one truck under the same owner —
+  // surface candidaturas for ALL of them in one feed, not just the first.
+  const { data: myTrucks } = await (supa as any)
     .from("airfnb_trucks")
     .select("id, name")
-    .eq("owner_id", user.id)
-    .maybeSingle();
-  if (!myTruck) redirect("/dashboard/truck/novo");
+    .eq("owner_id", user.id);
+  if (!myTrucks?.length) redirect("/dashboard/truck/novo");
+
+  const truckIds = myTrucks.map((t: any) => t.id);
+  const truckNameById = new Map<string, string>(myTrucks.map((t: any) => [t.id, t.name]));
 
   const { data: appsData } = await (supa as any)
     .from("airfnb_applications")
-    .select(`id, status, proposed_price, created_at,
+    .select(`id, status, proposed_price, truck_id, created_at,
              airfnb_event_requests ( id, title, start_at, city, status )`)
-    .eq("truck_id", myTruck.id)
+    .in("truck_id", truckIds)
     .order("created_at", { ascending: false });
   const apps = appsData ?? [];
 
@@ -31,7 +35,7 @@ export default async function MinhasCandidaturasPage() {
       <h1>As minhas candidaturas</h1>
 
       {apps.length === 0 ? (
-        <div className="empty">Ainda não submeteste nenhuma candidatura. <Link href="/pedidos" style={{ color: "var(--orange)" }}>Ver pedidos abertos</Link>.</div>
+        <div className="empty">Ainda não submeteste nenhuma candidatura. <Link href="/dashboard/truck/oportunidades" style={{ color: "var(--orange)" }}>Ver pedidos abertos</Link>.</div>
       ) : (
         <div className="request-grid">
           {apps.map((a: any) => (
@@ -43,6 +47,7 @@ export default async function MinhasCandidaturasPage() {
                 </span>
                 <span><span className="material-symbols-outlined">location_on</span>{a.airfnb_event_requests?.city ?? "—"}</span>
                 <span>Proposta: {money(a.proposed_price)}</span>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>via {truckNameById.get(a.truck_id) ?? "—"}</span>
               </div>
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="match-badge">{a.status}</span>
@@ -50,10 +55,17 @@ export default async function MinhasCandidaturasPage() {
                   <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
                     ⏰ Pagar lock-fee →
                   </Link>
-                ) : (
-                  <Link href={`/pedidos/${a.airfnb_event_requests?.id}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
+                ) : a.airfnb_event_requests?.status === "open" ? (
+                  // Only link out when the brief still accepts traffic — the
+                  // oportunidades route redirects closed requests to /aplicacoes,
+                  // so the link would just bounce back for non-open briefs.
+                  <Link href={`/dashboard/truck/oportunidades/${a.airfnb_event_requests?.id}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
                     Ver pedido →
                   </Link>
+                ) : (
+                  <span style={{ color: "var(--muted)", fontSize: 13 }}>
+                    Pedido {a.airfnb_event_requests?.status ?? "fechado"}
+                  </span>
                 )}
               </div>
             </div>
