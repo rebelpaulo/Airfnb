@@ -52,7 +52,12 @@ export default async function ConversasPage() {
     parts.map((p) => [p.conversation_id, p.last_read_at]),
   );
 
-  const [convsRes, msgsRes, otherPartsRes] = await Promise.all([
+  // peers come from a SECURITY DEFINER RPC because RLS on
+  // airfnb_conversation_participants only lets a user see their OWN row —
+  // a plain join would return empty for every non-admin user. The RPC
+  // narrowly returns just (conversation_id, user_id, display_name) for
+  // conversations the caller is in.
+  const [convsRes, msgsRes, peersRes] = await Promise.all([
     (supa as any).from("airfnb_conversations")
       .select(`id, booking_id, application_id,
                airfnb_applications ( id,
@@ -63,15 +68,12 @@ export default async function ConversasPage() {
       .select("conversation_id, body, sender_id, created_at")
       .in("conversation_id", convIds)
       .order("created_at", { ascending: false }),
-    (supa as any).from("airfnb_conversation_participants")
-      .select("conversation_id, user_id, airfnb_profiles!inner(id, display_name, email)")
-      .in("conversation_id", convIds)
-      .neq("user_id", user.id),
+    (supa as any).rpc("airfnb_conversation_peers"),
   ]);
 
   const convs = (convsRes.data as any[]) ?? [];
   const allMsgs = (msgsRes.data as any[]) ?? [];
-  const otherParts = (otherPartsRes.data as any[]) ?? [];
+  const peers = (peersRes.data as any[]) ?? [];
 
   const lastMsgByConv = new Map<string, any>();
   const unreadByConv = new Map<string, number>();
@@ -84,8 +86,8 @@ export default async function ConversasPage() {
   }
 
   const otherNameByConv = new Map<string, string>();
-  for (const op of otherParts) {
-    otherNameByConv.set(op.conversation_id, op.airfnb_profiles?.display_name ?? op.airfnb_profiles?.email ?? "—");
+  for (const p of peers) {
+    otherNameByConv.set(p.conversation_id, p.display_name ?? "—");
   }
 
   const rows: ConvRow[] = convs.map((c) => {
