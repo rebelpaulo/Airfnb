@@ -5,8 +5,12 @@
 --   this transition" without leaving Stripe.
 -- - unique partial idx on provider_ref:  the webhook handler is the only
 --   thing that writes provider_ref, and Stripe can replay events at-least-
---   once. The unique idx blocks duplicate writes; the handler relies on
---   ON CONFLICT … DO NOTHING via the `provider_ref` slot.
+--   once. The unique idx makes a duplicate write fail with 23505 — the
+--   handler currently uses a plain UPDATE on airfnb_lock_fees (so a replay
+--   that targets the same lock_fee is a no-op), and the airfnb_payments
+--   insert uses ON CONFLICT (provider_ref) DO NOTHING for true idempotency.
+--   This index is the safety net that catches anyone (handler or operator)
+--   trying to attach the same Stripe ref to two different lock_fees.
 -- - composite idx (status, due_until):  the cron sweep selects
 --   'pending' rows where `due_until < now()` to expire / refund.
 

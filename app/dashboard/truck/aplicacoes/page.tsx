@@ -55,10 +55,17 @@ export default async function MinhasCandidaturasPage() {
                   <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
                     ⏰ Pagar lock-fee →
                   </Link>
-                ) : (
+                ) : a.airfnb_event_requests?.status === "open" ? (
+                  // Only link out when the brief still accepts traffic — the
+                  // oportunidades route redirects closed requests to /aplicacoes,
+                  // so the link would just bounce back for non-open briefs.
                   <Link href={`/dashboard/truck/oportunidades/${a.airfnb_event_requests?.id}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
                     Ver pedido →
                   </Link>
+                ) : (
+                  <span style={{ color: "var(--muted)", fontSize: 13 }}>
+                    Pedido {a.airfnb_event_requests?.status ?? "fechado"}
+                  </span>
                 )}
               </div>
             </div>

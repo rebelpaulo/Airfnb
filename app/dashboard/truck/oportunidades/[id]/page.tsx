@@ -34,12 +34,18 @@ export default async function OportunidadeDetailPage({
     redirect(`/dashboard/truck/aplicacoes`);
   }
 
+  // Only active trucks can apply — paused/pending trucks would be rejected
+  // server-side, so don't even offer them as selectable in the dropdown.
   const { data: myTrucks } = await (supa as any)
     .from("airfnb_trucks")
     .select("id, name, status")
     .eq("owner_id", user.id)
-    .in("status", ["active", "paused"]);
-  if (!myTrucks?.length) redirect("/dashboard/truck/novo");
+    .eq("status", "active");
+  if (!myTrucks?.length) {
+    // The owner has trucks but none are active — send them to the dashboard
+    // so they can resume/finish-review one first.
+    redirect("/dashboard/truck?notice=needs_active_truck");
+  }
 
   const selectedTruckId =
     (truckParam && myTrucks.find((t: any) => t.id === truckParam)?.id) ??
@@ -60,12 +66,24 @@ export default async function OportunidadeDetailPage({
     if (!user) throw new Error("auth required");
 
     const truckId = String(formData.get("truck_id") ?? "");
-    const proposedPrice = Number(formData.get("proposed_price") ?? 0);
-    const coverMessage = String(formData.get("cover_message") ?? "").trim();
-    const estimatedServings = Number(formData.get("estimated_servings") ?? 0) || null;
 
-    if (!truckId)              throw new Error("Escolhe o teu truck.");
-    if (proposedPrice < 0)     throw new Error("Preço inválido.");
+    // Parse + validate numerics strictly. Number("foo") is NaN and would
+    // serialise as the empty string into the DB on some drivers; we'd rather
+    // reject it here than let an invalid row land or rely on the check
+    // constraint to surface a less-readable error.
+    const priceRaw = String(formData.get("proposed_price") ?? "").trim();
+    const proposedPrice = Number(priceRaw);
+    const servingsRaw = String(formData.get("estimated_servings") ?? "").trim();
+    const estimatedServings = servingsRaw === "" ? null : Number(servingsRaw);
+
+    const coverMessage = String(formData.get("cover_message") ?? "").trim();
+
+    if (!truckId)                                                       throw new Error("Escolhe o teu truck.");
+    if (!Number.isFinite(proposedPrice) || proposedPrice <= 0)          throw new Error("Indica um preço proposto válido.");
+    if (proposedPrice > 1_000_000)                                      throw new Error("Preço fora dos limites razoáveis.");
+    if (estimatedServings !== null && (!Number.isInteger(estimatedServings) || estimatedServings < 0)) {
+      throw new Error("Servings estimados inválidos.");
+    }
     if (coverMessage.length < 30) {
       throw new Error("A mensagem de apresentação deve ter pelo menos 30 caracteres.");
     }
@@ -80,6 +98,22 @@ export default async function OportunidadeDetailPage({
     if (t.status !== "active") {
       // A truck in 'paused' or 'pending_review' shouldn't be able to apply
       throw new Error("Só trucks activos podem candidatar-se.");
+    }
+
+    // Re-check request eligibility deterministically. Without this we'd let
+    // the user submit, see the row blocked by RLS, and get a cryptic error
+    // instead of a clear "this brief closed / deadline passed" message.
+    const nowIso = new Date().toISOString();
+    const { data: req } = await (supa as any)
+      .from("airfnb_event_requests")
+      .select("id, status, start_at, applications_deadline")
+      .eq("id", id)
+      .maybeSingle();
+    if (!req) throw new Error("Pedido não encontrado.");
+    if (req.status !== "open")               throw new Error("Este pedido já não está aberto a candidaturas.");
+    if (req.start_at < nowIso)               throw new Error("O evento já decorreu.");
+    if (req.applications_deadline && req.applications_deadline < nowIso) {
+      throw new Error("Prazo de candidatura expirado.");
     }
 
     // Unique on (request_id, truck_id) — DB will reject duplicates. We

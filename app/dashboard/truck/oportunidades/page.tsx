@@ -25,38 +25,44 @@ export default async function OportunidadesPage() {
     .in("status", ["active", "paused"]);
   if (!myTrucks?.length) redirect("/dashboard/truck/novo");
 
+  const nowIso = new Date().toISOString();
+  // Only show requests that are: (a) still open, (b) starting in the future,
+  // (c) not past their applications_deadline (we use `or` so requests with a
+  // null deadline still show).
   const { data: requests } = await (supa as any)
     .from("airfnb_event_requests")
     .select("id, title, kind, start_at, end_at, city, expected_pax, slots_needed, budget_min, budget_max, status, applications_deadline")
     .eq("status", "open")
-    .gte("start_at", new Date().toISOString())
+    .gte("start_at", nowIso)
+    .or(`applications_deadline.is.null,applications_deadline.gte.${nowIso}`)
     .order("start_at", { ascending: true })
     .limit(80);
   const reqs: any[] = requests ?? [];
 
-  // Per (request, truck) match score so we can pick the best truck for each.
-  // The RPC is per-pair; we don't have a batch flavor yet, so call it once
-  // per truck (≤ ~10 in practice) and merge results.
-  const allScores: Array<{ request_id: string; truck_id: string; match_score: number; truck_name: string }> = [];
-  for (const truck of myTrucks) {
-    for (const r of reqs) {
-      const { data } = await (supa as any).rpc("airfnb_match_score", {
-        p_truck:   truck.id,
-        p_request: r.id,
-      });
-      const score = Number(data) || 0;
-      if (score > 0) {
-        allScores.push({ request_id: r.id, truck_id: truck.id, match_score: score, truck_name: truck.name });
-      }
-    }
-  }
+  // Single round-trip: airfnb_match_scores_batch returns (truck_id, request_id, score)
+  // for every (truck × request) pair with score > 0. Replaces the N×M serialized RPC loop.
+  const truckIdsArr = myTrucks.map((t: any) => t.id);
+  const truckNameById = new Map<string, string>(myTrucks.map((t: any) => [t.id, t.name]));
+  const reqIdsArr = reqs.map((r: any) => r.id);
+  const { data: scoreRows } = reqIdsArr.length
+    ? await (supa as any).rpc("airfnb_match_scores_batch", {
+        p_truck_ids:   truckIdsArr,
+        p_request_ids: reqIdsArr,
+      })
+    : { data: [] as any[] };
 
   // Best-truck-per-request dedup (keep highest score)
   const best = new Map<string, { match_score: number; truck_name: string; truck_id: string }>();
-  for (const s of allScores) {
+  for (const s of (scoreRows as any[]) ?? []) {
+    const score = Number(s.score) || 0;
+    if (score <= 0) continue;
     const cur = best.get(s.request_id);
-    if (!cur || cur.match_score < s.match_score) {
-      best.set(s.request_id, { match_score: s.match_score, truck_name: s.truck_name, truck_id: s.truck_id });
+    if (!cur || cur.match_score < score) {
+      best.set(s.request_id, {
+        match_score: score,
+        truck_name:  truckNameById.get(s.truck_id) ?? "—",
+        truck_id:    s.truck_id,
+      });
     }
   }
 
