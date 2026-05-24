@@ -52,38 +52,29 @@ export default async function ConversasPage() {
     parts.map((p) => [p.conversation_id, p.last_read_at]),
   );
 
-  // peers come from a SECURITY DEFINER RPC because RLS on
-  // airfnb_conversation_participants only lets a user see their OWN row —
-  // a plain join would return empty for every non-admin user. The RPC
-  // narrowly returns just (conversation_id, user_id, display_name) for
-  // conversations the caller is in.
-  const [convsRes, msgsRes, peersRes] = await Promise.all([
+  // Two SECURITY DEFINER RPCs do the heavy lifting:
+  //   airfnb_conversation_peers()     → (conv_id, user_id, display_name)
+  //   airfnb_conversation_summaries() → (conv_id, last_message_*, unread_count)
+  // The summaries RPC bounds the cost — earlier we pulled the entire message
+  // history of every conversation just to find the last + count unread, which
+  // scales linearly with history per CodeRabbit's "unbounded select" finding.
+  const [convsRes, peersRes, summariesRes] = await Promise.all([
     (supa as any).from("airfnb_conversations")
       .select(`id, booking_id, application_id,
                airfnb_applications ( id,
                  airfnb_event_requests ( title, start_at, city, organizer_id ),
                  airfnb_trucks ( name, owner_id ) )`)
       .in("id", convIds),
-    (supa as any).from("airfnb_messages")
-      .select("conversation_id, body, sender_id, created_at")
-      .in("conversation_id", convIds)
-      .order("created_at", { ascending: false }),
     (supa as any).rpc("airfnb_conversation_peers"),
+    (supa as any).rpc("airfnb_conversation_summaries"),
   ]);
 
   const convs = (convsRes.data as any[]) ?? [];
-  const allMsgs = (msgsRes.data as any[]) ?? [];
   const peers = (peersRes.data as any[]) ?? [];
+  const summaries = (summariesRes.data as any[]) ?? [];
 
-  const lastMsgByConv = new Map<string, any>();
-  const unreadByConv = new Map<string, number>();
-  for (const m of allMsgs) {
-    if (!lastMsgByConv.has(m.conversation_id)) lastMsgByConv.set(m.conversation_id, m);
-    const lastRead = lastReadByConv.get(m.conversation_id);
-    if (m.sender_id !== user.id && (!lastRead || m.created_at > lastRead)) {
-      unreadByConv.set(m.conversation_id, (unreadByConv.get(m.conversation_id) ?? 0) + 1);
-    }
-  }
+  const summaryByConv = new Map<string, any>();
+  for (const s of summaries) summaryByConv.set(s.conversation_id, s);
 
   const otherNameByConv = new Map<string, string>();
   for (const p of peers) {
@@ -91,7 +82,7 @@ export default async function ConversasPage() {
   }
 
   const rows: ConvRow[] = convs.map((c) => {
-    const last = lastMsgByConv.get(c.id);
+    const s = summaryByConv.get(c.id);
     const app  = c.airfnb_applications;
     return {
       conversation_id:    c.id,
@@ -102,10 +93,10 @@ export default async function ConversasPage() {
       start_at:           app?.airfnb_event_requests?.start_at ?? null,
       city:               app?.airfnb_event_requests?.city ?? null,
       other_name:         otherNameByConv.get(c.id) ?? "—",
-      last_message_body:  last?.body ?? null,
-      last_message_at:    last?.created_at ?? null,
-      last_message_sender: last?.sender_id ?? null,
-      unread_count:       unreadByConv.get(c.id) ?? 0,
+      last_message_body:  s?.last_message_body ?? null,
+      last_message_at:    s?.last_message_at ?? null,
+      last_message_sender: s?.last_message_sender ?? null,
+      unread_count:       s?.unread_count ?? 0,
     };
   }).sort((a, b) => (b.last_message_at ?? "").localeCompare(a.last_message_at ?? ""));
 
