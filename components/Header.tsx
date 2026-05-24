@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
+import { NotifBell } from "@/components/NotifBell";
 
 type Props = {
   user: {
@@ -125,8 +126,9 @@ export function Header({ user }: Props) {
       <div className="header-actions">
         {user ? (
           <>
-            <Link className="icon-chip" href="/dashboard/notificacoes" aria-label="Notificações">
-              <span className="material-symbols-outlined">notifications</span>
+            <NotifBell userId={user.id} />
+            <Link className="icon-chip" href="/dashboard/conversas" aria-label="Conversas">
+              <span className="material-symbols-outlined">chat_bubble</span>
             </Link>
             <Link
               className="icon-chip"

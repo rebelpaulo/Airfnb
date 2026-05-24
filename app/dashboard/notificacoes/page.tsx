@@ -31,13 +31,39 @@ export default async function NotificacoesPage() {
     revalidatePath("/dashboard/notificacoes");
   }
 
+  async function markAllRead() {
+    "use server";
+    const supa = await supabaseServer();
+    const { data: { user } } = await supa.auth.getUser();
+    if (!user) throw new Error("auth required");
+    const { error } = await (supa as any)
+      .from("airfnb_notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .is("read_at", null);
+    if (error) throw new Error(error.message);
+    revalidatePath("/dashboard/notificacoes");
+  }
+
+  const unreadCount = notifications.filter((n: any) => !n.read_at).length;
+
   return (
     <div className="dash">
-      <h1>Notificações</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <h1 style={{ margin: 0 }}>Notificações</h1>
+        {unreadCount > 0 && (
+          <form action={markAllRead}>
+            <button type="submit" className="btn-pill outline"
+                    style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)" }}>
+              Marcar todas lidas ({unreadCount})
+            </button>
+          </form>
+        )}
+      </div>
       {notifications.length === 0 ? (
-        <div className="empty">Sem notificações por aqui ainda.</div>
+        <div className="empty" style={{ marginTop: 16 }}>Sem notificações por aqui ainda.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
           {notifications.map((n: any) => {
             const isAccepted = n.kind === "application.accepted";
             return (
