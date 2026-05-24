@@ -3,7 +3,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Props = { user: { id: string; email: string; role: string | null } | null };
+type Props = {
+  user: {
+    id: string;
+    email: string;
+    role: string | null;
+    avatarUrl?: string | null;
+    displayName?: string | null;
+  } | null;
+};
 
 export function Header({ user }: Props) {
   const [scrolled, setScrolled] = useState(false);
@@ -16,7 +24,8 @@ export function Header({ user }: Props) {
 
   const supa = supabaseBrowser();
   const isTruck = user?.role === "owner";
-  const isOrg = user?.role === "organizer" || (user && !user.role);
+  const dashboardHref = isTruck ? "/dashboard/truck" : "/dashboard/organizer";
+  const initial = (user?.displayName || user?.email || "?")[0]?.toUpperCase();
 
   return (
     <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
@@ -37,9 +46,33 @@ export function Header({ user }: Props) {
             </Link>
             <Link
               className="icon-chip"
-              href={isTruck ? "/dashboard/truck" : "/dashboard/organizer"}
+              href={dashboardHref}
+              title={user.displayName ?? user.email}
+              aria-label={`Dashboard de ${user.displayName ?? user.email}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
             >
-              <span className="material-symbols-outlined">dashboard</span>
+              {user.avatarUrl ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-block", width: 28, height: 28, borderRadius: "50%",
+                    background: `center/cover no-repeat url(${user.avatarUrl})`,
+                    border: "1.5px solid rgba(255,255,255,0.7)",
+                  }}
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.18)", color: "#fff",
+                    fontFamily: "Bebas Neue, sans-serif", fontSize: 14, letterSpacing: 0,
+                  }}
+                >
+                  {initial}
+                </span>
+              )}
               <span className="label-hide">Dashboard</span>
             </Link>
             <button

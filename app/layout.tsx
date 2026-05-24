@@ -15,13 +15,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { data: { user } } = await supa.auth.getUser();
 
   let role: string | null = null;
+  let avatarUrl: string | null = null;
+  let displayName: string | null = null;
   if (user) {
     const { data: prof } = await (supa as any)
       .from("airfnb_profiles")
-      .select("role")
+      .select("role, avatar_url, full_name, display_name")
       .eq("id", user.id)
       .maybeSingle();
     role = prof?.role ?? null;
+    avatarUrl = prof?.avatar_url ?? null;
+    displayName = prof?.display_name ?? prof?.full_name ?? null;
   }
 
   return (
@@ -37,7 +41,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <Header user={user ? { id: user.id, email: user.email ?? "", role } : null} />
+        <Header user={
+          user
+            ? { id: user.id, email: user.email ?? "", role, avatarUrl, displayName }
+            : null
+        } />
         <main>{children}</main>
         <Footer />
       </body>
