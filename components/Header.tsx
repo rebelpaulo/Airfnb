@@ -52,10 +52,10 @@ export function Header({ user }: Props) {
         <Link className="logo" href="/">air<span>f.</span>b</Link>
       </div>
       <ul className="main-nav">
-        <li><Link href="/pedidos">Ver pedidos</Link></li>
-        <li><Link href="/publicar">Publicar pedido</Link></li>
-        <li><Link href="/catalogo">Catálogo de Trucks</Link></li>
+        <li><Link href="/catalogo">Encontrar Trucks</Link></li>
+        <li><Link href="/publicar">Organizar evento</Link></li>
         <li><Link href="/blog">Blog</Link></li>
+        <li><Link href="/registar">Adicionar Truck</Link></li>
       </ul>
       <div className="header-actions">
         {user ? (

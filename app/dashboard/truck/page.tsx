@@ -1,113 +1,152 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { money } from "@/lib/money";
+import { truckCover } from "@/lib/img";
 
 export default async function TruckDashboard() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck");
 
-  const { data: myTruck } = await (supa as any)
+  // List ALL trucks owned by the current user (a company can run several).
+  const { data: trucksData } = await (supa as any)
     .from("airfnb_trucks")
-    .select("id, name, rating_avg, rating_count, base_city")
+    .select("id, name, slug, rating_avg, rating_count, base_city, status, featured")
     .eq("owner_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
+  const trucks: any[] = trucksData ?? [];
 
-  if (!myTruck) {
+  // Cover image per truck (single round-trip)
+  const coverByTruck: Record<string, string | null> = {};
+  if (trucks.length > 0) {
+    const { data: imgs } = await (supa as any)
+      .from("airfnb_truck_images")
+      .select("truck_id, url, is_cover, sort_order")
+      .in("truck_id", trucks.map((t) => t.id));
+    for (const t of trucks) {
+      const matches = (imgs as any[] ?? []).filter((i) => i.truck_id === t.id);
+      matches.sort((a, b) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      coverByTruck[t.id] = matches[0]?.url ?? null;
+    }
+  }
+
+  if (trucks.length === 0) {
     return (
       <div className="dash">
-        <h1>Dashboard do truck</h1>
+        <h1>Os meus food trucks</h1>
         <div className="empty">
-          Ainda não adicionaste o teu food truck.
+          Ainda não tens nenhum truck. Começa por adicionar o primeiro — leva 2 minutos.
           <br /><br />
-          <Link className="btn-pill" href="/dashboard/truck/novo">Adicionar truck</Link>
+          <Link className="btn-pill" href="/dashboard/truck/novo">Adicionar primeiro truck</Link>
         </div>
       </div>
     );
   }
 
-  // matching open requests via RPC
-  const { data: feedData } = await (supa as any).rpc("airfnb_find_matching_requests" as any, {
-    p_truck: myTruck.id,
-    p_limit: 12,
-  });
-  const feed = feedData ?? [];
+  // Aggregate stats for the company
+  const active = trucks.filter((t) => t.status === "active").length;
+  const drafts = trucks.filter((t) => t.status === "draft").length;
+  const pending = trucks.filter((t) => t.status === "pending_review").length;
 
-  // my applications
-  const { data: appsData } = await (supa as any)
-    .from("airfnb_applications")
-    .select(`
-      id, status, proposed_price, created_at,
-      airfnb_event_requests ( id, title, start_at, city, status )
-    `)
-    .eq("truck_id", myTruck.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
-  const apps = appsData ?? [];
+  // Combined matching feed across all active trucks. When the same request
+  // matches several of the owner's trucks, keep the BEST match (highest score)
+  // and label it with the winning truck — otherwise the first truck we
+  // iterated would steal the badge even if a sibling matched better.
+  type Feed = { request_id: string; title: string; start_at: string; city: string | null; expected_pax: number; match_score: number; via_truck: string };
+  // Ask each truck for enough candidates that, after de-duping and ordering,
+  // the merged top-12 isn't artificially capped. With p_limit=6 a single
+  // active truck would only ever yield 6 rows — bump to 12 per truck.
+  const byReq = new Map<string, Feed>();
+  for (const t of trucks.filter((x) => x.status === "active")) {
+    const { data } = await (supa as any).rpc("airfnb_find_matching_requests", { p_truck: t.id, p_limit: 12 });
+    for (const r of (data as any[] ?? [])) {
+      const candidate: Feed = { ...r, via_truck: t.name };
+      const existing = byReq.get(r.request_id);
+      if (!existing || Number(candidate.match_score) > Number(existing.match_score)) {
+        byReq.set(r.request_id, candidate);
+      }
+    }
+  }
+  const feed: Feed[] = Array.from(byReq.values())
+    .sort((a, b) => Number(b.match_score) - Number(a.match_score))
+    .slice(0, 12);
 
   return (
     <div className="dash">
-      <h1>{myTruck.name}</h1>
-      <div className="stat-strip">
-        <div className="stat"><div className="label">Rating</div><div className="value">★ {Number(myTruck.rating_avg).toFixed(1)}</div></div>
-        <div className="stat"><div className="label">Reviews</div><div className="value">{myTruck.rating_count}</div></div>
-        <div className="stat"><div className="label">Cidade base</div><div className="value" style={{ fontSize: 22 }}>{myTruck.base_city ?? "—"}</div></div>
-        <div className="stat"><div className="label">Candidaturas activas</div><div className="value">
-          {apps.filter((a: any) => a.status === "submitted" || a.status === "shortlisted").length}
-        </div></div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 14 }}>
+        <h1 style={{ margin: 0 }}>Os meus food trucks</h1>
+        <Link className="btn-pill" href="/dashboard/truck/novo">+ Adicionar truck</Link>
       </div>
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 20 }}>
-        Pedidos que dão match contigo
-      </h2>
-      {feed.length === 0 ? (
-        <div className="empty">Nenhum pedido relevante aberto neste momento — vamos avisar-te quando aparecer.</div>
-      ) : (
-        <div className="request-grid">
-          {feed.map((r: any) => (
-            <Link key={r.request_id} href={`/pedidos/${r.request_id}`} className="request-card">
-              <h3>{r.title}</h3>
-              <div className="row">
-                <span><span className="material-symbols-outlined">event</span>
-                  {new Date(r.start_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
-                </span>
-                <span><span className="material-symbols-outlined">location_on</span>{r.city ?? "—"}</span>
-                <span><span className="material-symbols-outlined">group</span>{r.expected_pax}</span>
-              </div>
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="match-badge">Match {Math.round(Number(r.match_score))}/100</span>
-                <span style={{ color: "var(--orange)", fontWeight: 600 }}>Aplicar →</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <div className="stat-strip" style={{ marginTop: 20 }}>
+        <div className="stat"><div className="label">Total</div><div className="value">{trucks.length}</div></div>
+        <div className="stat"><div className="label">Activos</div><div className="value">{active}</div></div>
+        <div className="stat"><div className="label">Em revisão</div><div className="value">{pending}</div></div>
+        <div className="stat"><div className="label">Rascunho</div><div className="value">{drafts}</div></div>
+      </div>
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 40 }}>
-        As minhas candidaturas
-      </h2>
-      {apps.length === 0 ? (
-        <div className="empty">Ainda não submeteste nenhuma candidatura.</div>
-      ) : (
-        <div className="request-grid">
-          {apps.map((a: any) => (
-            <Link key={a.id}
-                  href={a.status === "accepted" ? `/dashboard/truck/lock/${a.id}` : `/pedidos/${a.airfnb_event_requests?.id}`}
-                  className="request-card">
-              <h3>{a.airfnb_event_requests?.title ?? "—"}</h3>
-              <div className="row">
-                <span>Proposta: {money(a.proposed_price)}</span>
-                <span className="match-badge">{a.status}</span>
+      <div className="truck-grid cols-4" style={{ marginTop: 18 }}>
+        {trucks.map((t) => (
+          <Link key={t.id} href={`/dashboard/truck/${t.id}`} className="truck-card">
+            <div className="thumb" style={{ position: "relative" }}>
+              <img src={truckCover(coverByTruck[t.id])} alt={t.name}
+                   style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <span style={{
+                position: "absolute", top: 10, left: 10,
+                background: t.status === "active" ? "#10A37F"
+                         : t.status === "pending_review" ? "var(--teal)"
+                         : t.status === "draft" ? "#888" : "#444",
+                color: "#fff", padding: "4px 10px", borderRadius: 999,
+                fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5,
+              }}>
+                {t.status === "active" ? "Activo"
+                  : t.status === "pending_review" ? "Em revisão"
+                  : t.status === "draft" ? "Rascunho"
+                  : t.status}
+              </span>
+            </div>
+            <div className="info">
+              <h3>{t.name}</h3>
+              <div className="meta">
+                <span className="loc">
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
+                  {t.base_city ?? "—"}
+                </span>
+                <span className="cap">★ {Number(t.rating_avg).toFixed(1)} ({t.rating_count})</span>
               </div>
-              {a.status === "accepted" && (
-                <div style={{ color: "var(--orange)", fontWeight: 600, marginTop: 6 }}>
-                  ⏰ Pagar lock-fee €50 →
-                </div>
-              )}
-            </Link>
-          ))}
-        </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {active > 0 && (
+        <>
+          <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 40 }}>
+            Pedidos que dão match contigo
+          </h2>
+          {feed.length === 0 ? (
+            <div className="empty">Nenhum pedido relevante aberto neste momento — avisamos-te quando aparecer.</div>
+          ) : (
+            <div className="request-grid">
+              {feed.map((r) => (
+                <Link key={r.request_id} href={`/pedidos/${r.request_id}`} className="request-card">
+                  <h3>{r.title}</h3>
+                  <div className="row">
+                    <span><span className="material-symbols-outlined">event</span>
+                      {new Date(r.start_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                    </span>
+                    <span><span className="material-symbols-outlined">location_on</span>{r.city ?? "—"}</span>
+                    <span><span className="material-symbols-outlined">group</span>{r.expected_pax}</span>
+                  </div>
+                  <div className="row" style={{ justifyContent: "space-between" }}>
+                    <span className="match-badge">Match {Math.round(Number(r.match_score))}/100 · {r.via_truck}</span>
+                    <span style={{ color: "var(--orange)", fontWeight: 600 }}>Aplicar →</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
