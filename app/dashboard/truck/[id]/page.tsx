@@ -50,10 +50,12 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   const docs:   any[] = docsRes.data ?? [];
 
   const today = new Date();
+  // expires_at is a DATE in the DB (no time component). Treat the last day as
+  // inclusive: a doc that expires "today" is still valid for the whole day.
   const docValid = (kind: string) =>
     docs.some((d) =>
       (d.kind ?? "").toLowerCase().includes(kind) &&
-      (!d.expires_at || new Date(d.expires_at) > today),
+      (!d.expires_at || new Date(d.expires_at) >= today),
     );
 
   const checklist: Checklist[] = [
@@ -105,10 +107,12 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     const cats  = (cRes.data as any[]) ?? [];
     const ds    = (dRes.data as any[]) ?? [];
     const now = new Date();
+    // expires_at is a DATE; the truck is valid through the end of the
+    // expiration day, so compare with >= and not >.
     const docOk = (kind: string) =>
       ds.some((d) =>
         (d.kind ?? "").toLowerCase().includes(kind) &&
-        (!d.expires_at || new Date(d.expires_at) > now),
+        (!d.expires_at || new Date(d.expires_at) >= now),
       );
 
     const score = [

@@ -4,14 +4,22 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const revalidate = 120;
 
 export default async function BlogPage() {
+  type Post = {
+    id: string; slug: string; title: string;
+    excerpt: string | null; cover_url: string | null; published_at: string | null;
+  };
+
   const supa = await supabaseServer();
-  const { data } = await (supa as any)
+  const { data, error } = await (supa as any)
     .from("airfnb_blog_posts")
     .select("id, slug, title, excerpt, cover_url, published_at")
     .eq("status", "published")
     .order("published_at", { ascending: false })
     .limit(20);
-  const posts: any[] = data ?? [];
+  if (error) {
+    console.error("blog list query failed", error.message);
+  }
+  const posts: Post[] = (data as Post[] | null) ?? [];
 
   return (
     <div className="container" style={{ paddingTop: 130, paddingBottom: 80 }}>

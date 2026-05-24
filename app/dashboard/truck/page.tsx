@@ -53,9 +53,12 @@ export default async function TruckDashboard() {
   // and label it with the winning truck — otherwise the first truck we
   // iterated would steal the badge even if a sibling matched better.
   type Feed = { request_id: string; title: string; start_at: string; city: string | null; expected_pax: number; match_score: number; via_truck: string };
+  // Ask each truck for enough candidates that, after de-duping and ordering,
+  // the merged top-12 isn't artificially capped. With p_limit=6 a single
+  // active truck would only ever yield 6 rows — bump to 12 per truck.
   const byReq = new Map<string, Feed>();
   for (const t of trucks.filter((x) => x.status === "active")) {
-    const { data } = await (supa as any).rpc("airfnb_find_matching_requests", { p_truck: t.id, p_limit: 6 });
+    const { data } = await (supa as any).rpc("airfnb_find_matching_requests", { p_truck: t.id, p_limit: 12 });
     for (const r of (data as any[] ?? [])) {
       const candidate: Feed = { ...r, via_truck: t.name };
       const existing = byReq.get(r.request_id);

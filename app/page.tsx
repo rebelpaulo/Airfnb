@@ -62,30 +62,63 @@ export default async function HomePage() {
       {/* ====== HERO ====== */}
       <section className="hero">
         <div className="logo-mark">air<span className="amp">&amp;</span>fb</div>
-        <p className="tagline">A maior oferta de Food Trucks à distância de um click.</p>
+        <p className="tagline">A maior oferta de Food Trucks para o teu evento à distância de um click.</p>
 
-        <form action="/catalogo" className="search-bar" autoComplete="off">
+        {/*
+          Search bar is the entry-point for organizers publishing an event.
+          We submit to /publicar so the wizard can prefill location + date +
+          pax. TODO: replace the city input with a Google Places Autocomplete
+          so the captured value is the same structured location we already
+          collect during truck registration — this is what the matching
+          algorithm joins on.
+        */}
+        <form action="/publicar" className="search-bar" autoComplete="off">
           <div className="field">
             <label htmlFor="where">Onde</label>
-            <input id="where" name="city" type="text" placeholder="Pesquisar destinos" />
+            <input id="where" name="city" type="text"
+                   placeholder="Cidade ou localidade" list="airfnb-cities" />
+            <datalist id="airfnb-cities">
+              <option value="Lisboa" />
+              <option value="Porto" />
+              <option value="Cascais" />
+              <option value="Sintra" />
+              <option value="Coimbra" />
+              <option value="Braga" />
+              <option value="Aveiro" />
+              <option value="Faro" />
+              <option value="Algarve" />
+              <option value="Setúbal" />
+            </datalist>
           </div>
           <div className="field">
-            <label htmlFor="checkin">Check In</label>
-            <input id="checkin" name="from" type="date" />
+            <label htmlFor="checkin">Data</label>
+            <input id="checkin" name="start_at" type="date" />
           </div>
           <div className="field">
-            <label htmlFor="checkout">Checkout</label>
-            <input id="checkout" name="to" type="date" />
+            <label htmlFor="checkout">Fim (opcional)</label>
+            <input id="checkout" name="end_at" type="date" />
           </div>
           <div className="field">
             <label htmlFor="guests">Convidados</label>
-            <input id="guests" name="pax" type="number" min={1} placeholder="Nº convidados" />
+            <input id="guests" name="expected_pax" type="number" min={1} placeholder="Nº convidados" />
           </div>
           <button className="search-btn" type="submit">
-            <span className="material-symbols-outlined">search</span>
-            Procurar
+            <span className="material-symbols-outlined">event</span>
+            Tenho um evento
           </button>
         </form>
+
+        {/* Secondary CTA right in the hero so truck owners have an obvious
+            entry path without scrolling all the way to the community section. */}
+        <div style={{ marginTop: 20, color: "#fff", fontSize: 15 }}>
+          Tens um food truck?{" "}
+          <Link href="/registar" style={{
+            color: "#fff", fontWeight: 700, textDecoration: "underline",
+            textUnderlineOffset: 4, textDecorationThickness: 2,
+          }}>
+            Regista aqui →
+          </Link>
+        </div>
       </section>
 
       {/* ====== CATEGORIES + TRUCKS GRID ====== */}
@@ -129,6 +162,31 @@ export default async function HomePage() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ====== TRUCK OWNER CTA — banner above the fold for owners scrolling past the trucks grid ====== */}
+      <section style={{
+        background: "linear-gradient(90deg,#FF6133,#FF4919)",
+        color: "#fff",
+        padding: "26px 24px",
+      }}>
+        <div className="container" style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          gap: 20, flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, lineHeight: 1.1 }}>
+              Tens um food truck? Junta-te à comunidade.
+            </div>
+            <div style={{ opacity: 0.92, fontSize: 14, marginTop: 4 }}>
+              Regista a empresa em 2 minutos, adiciona os teus trucks e começa a receber pedidos de eventos.
+            </div>
+          </div>
+          <Link href="/registar" className="btn-pill"
+                style={{ background: "#fff", color: "var(--orange-deep)" }}>
+            Registar Food Truck
+          </Link>
         </div>
       </section>
 

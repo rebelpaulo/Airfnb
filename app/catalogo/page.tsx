@@ -4,16 +4,25 @@ import { truckCover } from "@/lib/img";
 
 export const revalidate = 60;
 
+// Next 15 hands the same key as string | string[] when the URL repeats it.
+// Normalize defensively so .trim()/.toLowerCase() don't crash at runtime.
+type Raw = string | string[] | undefined;
 type SearchParams = Promise<{
-  city?: string;
-  cat?: string;       // category slug
-  pax?: string;       // minimum capacity
-  from?: string;      // YYYY-MM-DD (not yet wired to availability filter)
-  to?: string;        // YYYY-MM-DD (idem)
+  city?: Raw; cat?: Raw; pax?: Raw; from?: Raw; to?: Raw;
 }>;
+
+function first(v: Raw): string | undefined {
+  if (v == null) return undefined;
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" ? s.trim() || undefined : undefined;
+}
 
 export default async function CatalogoPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
+  const city = first(sp.city);
+  const cat  = first(sp.cat);
+  const pax  = first(sp.pax);
+
   const supa = await supabaseServer();
 
   let q = (supa as any)
@@ -23,17 +32,21 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     .order("id", { ascending: true })
     .limit(60);
 
-  if (sp.city) q = q.ilike("base_city", `%${sp.city.trim()}%`);
-  if (sp.cat)  q = q.contains("category_slugs", [sp.cat]);
-  const paxNum = sp.pax ? Number(sp.pax) : NaN;
+  if (city) q = q.ilike("base_city", `%${city}%`);
+  if (cat)  q = q.contains("category_slugs", [cat]);
+  const paxNum = pax ? Number(pax) : NaN;
   if (Number.isFinite(paxNum) && paxNum > 0) q = q.gte("capacity", paxNum);
 
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) {
+    // Don't crash the page — show the catalog as empty and log the failure for ops.
+    console.error("catalogo query failed", error.message);
+  }
   const trucks = (data as any[]) ?? [];
 
   const activeFilters: Array<{ key: string; label: string }> = [];
-  if (sp.city) activeFilters.push({ key: "city", label: `Cidade: ${sp.city}` });
-  if (sp.cat)  activeFilters.push({ key: "cat",  label: `Categoria: ${sp.cat}` });
+  if (city) activeFilters.push({ key: "city", label: `Cidade: ${city}` });
+  if (cat)  activeFilters.push({ key: "cat",  label: `Categoria: ${cat}` });
   if (Number.isFinite(paxNum) && paxNum > 0) activeFilters.push({ key: "pax", label: `≥ ${paxNum} pax` });
 
   return (
