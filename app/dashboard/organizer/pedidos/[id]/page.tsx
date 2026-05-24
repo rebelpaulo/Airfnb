@@ -30,13 +30,19 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     .order("created_at", { ascending: false });
   const applications = applicationsData ?? [];
 
-  // Map applications → conversations so accepted apps deep-link straight
-  // into the chat without a separate round-trip per card.
+  // Map applications → conversations + bookings so accepted apps deep-link
+  // straight into chat or the review form once the booking is confirmed.
   const appIds = applications.map((a: any) => a.id);
-  const { data: convs } = appIds.length
-    ? await (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds)
-    : { data: [] };
-  const convByApp = new Map<string, string>(((convs as any[]) ?? []).map((c) => [c.application_id, c.id]));
+  const [convsRes, bookingsRes] = appIds.length
+    ? await Promise.all([
+        (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
+        (supa as any).from("airfnb_bookings").select("id, application_id, status").in("application_id", appIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
+  const bookingByApp = new Map<string, { id: string; status: string }>(
+    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status }]),
+  );
 
   async function shortlist(formData: FormData) {
     "use server";
@@ -106,13 +112,26 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                 {a.proposed_revenue_share_pct > 0 && <span><strong>%:</strong> {a.proposed_revenue_share_pct}%</span>}
               </div>
 
-              {a.status === "accepted" && convByApp.has(a.id) && (
-                <div style={{ marginTop: 10 }}>
-                  <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} className="btn-pill outline"
-                        style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
-                    Abrir conversa
-                  </Link>
+              {a.status === "accepted" && (
+                <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {convByApp.has(a.id) && (
+                    <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} className="btn-pill outline"
+                          style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
+                      Abrir conversa
+                    </Link>
+                  )}
+                  {(() => {
+                    const b = bookingByApp.get(a.id);
+                    if (!b || (b.status !== "confirmed" && b.status !== "completed")) return null;
+                    return (
+                      <Link href={`/dashboard/organizer/avaliar/${b.id}`} className="btn-pill"
+                            style={{ padding: "8px 18px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span>
+                        Avaliar truck
+                      </Link>
+                    );
+                  })()}
                 </div>
               )}
 
