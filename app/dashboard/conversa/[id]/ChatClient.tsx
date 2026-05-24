@@ -20,6 +20,11 @@ export function ChatClient({
   const supa = supabaseBrowser();
 
   useEffect(() => {
+    // Reset local message state whenever the conversation changes — otherwise
+    // navigating between conversations on the same client instance would leak
+    // messages from the previous one until the realtime channel catches up.
+    setMessages(initialMessages);
+
     const ch = supa
       .channel(`conv:${conversationId}`)
       .on("postgres_changes",
@@ -34,7 +39,8 @@ export function ChatClient({
       // Always close the channel; ignore errors to avoid noisy console on unmount.
       supa.removeChannel(ch).catch(() => undefined);
     };
-  // supa is a stable client instance — depending on it would cause double-subscribe
+  // supa + initialMessages are stable per mount; depending on them would
+  // cause double-subscribe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
