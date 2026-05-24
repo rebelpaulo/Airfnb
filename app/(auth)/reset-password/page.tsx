@@ -28,10 +28,22 @@ export default function ResetPasswordPage() {
     if (pwd.length < 8)  { setErr("A password deve ter pelo menos 8 caracteres."); return; }
     setBusy(true); setErr(null);
     const supa = supabaseBrowser();
-    const { error } = await supa.auth.updateUser({ password: pwd });
+    const { data: updRes, error } = await supa.auth.updateUser({ password: pwd });
+    if (error) { setBusy(false); setErr(error.message); return; }
+
+    // Route based on the user's role so truck owners land on their dashboard
+    // rather than the organizer one.
+    let target = "/dashboard/organizer";
+    if (updRes?.user) {
+      const { data: prof } = await (supa as any)
+        .from("airfnb_profiles")
+        .select("role")
+        .eq("id", updRes.user.id)
+        .maybeSingle();
+      if (prof?.role === "owner") target = "/dashboard/truck";
+    }
     setBusy(false);
-    if (error) { setErr(error.message); return; }
-    router.push("/dashboard/organizer");
+    router.push(target);
     router.refresh();
   }
 

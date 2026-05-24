@@ -39,7 +39,10 @@ export function AvatarUpload({
       if (blob.size > maxMb * 1024 * 1024) {
         throw new Error(`Imagem muito grande (>${maxMb}MB). Tenta uma mais pequena.`);
       }
-      const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
+      // Derive extension from the actual MIME type of the (possibly re-encoded)
+      // blob rather than from the original file name, which may be misleading
+      // (e.g. "photo.heic" re-encoded as JPEG, or "selfie" with no extension).
+      const ext = mimeToExt(blob.type) || mimeToExt(file.type) || "jpg";
       const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
       const supa = supabaseBrowser();
@@ -110,6 +113,17 @@ export function AvatarUpload({
       </div>
     </div>
   );
+}
+
+function mimeToExt(mime: string): string {
+  switch (mime) {
+    case "image/jpeg": case "image/jpg": return "jpg";
+    case "image/png":                    return "png";
+    case "image/webp":                   return "webp";
+    case "image/gif":                    return "gif";
+    case "image/avif":                   return "avif";
+    default:                             return "";
+  }
 }
 
 /**

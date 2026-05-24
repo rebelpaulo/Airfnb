@@ -26,16 +26,26 @@ export default async function OnboardingTruckPage() {
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
 
-    const full_name    = String(formData.get("full_name") ?? "").trim() || null;
-    const phone        = String(formData.get("phone") ?? "").trim() || null;
-    const company_name = String(formData.get("company_name") ?? "").trim() || null;
-    const vat_number   = String(formData.get("vat_number") ?? "").trim() || null;
+    const full_name    = String(formData.get("full_name") ?? "").trim();
+    const phone        = String(formData.get("phone") ?? "").trim();
+    const company_name = String(formData.get("company_name") ?? "").trim();
+    const vat_number   = String(formData.get("vat_number") ?? "").trim();
     const marketing    = formData.get("marketing") === "on";
+
+    // Server-side validation — never trust the browser's `required` attribute.
+    if (!full_name)    throw new Error("Nome do responsável é obrigatório.");
+    if (!phone)        throw new Error("Telemóvel é obrigatório.");
+    if (!company_name) throw new Error("Nome da empresa é obrigatório.");
+    if (!/^[0-9]{9}$/.test(vat_number)) {
+      throw new Error("NIF tem de ter 9 dígitos.");
+    }
 
     const { error: profErr } = await (supa as any)
       .from("airfnb_profiles")
       .update({
-        full_name, phone, company_name, vat_number,
+        full_name, phone,
+        company_name,
+        vat_number,
         role: "owner",
         marketing_opt_in: marketing,
         onboarding_completed: true,
@@ -82,7 +92,8 @@ export default async function OnboardingTruckPage() {
       </div>
 
       <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, fontSize: 14 }}>
-        <input type="checkbox" name="marketing" defaultChecked />
+        {/* opt-in only — leave unchecked by default per GDPR consent rules */}
+        <input type="checkbox" name="marketing" />
         Quero receber alertas de pedidos relevantes para o meu truck.
       </label>
 

@@ -35,7 +35,16 @@ export async function GET(req: NextRequest) {
 
   // upgrade role if the caller requested it (e.g. signup ?as=truck)
   if (asRole === "owner" || asRole === "organizer") {
-    await (supa as any).from("airfnb_profiles").update({ role: asRole }).eq("id", user.id);
+    const { error: roleErr } = await (supa as any)
+      .from("airfnb_profiles")
+      .update({ role: asRole })
+      .eq("id", user.id);
+    if (roleErr) {
+      // Don't block the login round-trip — user is signed in either way — but
+      // surface the failure so the front-end can show a hint.
+      const params = new URLSearchParams({ err: "role_upgrade_failed", reason: roleErr.message });
+      return NextResponse.redirect(new URL(`/login?${params.toString()}`, req.url));
+    }
   }
 
   // Route based on onboarding state

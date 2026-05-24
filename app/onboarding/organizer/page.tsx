@@ -77,7 +77,8 @@ export default async function OnboardingOrganizerPage() {
       </div>
 
       <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, fontSize: 14 }}>
-        <input type="checkbox" name="marketing" defaultChecked />
+        {/* opt-in only — leave unchecked by default per GDPR consent rules */}
+        <input type="checkbox" name="marketing" />
         Quero receber novidades e dicas para organizar eventos.
       </label>
 

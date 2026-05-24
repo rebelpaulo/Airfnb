@@ -23,8 +23,14 @@ export function Header({ user }: Props) {
   }, []);
 
   const supa = supabaseBrowser();
-  const isTruck = user?.role === "owner";
-  const dashboardHref = isTruck ? "/dashboard/truck" : "/dashboard/organizer";
+  // Be explicit: unknown / null roles route to the organizer dashboard (the
+  // safer default — organizer dashboard is read-only by default and won't
+  // expose owner-only flows).
+  const dashboardHref = user?.role === "owner"
+    ? "/dashboard/truck"
+    : user?.role === "organizer" || user?.role === "admin" || user?.role === "staff"
+      ? "/dashboard/organizer"
+      : "/dashboard/organizer";
   const initial = (user?.displayName || user?.email || "?")[0]?.toUpperCase();
 
   return (
