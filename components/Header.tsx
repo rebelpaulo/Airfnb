@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 
@@ -18,22 +18,60 @@ export function Header({ user }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 60);
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
   }, []);
-  // Lock body scroll while the drawer is open and close on Escape
+  // Drawer A11y: lock body scroll, close on Escape, trap Tab inside the drawer,
+  // and restore focus to the trigger when closing — required behavior for
+  // role="dialog" aria-modal="true" per ARIA APG.
   useEffect(() => {
     if (!drawerOpen) return;
-    const prev = document.body.style.overflow;
+    const opener = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
+
+    // Move focus to the first focusable element inside the drawer on open
+    requestAnimationFrame(() => {
+      const first = drawerRef.current?.querySelector<HTMLElement>(
+        'a, button, [tabindex]:not([tabindex="-1"])',
+      );
+      first?.focus();
+    });
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setDrawerOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !drawerRef.current) return;
+      const focusables = Array.from(
+        drawerRef.current.querySelectorAll<HTMLElement>(
+          'a, button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
+      // Restore focus to whoever opened the drawer (the menu button by default)
+      (opener ?? menuButtonRef.current)?.focus();
     };
   }, [drawerOpen]);
 
@@ -65,6 +103,7 @@ export function Header({ user }: Props) {
     <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
       <div className="brand">
         <button
+          ref={menuButtonRef}
           type="button"
           className="menu-btn"
           aria-label="Abrir menu"
@@ -153,6 +192,7 @@ export function Header({ user }: Props) {
             aria-hidden="true"
           />
           <aside
+            ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Menu de navegação"
