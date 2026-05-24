@@ -30,6 +30,14 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     .order("created_at", { ascending: false });
   const applications = applicationsData ?? [];
 
+  // Map applications → conversations so accepted apps deep-link straight
+  // into the chat without a separate round-trip per card.
+  const appIds = applications.map((a: any) => a.id);
+  const { data: convs } = appIds.length
+    ? await (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds)
+    : { data: [] };
+  const convByApp = new Map<string, string>(((convs as any[]) ?? []).map((c) => [c.application_id, c.id]));
+
   async function shortlist(formData: FormData) {
     "use server";
     const aid = String(formData.get("application_id"));
@@ -97,6 +105,16 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                 {a.proposed_fixed_to_organizer > 0 && <span><strong>Fixo:</strong> {money(a.proposed_fixed_to_organizer)}</span>}
                 {a.proposed_revenue_share_pct > 0 && <span><strong>%:</strong> {a.proposed_revenue_share_pct}%</span>}
               </div>
+
+              {a.status === "accepted" && convByApp.has(a.id) && (
+                <div style={{ marginTop: 10 }}>
+                  <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} className="btn-pill outline"
+                        style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
+                    Abrir conversa
+                  </Link>
+                </div>
+              )}
 
               {(a.status === "submitted" || a.status === "shortlisted") && (
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

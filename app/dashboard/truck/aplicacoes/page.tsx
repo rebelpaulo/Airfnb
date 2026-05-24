@@ -27,6 +27,15 @@ export default async function MinhasCandidaturasPage() {
     .order("created_at", { ascending: false });
   const apps = appsData ?? [];
 
+  // Map applications → conversations so we can deep-link directly to the chat.
+  // Conversations are created when an application is accepted, so most rows
+  // won't have one. A single query keeps the row map flat.
+  const appIds = apps.map((a: any) => a.id);
+  const { data: convs } = appIds.length
+    ? await (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds)
+    : { data: [] };
+  const convByApp = new Map<string, string>(((convs as any[]) ?? []).map((c) => [c.application_id, c.id]));
+
   return (
     <div className="dash">
       <nav className="breadcrumb">
@@ -52,9 +61,16 @@ export default async function MinhasCandidaturasPage() {
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="match-badge">{a.status}</span>
                 {a.status === "accepted" ? (
-                  <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
-                    ⏰ Pagar lock-fee →
-                  </Link>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                    {convByApp.has(a.id) && (
+                      <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
+                        Conversa →
+                      </Link>
+                    )}
+                    <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
+                      ⏰ Pagar lock-fee →
+                    </Link>
+                  </div>
                 ) : a.airfnb_event_requests?.status === "open" ? (
                   // Only link out when the brief still accepts traffic — the
                   // oportunidades route redirects closed requests to /aplicacoes,
