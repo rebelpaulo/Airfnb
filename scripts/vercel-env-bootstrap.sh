@@ -2,26 +2,26 @@
 # Push the 4 Vercel env vars for the Air F&B project in one go.
 #
 # Reads the secret from .env.local in the project root, so the value never
-# leaves your machine (you provide it; you POST it directly to Vercel).
+# leaves your machine — you provide both the token and the destination.
 #
 # Usage:
 #   VERCEL_TOKEN=vcp_xxx bash scripts/vercel-env-bootstrap.sh
-# or
-#   bash scripts/vercel-env-bootstrap.sh vcp_xxx
 #
-# Re-running is safe — Vercel upserts on the same key/target.
+# Re-running is safe: Vercel upserts on the same key/target.
+#
+# We intentionally do NOT accept the token as a positional argument: that
+# leaks it into the shell history and `ps`-visible argv. Use the env var.
 set -euo pipefail
 
-TOKEN="${VERCEL_TOKEN:-${1:-}}"
+TOKEN="${VERCEL_TOKEN:-}"
 if [ -z "$TOKEN" ]; then
-  echo "Pass a Vercel token: VERCEL_TOKEN=vcp_xxx $0   (or)   $0 vcp_xxx" >&2
+  echo "Set VERCEL_TOKEN: VERCEL_TOKEN=vcp_xxx bash $0" >&2
   exit 1
 fi
 
 PROJECT="prj_mxkyrnNWddSBACXA1Li0CqlBlszn"
 TEAM="team_HMhjZyN0EUJD0KwRqfWwIURp"
 
-# Read SUPABASE_SERVICE_ROLE_KEY from .env.local without echoing it
 ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env.local"
 if [ ! -f "$ENV_FILE" ]; then
   echo "Missing $ENV_FILE — make sure SUPABASE_SERVICE_ROLE_KEY is set there." >&2
@@ -35,20 +35,33 @@ fi
 
 post_var() {
   local key="$1" value="$2" type="$3"
-  curl --silent --show-error --fail \
-    -X POST "https://api.vercel.com/v10/projects/${PROJECT}/env?teamId=${TEAM}&upsert=true" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "$(python3 -c '
+  local payload
+  payload=$(python3 -c '
 import json, sys
 print(json.dumps({
   "key":    sys.argv[1],
   "value":  sys.argv[2],
   "type":   sys.argv[3],
   "target": ["production","preview","development"],
-}))' "$key" "$value" "$type")" >/dev/null \
-    && echo "  ✓ $key  ($type, ${#value} chars)" \
-    || echo "  ✗ $key"
+}))' "$key" "$value" "$type")
+
+  local status
+  # `set +e` so we can capture the exit status without `set -e` aborting before
+  # we get to inspect it; restore right after.
+  set +e
+  curl --silent --show-error --fail \
+    -X POST "https://api.vercel.com/v10/projects/${PROJECT}/env?teamId=${TEAM}&upsert=true" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$payload" >/dev/null
+  status=$?
+  set -e
+
+  if [ "$status" -ne 0 ]; then
+    echo "  ✗ $key  (curl exit $status)" >&2
+    return $status
+  fi
+  echo "  ✓ $key  ($type, ${#value} chars)"
 }
 
 echo "Pushing 4 env vars to Vercel project airfnb…"

@@ -82,6 +82,54 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
+
+    // Re-fetch everything server-side and recompute the checklist — never
+    // trust the UI's `canSubmit` boolean. A user could craft a request
+    // bypassing the button.
+    const [tRes, iRes, mRes, cRes, dRes] = await Promise.all([
+      (supa as any).from("airfnb_trucks")
+        .select("id, owner_id, status, name, tagline, description, base_city, capacity, base_price, price_per_pax")
+        .eq("id", id).maybeSingle(),
+      (supa as any).from("airfnb_truck_images").select("id, is_cover").eq("truck_id", id),
+      (supa as any).from("airfnb_menu_items").select("id").eq("truck_id", id),
+      (supa as any).from("airfnb_truck_categories").select("category_id").eq("truck_id", id),
+      (supa as any).from("airfnb_truck_documents").select("id, kind, expires_at").eq("truck_id", id),
+    ]);
+    const t = tRes.data;
+    if (!t) throw new Error("Truck não encontrado.");
+    if (t.owner_id !== user.id) throw new Error("Sem permissão.");
+    if (t.status !== "draft") throw new Error("Só trucks em rascunho podem ser submetidos.");
+
+    const imgs = (iRes.data as any[]) ?? [];
+    const items = (mRes.data as any[]) ?? [];
+    const cats  = (cRes.data as any[]) ?? [];
+    const ds    = (dRes.data as any[]) ?? [];
+    const now = new Date();
+    const docOk = (kind: string) =>
+      ds.some((d) =>
+        (d.kind ?? "").toLowerCase().includes(kind) &&
+        (!d.expires_at || new Date(d.expires_at) > now),
+      );
+
+    const score = [
+      [5,  !!t.name?.trim()],
+      [5,  !!t.tagline?.trim()],
+      [10, (t.description ?? "").trim().length >= 80],
+      [5,  !!t.base_city?.trim()],
+      [5,  !!t.capacity],
+      [10, !!t.base_price && !!t.price_per_pax],
+      [10, cats.length >= 1],
+      [10, imgs.some((i) => i.is_cover)],
+      [10, imgs.length >= 3],
+      [15, items.length >= 5],
+      [7,  docOk("haccp")],
+      [8,  docOk("seguro") || docOk("insur")],
+    ].reduce((s, [w, ok]) => s + ((ok as boolean) ? (w as number) : 0), 0);
+
+    if (score < 100) {
+      throw new Error(`Faltam dados (${score}% completo). Completa o checklist antes de submeter.`);
+    }
+
     const { error } = await (supa as any)
       .from("airfnb_trucks")
       .update({ status: "pending_review" })
@@ -98,9 +146,10 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
-    await (supa as any).from("airfnb_trucks")
+    const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "paused" })
       .eq("id", id).eq("owner_id", user.id).eq("status", "active");
+    if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/truck/${id}`);
   }
   async function resume() {
@@ -108,9 +157,10 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
-    await (supa as any).from("airfnb_trucks")
+    const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "active" })
       .eq("id", id).eq("owner_id", user.id).eq("status", "paused");
+    if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/truck/${id}`);
   }
 

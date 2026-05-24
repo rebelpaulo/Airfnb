@@ -48,19 +48,25 @@ export default async function TruckDashboard() {
   const drafts = trucks.filter((t) => t.status === "draft").length;
   const pending = trucks.filter((t) => t.status === "pending_review").length;
 
-  // Combined matching feed across all trucks (top picks per truck merged + de-duped)
-  type Feed = { request_id: string; title: string; start_at: string; city: string|null; expected_pax: number; match_score: number; via_truck: string };
-  let feed: Feed[] = [];
+  // Combined matching feed across all active trucks. When the same request
+  // matches several of the owner's trucks, keep the BEST match (highest score)
+  // and label it with the winning truck — otherwise the first truck we
+  // iterated would steal the badge even if a sibling matched better.
+  type Feed = { request_id: string; title: string; start_at: string; city: string | null; expected_pax: number; match_score: number; via_truck: string };
+  const byReq = new Map<string, Feed>();
   for (const t of trucks.filter((x) => x.status === "active")) {
     const { data } = await (supa as any).rpc("airfnb_find_matching_requests", { p_truck: t.id, p_limit: 6 });
     for (const r of (data as any[] ?? [])) {
-      if (!feed.some((f) => f.request_id === r.request_id)) {
-        feed.push({ ...r, via_truck: t.name });
+      const candidate: Feed = { ...r, via_truck: t.name };
+      const existing = byReq.get(r.request_id);
+      if (!existing || Number(candidate.match_score) > Number(existing.match_score)) {
+        byReq.set(r.request_id, candidate);
       }
     }
   }
-  feed.sort((a, b) => Number(b.match_score) - Number(a.match_score));
-  feed = feed.slice(0, 12);
+  const feed: Feed[] = Array.from(byReq.values())
+    .sort((a, b) => Number(b.match_score) - Number(a.match_score))
+    .slice(0, 12);
 
   return (
     <div className="dash">

@@ -4,14 +4,37 @@ import { truckCover } from "@/lib/img";
 
 export const revalidate = 60;
 
-export default async function CatalogoPage() {
+type SearchParams = Promise<{
+  city?: string;
+  cat?: string;       // category slug
+  pax?: string;       // minimum capacity
+  from?: string;      // YYYY-MM-DD (not yet wired to availability filter)
+  to?: string;        // YYYY-MM-DD (idem)
+}>;
+
+export default async function CatalogoPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
   const supa = await supabaseServer();
-  const { data } = await supa
+
+  let q = (supa as any)
     .from("airfnb_v_truck_card")
     .select("*")
     .order("rating_avg", { ascending: false })
+    .order("id", { ascending: true })
     .limit(60);
-  const trucks = data ?? [];
+
+  if (sp.city) q = q.ilike("base_city", `%${sp.city.trim()}%`);
+  if (sp.cat)  q = q.contains("category_slugs", [sp.cat]);
+  const paxNum = sp.pax ? Number(sp.pax) : NaN;
+  if (Number.isFinite(paxNum) && paxNum > 0) q = q.gte("capacity", paxNum);
+
+  const { data } = await q;
+  const trucks = (data as any[]) ?? [];
+
+  const activeFilters: Array<{ key: string; label: string }> = [];
+  if (sp.city) activeFilters.push({ key: "city", label: `Cidade: ${sp.city}` });
+  if (sp.cat)  activeFilters.push({ key: "cat",  label: `Categoria: ${sp.cat}` });
+  if (Number.isFinite(paxNum) && paxNum > 0) activeFilters.push({ key: "pax", label: `≥ ${paxNum} pax` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>
@@ -23,9 +46,27 @@ export default async function CatalogoPage() {
         Inspira-te ou convida directamente para o teu evento.
       </p>
 
+      {activeFilters.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0 8px" }}>
+          {activeFilters.map((f) => (
+            <span key={f.key} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 12px", borderRadius: 999,
+              background: "#FFF6F2", color: "var(--orange-deep)",
+              fontSize: 13, fontWeight: 600,
+            }}>{f.label}</span>
+          ))}
+          <Link href="/catalogo" style={{ color: "var(--muted)", fontSize: 13, alignSelf: "center" }}>
+            limpar filtros
+          </Link>
+        </div>
+      )}
+
       {trucks.length === 0 ? (
         <div className="dash empty" style={{ marginTop: 30 }}>
-          Sem trucks activos para mostrar.
+          {activeFilters.length > 0
+            ? "Nenhum truck activo encontrado para estes filtros."
+            : "Sem trucks activos para mostrar."}
         </div>
       ) : (
         <div className="truck-grid cols-4" style={{ marginTop: 26 }}>
@@ -42,7 +83,11 @@ export default async function CatalogoPage() {
                     <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
                     {t.base_city ?? "—"}
                   </span>
-                  <span className="cap">★ {Number(t.rating_avg).toFixed(1)} ({t.rating_count})</span>
+                  <span className="cap">
+                    {Number(t.rating_count) > 0
+                      ? `★ ${Number(t.rating_avg).toFixed(1)} (${t.rating_count})`
+                      : "Novo"}
+                  </span>
                 </div>
               </div>
             </Link>

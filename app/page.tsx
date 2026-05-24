@@ -36,10 +36,14 @@ const SERVICES = [
 
 export default async function HomePage() {
   const supa = await supabaseServer();
+  // Stable ordering: highest-rated featured trucks first, with id as tiebreak
+  // so the SSR/ISR cache stays consistent on re-render.
   const { data: featuredData } = await (supa as any)
     .from("airfnb_v_truck_card")
     .select("*")
     .eq("featured", true)
+    .order("rating_avg", { ascending: false })
+    .order("id", { ascending: true })
     .limit(6);
   let trucks = (featuredData as any[]) ?? [];
 
@@ -48,6 +52,7 @@ export default async function HomePage() {
       .from("airfnb_v_truck_card")
       .select("*")
       .order("rating_avg", { ascending: false })
+      .order("id", { ascending: true })
       .limit(6);
     trucks = (data as any[]) ?? [];
   }
@@ -113,7 +118,11 @@ export default async function HomePage() {
                         <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
                         {t.base_city ?? "—"}
                       </span>
-                      <span className="cap">★ {Number(t.rating_avg).toFixed(1)} ({t.rating_count})</span>
+                      <span className="cap">
+                        {Number(t.rating_count) > 0
+                          ? `★ ${Number(t.rating_avg).toFixed(1)} (${t.rating_count})`
+                          : "Novo"}
+                      </span>
                     </div>
                   </div>
                 </Link>
