@@ -44,8 +44,13 @@ export function Header({ user }: Props) {
             </Link>
             <button
               className="icon-chip"
+              aria-label="Terminar sessão"
               onClick={async () => {
-                await supa.auth.signOut();
+                const { error } = await supa.auth.signOut();
+                if (error) {
+                  alert(`Erro ao terminar sessão: ${error.message}`);
+                  return;
+                }
                 window.location.href = "/";
               }}
             >

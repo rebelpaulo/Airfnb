@@ -5,6 +5,9 @@ import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.APP_URL) {
+    return NextResponse.json({ error: "stripe not configured" }, { status: 503 });
+  }
   const { application_id } = await req.json();
   if (!application_id) return NextResponse.json({ error: "application_id required" }, { status: 400 });
 

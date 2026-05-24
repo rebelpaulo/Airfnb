@@ -7,7 +7,10 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const sp = useSearchParams();
-  const next = sp.get("next") ?? "/";
+  // Only allow same-origin relative paths. Reject schemes, protocol-relative URLs,
+  // backslashes, etc. — prevents open-redirect to phishing sites via ?next=https://evil.
+  const rawNext = sp.get("next") ?? "/";
+  const next = /^\/[^/\\]/.test(rawNext) || rawNext === "/" ? rawNext : "/";
 
   const [email, setEmail] = useState("");
   const [pwd, setPwd]   = useState("");

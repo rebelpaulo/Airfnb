@@ -55,9 +55,13 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
 
   async function devPay() {
     "use server";
+    const token = process.env.DEV_PAY_TOKEN;
     const res = await fetch(`${process.env.APP_URL}/api/dev/mark-paid`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { "x-dev-pay-token": token } : {}),
+      },
       body: JSON.stringify({ application_id: id }),
       cache: "no-store",
     });

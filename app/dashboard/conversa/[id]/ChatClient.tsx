@@ -24,9 +24,18 @@ export function ChatClient({
       .channel(`conv:${conversationId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "airfnb_messages", filter: `conversation_id=eq.${conversationId}` },
-        (p) => setMessages((m) => [...m, p.new as Msg]))
+        (p) => {
+          const incoming = p.new as Msg;
+          // Realtime can fire before/after our optimistic insert. De-dupe on id.
+          setMessages((m) => (m.some((x) => x.id === incoming.id) ? m : [...m, incoming]));
+        })
       .subscribe();
-    return () => { supa.removeChannel(ch); };
+    return () => {
+      // Always close the channel; ignore errors to avoid noisy console on unmount.
+      supa.removeChannel(ch).catch(() => undefined);
+    };
+  // supa is a stable client instance — depending on it would cause double-subscribe
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);

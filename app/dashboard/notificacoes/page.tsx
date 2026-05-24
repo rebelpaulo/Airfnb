@@ -20,7 +20,14 @@ export default async function NotificacoesPage() {
     "use server";
     const id = String(formData.get("id"));
     const supa = await supabaseServer();
-    await (supa as any).from("airfnb_notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+    const { data: { user } } = await supa.auth.getUser();
+    if (!user) throw new Error("auth required");
+    const { error } = await (supa as any)
+      .from("airfnb_notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);     // belt + suspenders: RLS already enforces this
+    if (error) throw new Error(error.message);
     revalidatePath("/dashboard/notificacoes");
   }
 
