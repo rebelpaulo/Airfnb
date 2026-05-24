@@ -102,10 +102,14 @@ do $$ begin
       exists (
         select 1
           from public.airfnb_booking_trucks bt
-          join public.airfnb_trucks t on t.id = bt.truck_id
+          join public.airfnb_trucks   t on t.id = bt.truck_id
+          join public.airfnb_bookings b on b.id = bt.booking_id
          where bt.booking_id = airfnb_organizer_reviews.booking_id
            and bt.truck_id   = airfnb_organizer_reviews.truck_id
            and t.owner_id    = auth.uid()
+           -- bind organizer_id to the booking's organizer so a truck owner
+           -- can't crash a different organizer's score by spoofing the field
+           and b.organizer_id = airfnb_organizer_reviews.organizer_id
       )
     );
 exception when duplicate_object then null; end $$;

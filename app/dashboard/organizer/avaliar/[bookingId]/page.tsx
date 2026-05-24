@@ -75,6 +75,17 @@ export default async function AvaliarTrucksPage({
       throw new Error("Só podes avaliar bookings confirmados.");
     }
 
+    // Verify the truck_id is actually part of this booking — otherwise a
+    // crafted form could rate trucks that never participated and corrupt
+    // their aggregate score via the recompute trigger.
+    const { data: membership } = await (supa as any)
+      .from("airfnb_booking_trucks")
+      .select("truck_id")
+      .eq("booking_id", bookingId)
+      .eq("truck_id", truckId)
+      .maybeSingle();
+    if (!membership) throw new Error("Este truck não participou neste evento.");
+
     const rating_overall = Math.round(((food + service + valueR) / 3) * 10) / 10;
 
     const { error } = await (supa as any).from("airfnb_reviews").insert({
