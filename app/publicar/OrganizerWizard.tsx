@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
@@ -130,8 +130,11 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
 
   // Honeypot: hidden field invisible to humans but eagerly filled by naive
-  // form-scraping bots. If non-empty at submit, abort the insert silently.
-  const [honeypot, setHoneypot] = useState("");
+  // form-scraping bots. We use a ref to read the LIVE DOM value at submit
+  // time — React onChange only fires when input events bubble, so a bot
+  // that mutates `input.value` directly via JS would bypass a state-only
+  // check. Reading the ref catches both cases.
+  const honeypotRef = useRef<HTMLInputElement | null>(null);
 
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -152,9 +155,10 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
     setErr(null);
     try {
       // Honeypot tripwire — silently no-op (don't reveal the trap exists).
-      // The user goes back to the form thinking it submitted; we just don't
-      // create the row.
-      if (honeypot.trim() !== "") {
+      // Read the live DOM value (not React state) so DOM-mutating bots that
+      // skip the onChange path still get caught.
+      const honeypotVal = honeypotRef.current?.value ?? "";
+      if (honeypotVal.trim() !== "") {
         setBusy(false);
         router.push("/dashboard/organizer");
         return;
@@ -233,15 +237,17 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   return (
     <div className="wizard-shell" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 16, padding: 26 }}>
       {/* Honeypot — visually hidden + aria-hidden so humans never see or
-          tab into it; bots that auto-fill every input trip the no-op path. */}
+          tab into it; bots that auto-fill every input trip the no-op path.
+          Uncontrolled (ref-only) so DOM-mutating bots can't bypass via
+          direct value assignment without firing change events. */}
       <input
+        ref={honeypotRef}
         type="text"
         name="website"
         tabIndex={-1}
         autoComplete="off"
         aria-hidden="true"
-        value={honeypot}
-        onChange={(e) => setHoneypot(e.target.value)}
+        defaultValue=""
         style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
       />
       <DotStepper step={step} total={5} />
