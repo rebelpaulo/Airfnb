@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
+import { Logo } from "@/components/Logo";
 
 export const revalidate = 60;
 
@@ -61,7 +62,7 @@ export default async function HomePage() {
     <>
       {/* ====== HERO ====== */}
       <section className="hero">
-        <div className="logo-mark">air<span className="amp">&amp;</span>fb</div>
+        <Logo variant="white" height="clamp(110px, 18vw, 230px)" className="logo-mark" />
         <p className="tagline">A maior oferta de Food Trucks para o teu evento à distância de um click.</p>
 
         {/*
