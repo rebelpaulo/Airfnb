@@ -3,43 +3,58 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
 
 export default function SignupPage() {
   const router = useRouter();
   const sp = useSearchParams();
   const initialRole = (sp.get("as") === "truck" ? "owner" : "organizer") as "owner" | "organizer";
-  const next = sp.get("next") ?? (initialRole === "owner" ? "/dashboard/truck" : "/dashboard/organizer");
+  // Only allow same-origin relative paths for ?next= to prevent open-redirect.
+  const rawNext = sp.get("next") ?? "";
+  const safeNext = /^\/[^/\\]/.test(rawNext) || rawNext === "/" ? rawNext : "";
+  const next = safeNext || (initialRole === "owner" ? "/onboarding/truck" : "/onboarding/organizer");
 
   const [role, setRole]   = useState<"organizer" | "owner">(initialRole);
   const [name, setName]   = useState("");
   const [email, setEmail] = useState("");
   const [pwd, setPwd]     = useState("");
   const [err, setErr]     = useState<string | null>(null);
+  const [info, setInfo]   = useState<string | null>(null);
   const [busy, setBusy]   = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setInfo(null);
     const supa = supabaseBrowser();
 
     const { data, error } = await supa.auth.signUp({
       email,
       password: pwd,
-      options: { data: { full_name: name, locale: "pt-PT" } },
+      options: {
+        data: { full_name: name, locale: "pt-PT" },
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&as=${role}`,
+      },
     });
     if (error) { setBusy(false); setErr(error.message); return; }
 
-    // upgrade profile role (trigger created it with default 'organizer')
-    if (data.user && role === "owner") {
+    // If email confirmation is enabled in Supabase, signUp returns user but no session.
+    if (!data.session) {
+      setBusy(false);
+      setInfo("Conta criada! Verifica o teu email para confirmares antes de entrar.");
+      return;
+    }
+
+    // We have a session — upgrade the role + name now while we still have the user id.
+    if (data.user) {
       const { error: profileErr } = await (supa as any)
         .from("airfnb_profiles")
-        .update({ role: "owner", full_name: name })
+        .update({ role, full_name: name })
         .eq("id", data.user.id);
       if (profileErr) {
         setBusy(false);
         setErr(
-          "Conta criada, mas não conseguimos definir o teu papel como Truck. " +
-          "Faz login e tenta de novo a partir do dashboard."
+          "Conta criada, mas não conseguimos definir o teu papel. " +
+          "Faz login e volta a tentar a partir do dashboard."
         );
         return;
       }
@@ -54,33 +69,54 @@ export default function SignupPage() {
       <h1>Criar conta</h1>
       <p className="muted">Escolhe o teu lado do marketplace.</p>
 
-      <div className="role-toggle">
-        <button type="button" className={role === "organizer" ? "on" : ""} onClick={() => setRole("organizer")}>
+      <div className="role-toggle" role="tablist" aria-label="Tipo de conta">
+        <button type="button" role="tab" aria-selected={role === "organizer"}
+                className={role === "organizer" ? "on" : ""}
+                onClick={() => setRole("organizer")}>
           Sou organizer
         </button>
-        <button type="button" className={role === "owner" ? "on" : ""} onClick={() => setRole("owner")}>
+        <button type="button" role="tab" aria-selected={role === "owner"}
+                className={role === "owner" ? "on" : ""}
+                onClick={() => setRole("owner")}>
           Tenho um Truck
         </button>
       </div>
 
-      {err && <div className="error">{err}</div>}
+      <OAuthButtons next={next} asRole={role} />
+
+      <div role="separator" aria-orientation="horizontal"
+           style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>
+        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+        OU
+        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+      </div>
+
+      {err  && <div className="error">{err}</div>}
+      {info && <div className="error" style={{ background: "#E8F5F1", color: "#1F5B65" }}>{info}</div>}
+
       <form onSubmit={onSubmit}>
         <div className="field">
-          <label>Nome</label>
-          <input required value={name} onChange={(e) => setName(e.target.value)} />
+          <label htmlFor="signup-name">Nome</label>
+          <input id="signup-name" required value={name}
+                 onChange={(e) => setName(e.target.value)} autoComplete="name" />
         </div>
         <div className="field">
-          <label>Email</label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label htmlFor="signup-email">Email</label>
+          <input id="signup-email" type="email" required value={email}
+                 onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         </div>
         <div className="field">
-          <label>Password</label>
-          <input type="password" required minLength={6} value={pwd} onChange={(e) => setPwd(e.target.value)} />
+          <label htmlFor="signup-pwd">Password</label>
+          <input id="signup-pwd" type="password" required minLength={8}
+                 value={pwd} onChange={(e) => setPwd(e.target.value)}
+                 autoComplete="new-password" />
+          <small style={{ color: "var(--muted)", fontSize: 12 }}>Mínimo 8 caracteres.</small>
         </div>
         <button className="btn-pill" style={{ width: "100%" }} disabled={busy} type="submit">
           {busy ? "A criar conta…" : "Criar conta"}
         </button>
       </form>
+
       <span className="switch-link">
         Já tens conta? <Link href={`/login?next=${encodeURIComponent(next)}`}>Entra aqui</Link>
       </span>
