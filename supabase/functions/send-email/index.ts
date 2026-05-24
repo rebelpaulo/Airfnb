@@ -100,44 +100,33 @@ const SUPABASE_URL              = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-type AuthOk = { ok: true; kind: "service" | "user"; userId?: string };
+type AuthOk = { ok: true };
 type AuthFail = { ok: false; status: number; msg: string };
 
-/** Validate the caller is either the service role OR a real authenticated user. */
+/**
+ * Service-role only.
+ *
+ * We do NOT accept end-user JWTs here. Any flow that needs to send transactional
+ * email is initiated by the platform itself (Postgres triggers via pg_net,
+ * Next.js server actions, our own edge functions, cron). Those callers can use
+ * the service role key — which is never exposed to the browser — to invoke
+ * this function. This removes the entire "spam relay via valid user token"
+ * vector by construction.
+ */
 async function authorize(req: Request): Promise<AuthOk | AuthFail> {
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, status: 500, msg: "SUPABASE_SERVICE_ROLE_KEY not configured" };
+  }
   const authz = req.headers.get("authorization") ?? "";
   if (!authz.toLowerCase().startsWith("bearer ")) {
     return { ok: false, status: 401, msg: "missing bearer token" };
   }
   const token = authz.slice(7).trim();
-  if (!token) return { ok: false, status: 401, msg: "empty bearer token" };
-
-  // Path 1: service role — exact match against the configured key.
-  if (SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY) {
-    return { ok: true, kind: "service" };
+  if (!token || token !== SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, status: 401, msg: "service role required" };
   }
-
-  // Path 2: ask the Supabase Auth API whether this is a valid user JWT.
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return { ok: false, status: 500, msg: "auth not configured" };
-  }
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    return { ok: false, status: 401, msg: "invalid jwt" };
-  }
-  const user = await res.json().catch(() => null);
-  if (!user?.id) {
-    return { ok: false, status: 401, msg: "invalid user" };
-  }
-  return { ok: true, kind: "user", userId: user.id };
+  return { ok: true };
 }
-
-// Templates that end-users (not service role) are allowed to trigger directly.
-// Service role can use any template. This keeps the function from becoming a
-// generic spam relay for anyone with a valid Supabase Auth JWT.
-const USER_ALLOWED_TEMPLATES: ReadonlyArray<TemplateKey> = ["contact_reply"];
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -152,19 +141,6 @@ Deno.serve(async (req) => {
   if (!body?.to || !body.template) return json({ error: "missing to/template" }, 400);
   if (ALLOWED.length && !ALLOWED.includes(body.template))
     return json({ error: `template not allowed: ${body.template}` }, 403);
-
-  // Narrow the user-token surface: only the service role can send arbitrary templates
-  // to arbitrary recipients. Logged-in users may only trigger a small whitelist
-  // (single recipient, predefined templates) to prevent the function being used
-  // as a spam relay.
-  if (authResult.kind === "user") {
-    if (!USER_ALLOWED_TEMPLATES.includes(body.template)) {
-      return json({ error: "template not allowed for user token" }, 403);
-    }
-    if (Array.isArray(body.to)) {
-      return json({ error: "user token must specify a single recipient" }, 403);
-    }
-  }
 
   const tpl = TEMPLATES[body.template];
   if (!tpl) return json({ error: `unknown template: ${body.template}` }, 400);
