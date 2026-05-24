@@ -27,14 +27,19 @@ export default async function MinhasCandidaturasPage() {
     .order("created_at", { ascending: false });
   const apps = appsData ?? [];
 
-  // Map applications → conversations so we can deep-link directly to the chat.
-  // Conversations are created when an application is accepted, so most rows
-  // won't have one. A single query keeps the row map flat.
+  // Map applications → conversations + bookings so we can deep-link directly
+  // to the chat or surface a review CTA once the booking is confirmed/completed.
   const appIds = apps.map((a: any) => a.id);
-  const { data: convs } = appIds.length
-    ? await (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds)
-    : { data: [] };
-  const convByApp = new Map<string, string>(((convs as any[]) ?? []).map((c) => [c.application_id, c.id]));
+  const [convsRes, bookingsRes] = appIds.length
+    ? await Promise.all([
+        (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
+        (supa as any).from("airfnb_bookings").select("id, application_id, status").in("application_id", appIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
+  const bookingByApp = new Map<string, { id: string; status: string }>(
+    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status }]),
+  );
 
   return (
     <div className="dash">
@@ -61,15 +66,28 @@ export default async function MinhasCandidaturasPage() {
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="match-badge">{a.status}</span>
                 {a.status === "accepted" ? (
-                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     {convByApp.has(a.id) && (
                       <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
                         Conversa →
                       </Link>
                     )}
-                    <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
-                      ⏰ Pagar lock-fee →
-                    </Link>
+                    {(() => {
+                      const b = bookingByApp.get(a.id);
+                      if (b && (b.status === "confirmed" || b.status === "completed")) {
+                        return (
+                          <Link href={`/dashboard/truck/avaliar/${b.id}`} style={{ color: "var(--orange-deep)", fontWeight: 600 }}>
+                            ★ Avaliar organizador →
+                          </Link>
+                        );
+                      }
+                      // Lock fee still pending — show the pay link instead of the review one.
+                      return (
+                        <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
+                          ⏰ Pagar lock-fee →
+                        </Link>
+                      );
+                    })()}
                   </div>
                 ) : a.airfnb_event_requests?.status === "open" ? (
                   // Only link out when the brief still accepts traffic — the
