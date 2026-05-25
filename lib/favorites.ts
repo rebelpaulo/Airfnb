@@ -17,9 +17,16 @@ export async function toggleFavorite(truckId: string): Promise<{ favorited: bool
   if (!user) throw new Error("auth required");
   if (!truckId) throw new Error("truck_id required");
 
-  // Read current state first so we know which branch to take.
-  // Costs an extra round-trip but lets us return the post-mutation
-  // state without a follow-up read.
+  // Read current state first so we know which branch to take. Costs an
+  // extra round-trip but lets us return the post-mutation state without a
+  // follow-up read.
+  //
+  // NOTE: the read-then-write here has a race window — two near-simultaneous
+  // calls from different tabs could either both INSERT (one hits unique
+  // violation) or both DELETE (idempotent, no harm). Within a single tab
+  // the HeartButton disables itself via useTransition so this is unreachable.
+  // Cross-tab race is rare; the bad path is a one-shot error toast. A true
+  // atomic toggle would need an RPC (`airfnb_toggle_favorite`) — TODO.
   const { data: existing } = await (supa as any)
     .from("airfnb_favorites")
     .select("truck_id")

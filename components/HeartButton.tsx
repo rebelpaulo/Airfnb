@@ -47,7 +47,11 @@ export function HeartButton({ truckId, initialFavorited, authed, size = 36, abso
     e.preventDefault(); // suppress the parent <Link> nav if the heart sits inside one
     e.stopPropagation();
     if (!authed) {
-      window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+      // Include search + hash so the user lands back on the exact filter /
+      // anchor they were looking at — losing the query string would make
+      // the catalog reset after sign-in, which is jarring.
+      const back = window.location.pathname + window.location.search + window.location.hash;
+      window.location.href = `/login?next=${encodeURIComponent(back)}`;
       return;
     }
     // Optimistic flip
