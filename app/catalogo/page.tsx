@@ -71,6 +71,15 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   // backed by airfnb_trucks.serves.
   const serves     = first(sp.catering);
 
+  // Validate enum-style params once so chip rendering below can use the same
+  // accept/reject decision as the query — avoids showing chips for malformed
+  // URLs (e.g. ?power=foo) that the query silently ignores.
+  const validPower      = power && POWER_MAX_KW[power] != null ? power : undefined;
+  const validSanitation = sanitation && ["none", "wc_proximo", "wc_dedicado"].includes(sanitation)
+    ? sanitation : undefined;
+  const validServes     = serves && ["food", "drinks", "food_and_drinks"].includes(serves)
+    ? serves : undefined;
+
   const supa = await supabaseServer();
 
   let q = (supa as any)
@@ -88,18 +97,18 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (cuisines?.length) q = q.overlaps("cuisine_types", cuisines);
   if (dietary?.length)  q = q.overlaps("dietary_options", dietary);
   if (setupMax)         q = q.lte("setup_minutes", setupMax);
-  if (power && POWER_MAX_KW[power] != null) q = q.lte("power_required_kw", POWER_MAX_KW[power]);
-  if (serves && ["food","drinks","food_and_drinks"].includes(serves)) {
+  if (validPower) q = q.lte("power_required_kw", POWER_MAX_KW[validPower]);
+  if (validServes) {
     // 'food_and_drinks' trucks satisfy any of the three picks; otherwise an
     // exact match on the simpler picks.
-    if (serves === "food_and_drinks") q = q.eq("serves", "food_and_drinks");
-    else                              q = q.in("serves", [serves, "food_and_drinks"]);
+    if (validServes === "food_and_drinks") q = q.eq("serves", "food_and_drinks");
+    else                                   q = q.in("serves", [validServes, "food_and_drinks"]);
   }
-  if (sanitation) {
+  if (validSanitation) {
     // A truck that needs more amenities than the event provides shouldn't show.
     // Wizard semantics: organizer says what they offer; truck must require ≤ that.
-    const allowed = sanitation === "wc_dedicado" ? ["none","wc_proximo","wc_dedicado"]
-                  : sanitation === "wc_proximo"  ? ["none","wc_proximo"]
+    const allowed = validSanitation === "wc_dedicado" ? ["none","wc_proximo","wc_dedicado"]
+                  : validSanitation === "wc_proximo"  ? ["none","wc_proximo"]
                   : ["none"];
     q = q.in("sanitation_required", allowed);
   }
@@ -146,9 +155,9 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `${t.filter_cuisines}: ${cuisines.map((c) => lookup(CUISINE_KEY, c)).join(", ")}` });
   if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `${t.filter_dietary}: ${dietary.map((d) => lookup(DIETARY_KEY, d)).join(", ")}` });
   if (setupMax)         activeFilters.push({ key: "setup_max", label: `${t.filter_setup} ≤ ${setupMax}${t.filter_setup_unit}` });
-  if (power)            activeFilters.push({ key: "power",     label: `${t.filter_power}: ${lookup(POWER_KEY, power)}` });
-  if (sanitation)       activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${lookup(SANI_KEY, sanitation)}` });
-  if (serves)           activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${lookup(CATERING_KEY, serves)}` });
+  if (validPower)       activeFilters.push({ key: "power",     label: `${t.filter_power}: ${lookup(POWER_KEY, validPower)}` });
+  if (validSanitation)  activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${lookup(SANI_KEY, validSanitation)}` });
+  if (validServes)      activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${lookup(CATERING_KEY, validServes)}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>
