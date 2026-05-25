@@ -41,7 +41,12 @@ export async function POST(req: NextRequest) {
   const { error } = await (supa as any).from("airfnb_newsletter_subs")
     .upsert({ email, source }, { onConflict: "email" });
   if (error) {
-    console.error("newsletter upsert failed", { email, error: error.message });
+    // Don't log the raw email — anonymise to local-part length + domain so
+    // operators can still spot patterns (e.g. one big provider hitting the
+    // form) without leaking subscriber PII into log aggregators.
+    const at = email.indexOf("@");
+    const safeEmail = at > 0 ? `(${at} chars)@${email.slice(at + 1)}` : "(invalid)";
+    console.error("newsletter upsert failed", { email: safeEmail, error: error.message });
     return done(req, "err", "upsert_failed");
   }
 

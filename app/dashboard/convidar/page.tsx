@@ -18,9 +18,11 @@ export default async function ConvidarPage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  // The trigger fills referral_code on insert; old profiles backfilled by migration 30.
-  const code = profile?.referral_code ?? "—";
-  const link = `${APP_URL}/signup?ref=${code}`;
+  // The trigger fills referral_code on insert; old profiles backfilled by
+  // migration 30. If the code is somehow missing, render the placeholder UI
+  // without a copyable link rather than producing a broken `?ref=—`.
+  const code = profile?.referral_code ?? null;
+  const link = code ? `${APP_URL}/signup?ref=${code}` : null;
 
   const { data: redeemed } = await (supa as any)
     .from("airfnb_profiles")
@@ -42,17 +44,23 @@ export default async function ConvidarPage() {
           O teu código
         </div>
         <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 48, color: "var(--orange)", lineHeight: 1, marginTop: 4 }}>
-          {code}
+          {code ?? "—"}
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <input
-            readOnly
-            value={link}
-            onFocus={(e) => e.currentTarget.select()}
-            style={{ flex: 1, minWidth: 220, padding: "10px 14px", border: "1.5px solid var(--line)", borderRadius: 10, fontSize: 13, fontFamily: "monospace" }}
-          />
-          <CopyButton text={link} />
-        </div>
+        {link ? (
+          <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              readOnly
+              value={link}
+              onFocus={(e) => e.currentTarget.select()}
+              style={{ flex: 1, minWidth: 220, padding: "10px 14px", border: "1.5px solid var(--line)", borderRadius: 10, fontSize: 13, fontFamily: "monospace" }}
+            />
+            <CopyButton text={link} />
+          </div>
+        ) : (
+          <div style={{ marginTop: 14, padding: 12, background: "#FFF6F2", border: "1px solid #FFE0D2", borderRadius: 10, fontSize: 13, color: "var(--orange-deep)" }}>
+            Ainda sem código atribuído. Recarrega a página em instantes ou contacta o suporte.
+          </div>
+        )}
         <div style={{ marginTop: 14, fontSize: 13, color: "var(--muted)" }}>
           <strong style={{ color: "var(--ink)" }}>{profile?.referrals_count ?? 0}</strong>
           {" "}{(profile?.referrals_count ?? 0) === 1 ? "pessoa" : "pessoas"} registaram-se com o teu link.
