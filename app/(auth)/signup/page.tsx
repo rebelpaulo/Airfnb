@@ -13,6 +13,9 @@ export default function SignupPage() {
   const rawNext = sp.get("next") ?? "";
   const safeNext = /^\/[^/\\]/.test(rawNext) || rawNext === "/" ? rawNext : "";
   const next = safeNext || (initialRole === "owner" ? "/onboarding/truck" : "/onboarding/organizer");
+  // Carry the referral code through the auth round-trip (email confirm +
+  // OAuth). The callback reads ?ref= and credits the referrer atomically.
+  const refCode = (sp.get("ref") ?? "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
 
   const [role, setRole]   = useState<"organizer" | "owner">(initialRole);
   const [name, setName]   = useState("");
@@ -32,7 +35,7 @@ export default function SignupPage() {
       password: pwd,
       options: {
         data: { full_name: name, locale: "pt-PT" },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&as=${role}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&as=${role}${refCode ? `&ref=${refCode}` : ""}`,
       },
     });
     if (error) { setBusy(false); setErr(error.message); return; }
@@ -58,6 +61,11 @@ export default function SignupPage() {
         );
         return;
       }
+      // Apply referral attribution on the immediate-session path (the
+      // /auth/callback handler covers the email-confirm + OAuth paths).
+      if (refCode) {
+        await (supa as any).rpc("airfnb_apply_referral", { p_code: refCode });
+      }
     }
     setBusy(false);
     router.push(next);
@@ -82,7 +90,7 @@ export default function SignupPage() {
         </button>
       </div>
 
-      <OAuthButtons next={next} asRole={role} />
+      <OAuthButtons next={next} asRole={role} refCode={refCode} />
 
       <div role="separator" aria-orientation="horizontal"
            style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>

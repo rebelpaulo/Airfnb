@@ -68,6 +68,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_referrer uuid;
+  v_updated int;
 begin
   if v_uid is null or p_code is null or length(p_code) < 6 then return false; end if;
   select id into v_referrer
@@ -75,9 +76,14 @@ begin
    where referral_code = upper(p_code) and id <> v_uid;
   if v_referrer is null then return false; end if;
 
+  -- Only credit the referrer when the attribution UPDATE actually changed
+  -- a row. Without this, repeat calls / users with referred_by already set
+  -- would let the caller inflate someone's count by replaying the RPC.
   update public.airfnb_profiles
      set referred_by = v_referrer
    where id = v_uid and referred_by is null;
+  get diagnostics v_updated = row_count;
+  if v_updated = 0 then return false; end if;
 
   update public.airfnb_profiles
      set referrals_count = referrals_count + 1

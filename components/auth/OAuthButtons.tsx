@@ -9,6 +9,8 @@ type Props = {
   next?: string;
   /** role to upgrade profile to after first signup */
   asRole?: "organizer" | "owner";
+  /** referral code to forward to the callback for attribution */
+  refCode?: string;
 };
 
 const LABELS: Record<Provider, string> = {
@@ -16,7 +18,7 @@ const LABELS: Record<Provider, string> = {
   apple:  "Continuar com Apple",
 };
 
-export function OAuthButtons({ next = "/", asRole }: Props) {
+export function OAuthButtons({ next = "/", asRole, refCode }: Props) {
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr]   = useState<string | null>(null);
 
@@ -25,6 +27,7 @@ export function OAuthButtons({ next = "/", asRole }: Props) {
     const supa = supabaseBrowser();
     const params = new URLSearchParams({ next });
     if (asRole) params.set("as", asRole);
+    if (refCode) params.set("ref", refCode);
     const { error } = await supa.auth.signInWithOAuth({
       provider,
       options: {
