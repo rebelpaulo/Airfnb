@@ -754,6 +754,35 @@ export const dictionaries = {
       back_organizer:   "← Voltar ao meu painel de organizador",
       back_truck:       "← Voltar ao meu painel de truck",
     },
+    admin: {
+      subtitle:                "Visão rápida do estado da plataforma.",
+      stat_trucks_active:      "Trucks ativos",
+      stat_total_suffix:       "no total",
+      stat_trucks_pending:     "Trucks pendentes",
+      stat_open_requests:      "Pedidos abertos",
+      stat_bookings_confirmed: "Bookings confirmadas",
+      stat_lockfees_paid:      "Lock-fees pagas",
+      stat_revenue:            "Receita plataforma",
+      stat_users:              "Utilizadores na plataforma",
+      pending_title:           "Trucks à espera de revisão",
+      view_all:                "Ver todos →",
+      empty_pending:           "Sem trucks pendentes.",
+      submitted_by:            "submetido por",
+      review:                  "Rever",
+    },
+    admin_trucks: {
+      breadcrumb_current:      "Trucks pendentes",
+      page_title:              "Moderação — Trucks",
+      empty:                   "Sem trucks à espera.",
+      waiting_singular:        "truck à espera de revisão.",
+      waiting_plural:          "trucks à espera de revisão.",
+      submitted_label:         "submetido",
+      view_in_catalog:         "Ver no catálogo",
+      approve:                 "Aprovar",
+      reject:                  "Rejeitar",
+      reason_placeholder:      "Razão (vê o dono)",
+      err_reason_too_short:    "Indica uma razão de pelo menos 10 caracteres — o dono vê isto.",
+    },
     vocab: {
       cuisines: {
         portuguesa: "Portuguesa",
@@ -1999,6 +2028,35 @@ export const dictionaries = {
       back_organizer:   "← Back to my organizer dashboard",
       back_truck:       "← Back to my truck dashboard",
     },
+    admin: {
+      subtitle:                "Quick overview of the platform.",
+      stat_trucks_active:      "Active trucks",
+      stat_total_suffix:       "total",
+      stat_trucks_pending:     "Trucks pending",
+      stat_open_requests:      "Open requests",
+      stat_bookings_confirmed: "Confirmed bookings",
+      stat_lockfees_paid:      "Lock-fees paid",
+      stat_revenue:            "Platform revenue",
+      stat_users:              "Total users",
+      pending_title:           "Trucks awaiting review",
+      view_all:                "View all →",
+      empty_pending:           "No pending trucks.",
+      submitted_by:            "submitted by",
+      review:                  "Review",
+    },
+    admin_trucks: {
+      breadcrumb_current:      "Pending trucks",
+      page_title:              "Moderation — Trucks",
+      empty:                   "No trucks waiting.",
+      waiting_singular:        "truck awaiting review.",
+      waiting_plural:          "trucks awaiting review.",
+      submitted_label:         "submitted",
+      view_in_catalog:         "View in catalog",
+      approve:                 "Approve",
+      reject:                  "Reject",
+      reason_placeholder:      "Reason (visible to owner)",
+      err_reason_too_short:    "Provide a reason of at least 10 characters — visible to owner.",
+    },
     vocab: {
       cuisines: {
         portuguesa: "Portuguese",
@@ -2533,6 +2591,8 @@ export const dictionaries = {
   onboarding: Record<string, Record<string, string>>;
   gates: Record<string, Record<string, string>>;
   wrong_account_type: Record<string, string>;
+  admin: Record<string, string>;
+  admin_trucks: Record<string, string>;
   vocab: Record<string, Record<string, string>>;
   wizard: Record<string, Record<string, string | Record<string, string>>>;
   dashboard: Record<string, Record<string, string>>;
