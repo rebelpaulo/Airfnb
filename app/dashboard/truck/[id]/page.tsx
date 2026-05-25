@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -184,8 +185,14 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
       </nav>
 
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 24, alignItems: "center" }}>
-        <div className="thumb" style={{ aspectRatio: "4/3", borderRadius: 14, overflow: "hidden" }}>
-          <img src={truckCover(coverImg?.url)} alt={truck.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div className="thumb" style={{ aspectRatio: "4/3", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+          <Image
+            src={truckCover(coverImg?.url)}
+            alt={truck.name}
+            fill
+            sizes="200px"
+            style={{ objectFit: "cover" }}
+          />
         </div>
         <div>
           <h1 style={{ margin: 0 }}>{truck.name}</h1>

@@ -7,6 +7,7 @@ const config = {
     ]
   },
   // typedRoutes disabled — re-enable once /blog, /ajuda, /privacidade pages exist
-  experimental: { typedRoutes: false }
+  // Next 15 promoted typedRoutes out of `experimental` to a top-level option.
+  typedRoutes: false
 };
 export default config;

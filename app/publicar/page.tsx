@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { OrganizerWizard } from "./OrganizerWizard";
 import { WrongAccountType } from "@/components/WrongAccountType";
+
+export const metadata: Metadata = {
+  title: "Publicar pedido",
+  description:
+    "Publica o teu evento grátis e recebe propostas dos melhores food trucks do país em poucas horas.",
+  alternates: { canonical: "/publicar" },
+};
 
 export const dynamic = "force-dynamic";
 

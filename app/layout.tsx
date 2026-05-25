@@ -1,9 +1,23 @@
 import type { Metadata } from "next";
+import { Bebas_Neue, Montserrat } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n";
+
+const bebas = Bebas_Neue({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-bebas",
+  display: "swap",
+});
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
 
 const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
 
@@ -56,12 +70,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${bebas.variable} ${montserrat.variable}`}>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Material Symbols stays as a <link> — it's an icon font, not available via next/font/google. */}
         <link
           href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined"
           rel="stylesheet"

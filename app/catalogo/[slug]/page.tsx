@@ -154,8 +154,14 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
           {images.length > 1 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
               {images.slice(1, 5).map((i: any) => (
-                <div key={i.id} className="thumb" style={{ aspectRatio: "1/1" }}>
-                  <img src={i.url} alt={i.alt ?? ""} />
+                <div key={i.id} className="thumb" style={{ aspectRatio: "1/1", position: "relative" }}>
+                  <Image
+                    src={i.url}
+                    alt={i.alt ?? ""}
+                    fill
+                    sizes="(max-width: 768px) 25vw, 165px"
+                    style={{ objectFit: "cover" }}
+                  />
                 </div>
               ))}
             </div>

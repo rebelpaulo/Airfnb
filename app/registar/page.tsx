@@ -6,9 +6,17 @@
 //   - logged in, role = 'owner', no trucks → /dashboard/truck/novo
 //   - logged in, role = 'owner', has trucks → /dashboard/truck
 //   - logged in, role = null → /onboarding/truck (first-time choice → owner)
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { WrongAccountType } from "@/components/WrongAccountType";
+
+export const metadata: Metadata = {
+  title: "Registar Food Truck",
+  description:
+    "Regista o teu food truck em 2 minutos, mostra-o aos organizers e começa a receber pedidos de eventos.",
+  alternates: { canonical: "/registar" },
+};
 
 export const dynamic = "force-dynamic";
 

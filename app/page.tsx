@@ -1,10 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
 import { Logo } from "@/components/Logo";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Air F&B — Marketplace de Food Trucks para Eventos",
+  description:
+    "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+  alternates: { canonical: "/" },
+};
 
 const CATEGORIES = [
   { slug: "pizza",           label: "Pizza",            icon: "local_pizza" },
@@ -63,6 +72,12 @@ export default async function HomePage() {
     <>
       {/* ====== HERO ====== */}
       <section className="hero">
+        {/*
+          Hero logo would ideally take `priority` so it loads in the LCP burst,
+          but the current <Logo> component renders a raw <img> and does not
+          forward a priority prop. Leaving as-is rather than reshaping the
+          component in this SEO sweep — track in a follow-up if LCP needs work.
+        */}
         <Logo variant="white" height="clamp(110px, 18vw, 230px)" className="logo-mark" />
         <p className="tagline">A maior oferta de Food Trucks para o teu evento à distância de um click.</p>
 
@@ -126,11 +141,17 @@ export default async function HomePage() {
 
           {trucks.length > 0 && (
             <div className="truck-grid">
-              {trucks.map((t: any) => (
+              {trucks.map((t: any, idx: number) => (
                 <Link key={t.id} href={`/catalogo/${t.slug}`} className="truck-card">
                   <div className="thumb">
-                    <img src={truckCover(t.cover_url)} alt={t.name}
-                         style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image
+                      src={truckCover(t.cover_url)}
+                      alt={t.name}
+                      fill
+                      sizes="(max-width: 600px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      priority={idx === 0}
+                      style={{ objectFit: "cover" }}
+                    />
                   </div>
                   <div className="info">
                     <h3>{t.name}</h3>
