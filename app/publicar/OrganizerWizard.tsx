@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { useDict } from "@/components/DictProvider";
@@ -130,7 +130,15 @@ export function OrganizerWizard({
   const [locality, setLocality] = useState(defaultCity);
   const [kind, setKind] = useState("wedding");
   const [guests, setGuests] = useState(defaultGuests ?? 200);
-  const [trucksWanted, setTrucksWanted] = useState(1);
+  // Recommended truck count tracks the guest slider at ~1 truck / 150 pax
+  // (mid-point of the conservative 120-200 range used in the planning copy).
+  // Recompute every time `guests` changes; the field remains editable, so
+  // the user can override the recommendation manually — their value sticks
+  // until they touch the guest slider again.
+  const [trucksWanted, setTrucksWanted] = useState(() => Math.max(1, Math.ceil((defaultGuests ?? 200) / 150)));
+  useEffect(() => {
+    setTrucksWanted(Math.max(1, Math.ceil(guests / 150)));
+  }, [guests]);
   const [cateringType, setCateringType] = useState<"food" | "drinks" | "food_and_drinks">("food_and_drinks");
   const [startAt, setStartAt] = useState(defaultStartAt);
   const [endAt, setEndAt] = useState(defaultEndAt);
