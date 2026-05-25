@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
@@ -169,8 +170,14 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
         <div className="truck-grid cols-4" style={{ marginTop: 26 }}>
           {trucks.map((t: any) => (
             <Link key={t.id} href={`/catalogo/${t.slug}`} className="truck-card">
-              <div className="thumb">
-                <img src={truckCover(t.cover_url)} alt={t.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div className="thumb" style={{ position: "relative" }}>
+                <Image
+                  src={truckCover(t.cover_url)}
+                  alt={t.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
+                  style={{ objectFit: "cover" }}
+                />
               </div>
               <div className="info">
                 <h3>{t.name}</h3>
