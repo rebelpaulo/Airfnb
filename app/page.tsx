@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
 import { Logo } from "@/components/Logo";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 export const revalidate = 60;
 
@@ -75,21 +76,8 @@ export default async function HomePage() {
         */}
         <form action="/publicar" className="search-bar" autoComplete="off">
           <div className="field">
-            <label htmlFor="where">Onde</label>
-            <input id="where" name="city" type="text"
-                   placeholder="Cidade ou localidade" list="airfnb-cities" />
-            <datalist id="airfnb-cities">
-              <option value="Lisboa" />
-              <option value="Porto" />
-              <option value="Cascais" />
-              <option value="Sintra" />
-              <option value="Coimbra" />
-              <option value="Braga" />
-              <option value="Aveiro" />
-              <option value="Faro" />
-              <option value="Algarve" />
-              <option value="Setúbal" />
-            </datalist>
+            <label htmlFor="where">Onde vai ser o evento?</label>
+            <CityAutocomplete name="city" placeholder="Cidade ou localidade" />
           </div>
           <div className="field">
             <label htmlFor="checkin">Data</label>
@@ -104,8 +92,8 @@ export default async function HomePage() {
             <input id="guests" name="expected_pax" type="number" min={1} placeholder="Nº convidados" />
           </div>
           <button className="search-btn" type="submit">
-            <span className="material-symbols-outlined">event</span>
-            Tenho um evento
+            <span className="material-symbols-outlined">search</span>
+            Procurar Foodtrucks
           </button>
         </form>
 

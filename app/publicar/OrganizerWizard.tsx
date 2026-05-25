@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = {
@@ -271,7 +272,11 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
             <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, número, complemento" />
           </Field>
           <Field label="Localidade">
-            <input value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="Cidade, região" />
+            <CityAutocomplete
+              defaultValue={locality}
+              placeholder="Cidade, região"
+              onChange={(v) => setLocality(v)}
+            />
           </Field>
           <Field label="Tipo de Evento">
             <select value={kind} onChange={(e) => setKind(e.target.value)}>
