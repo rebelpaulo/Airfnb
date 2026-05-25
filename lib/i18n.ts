@@ -1143,7 +1143,7 @@ export const dictionaries = {
         heading:                     "Olá 👋 Os teus pedidos",
         stat_total:                  "Total publicados",
         stat_open:                   "Abertos / em revisão",
-        stat_awarded:                "Awarded",
+        stat_awarded:                "Atribuídos",
         stat_next_action:            "Próxima ação",
         publish_new:                 "Publicar novo",
         empty_pre:                   "Ainda não tens nenhum pedido publicado. ",
