@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const GROUP_LABELS: Record<string, { pt: string; en: string }> = {
   leads:       { pt: "Leads de parceiros",  en: "Partner leads" },
   general:     { pt: "Geral",                en: "General" },
-  rate_limits: { pt: "Rate limits",          en: "Rate limits" },
+  rate_limit:  { pt: "Rate limits",          en: "Rate limits" },
   lock_fee:    { pt: "Lock-fee",             en: "Lock-fee" },
   email:       { pt: "Email",                en: "Email" },
 };
