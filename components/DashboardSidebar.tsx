@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 type Role = "organizer" | "owner" | "admin" | null;
 type Dict = Record<string, string>;
 
-type Item = { href: string; icon: string; key: keyof typeof LABEL_KEYS };
+// `exact` forces equality on the route match; without it a sub-route like
+// /dashboard/organizer/eventos would mark BOTH the parent /dashboard/organizer
+// item AND the child item as active. Use it on the role landing page.
+type Item = { href: string; icon: string; key: keyof typeof LABEL_KEYS; exact?: boolean };
 
 const LABEL_KEYS = {
   // shared
@@ -18,6 +21,7 @@ const LABEL_KEYS = {
   invite:        "nav_invite",
   // organizer
   org_dashboard: "nav_organizer_dashboard",
+  org_events:    "nav_organizer_events",
   org_publish:   "nav_organizer_publish",
   // owner
   owner_dashboard:    "nav_owner_dashboard",
@@ -46,7 +50,7 @@ function itemsForRole(role: Role): { section: string; items: Item[] }[] {
   if (role === "owner") {
     return [
       { section: "trucks", items: [
-        { href: "/dashboard/truck",                icon: "local_shipping", key: "owner_dashboard" },
+        { href: "/dashboard/truck",                icon: "local_shipping", key: "owner_dashboard", exact: true },
         { href: "/dashboard/truck/oportunidades",  icon: "explore",        key: "owner_opportunities" },
         { href: "/dashboard/truck/aplicacoes",     icon: "assignment",     key: "owner_applications" },
       ]},
@@ -56,8 +60,9 @@ function itemsForRole(role: Role): { section: string; items: Item[] }[] {
   if (role === "organizer") {
     return [
       { section: "events", items: [
-        { href: "/dashboard/organizer", icon: "event",       key: "org_dashboard" },
-        { href: "/publicar",            icon: "add_circle",  key: "org_publish" },
+        { href: "/dashboard/organizer",         icon: "list_alt",    key: "org_dashboard", exact: true },
+        { href: "/dashboard/organizer/eventos", icon: "event",       key: "org_events" },
+        { href: "/publicar",                    icon: "add_circle",  key: "org_publish" },
       ]},
       { section: "shared", items: shared },
     ];
@@ -108,7 +113,9 @@ export function DashboardSidebar({ role, name, dict }: { role: Role; name: strin
             </li>
           )}
           {g.items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <li key={item.href}>
                 <Link href={item.href} style={{
