@@ -3,6 +3,16 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { useDict } from "@/components/DictProvider";
+
+// Inline placeholder formatter (kept local because lib/i18n imports
+// next/headers, which can't be bundled into client components).
+function format(template: string, vars: Record<string, string | number>): string {
+  return Object.entries(vars).reduce(
+    (out, [k, v]) => out.replace(`{${k}}`, String(v)),
+    template,
+  );
+}
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = {
@@ -13,83 +23,89 @@ type Props = {
   categories: Category[];
 };
 
-const EVENT_KINDS: Array<{ value: string; label: string }> = [
-  { value: "wedding",    label: "Casamento" },
-  { value: "birthday",   label: "Aniversário" },
-  { value: "corporate",  label: "Corporativo" },
-  { value: "festival",   label: "Festival" },
-  { value: "conference", label: "Conferência" },
-  { value: "private",    label: "Festa Privada" },
-  { value: "other",      label: "Outro" },
+// Labels for these chip arrays come from `dict.vocab.*` and `dict.wizard.organizer.*`
+// at render time so translations stay in lib/i18n.ts.
+const EVENT_KINDS: Array<{ value: "wedding" | "birthday" | "corporate" | "festival" | "conference" | "private" | "other" }> = [
+  { value: "wedding"    },
+  { value: "birthday"   },
+  { value: "corporate"  },
+  { value: "festival"   },
+  { value: "conference" },
+  { value: "private"    },
+  { value: "other"      },
 ];
 
-const CATERING_RADIOS: Array<{ value: "food" | "drinks" | "food_and_drinks"; label: string }> = [
-  { value: "food",            label: "Só Comida" },
-  { value: "drinks",          label: "Só Bebida" },
-  { value: "food_and_drinks", label: "Comida e Bebida" },
+const CATERING_RADIOS: Array<{ value: "food" | "drinks" | "food_and_drinks"; dictKey: "catering_food" | "catering_drinks" | "catering_both" }> = [
+  { value: "food",            dictKey: "catering_food" },
+  { value: "drinks",          dictKey: "catering_drinks" },
+  { value: "food_and_drinks", dictKey: "catering_both" },
 ];
 
-// Same 10 cuisine chips as the truck wizard (flag emoji + label)
-const CUISINES = [
-  { slug: "portuguesa", label: "Portuguesa", flag: "🇵🇹" },
-  { slug: "italiana",   label: "Italiana",   flag: "🇮🇹" },
-  { slug: "japonesa",   label: "Japonesa",   flag: "🇯🇵" },
-  { slug: "turca",      label: "Turca",      flag: "🇹🇷" },
-  { slug: "espanhola",  label: "Espanhola",  flag: "🇪🇸" },
-  { slug: "chinesa",    label: "Chinesa",    flag: "🇨🇳" },
-  { slug: "mexicana",   label: "Mexicana",   flag: "🇲🇽" },
-  { slug: "tailandesa", label: "Tailandesa", flag: "🇹🇭" },
-  { slug: "marroquina", label: "Marroquina", flag: "🇲🇦" },
-  { slug: "americana",  label: "Americana",  flag: "🇺🇸" },
+// Same 10 cuisine chips as the truck wizard (flag emoji + label from dict).
+const CUISINES: { slug: "portuguesa" | "italiana" | "japonesa" | "turca" | "espanhola" | "chinesa" | "mexicana" | "tailandesa" | "marroquina" | "americana"; flag: string }[] = [
+  { slug: "portuguesa", flag: "🇵🇹" },
+  { slug: "italiana",   flag: "🇮🇹" },
+  { slug: "japonesa",   flag: "🇯🇵" },
+  { slug: "turca",      flag: "🇹🇷" },
+  { slug: "espanhola",  flag: "🇪🇸" },
+  { slug: "chinesa",    flag: "🇨🇳" },
+  { slug: "mexicana",   flag: "🇲🇽" },
+  { slug: "tailandesa", flag: "🇹🇭" },
+  { slug: "marroquina", flag: "🇲🇦" },
+  { slug: "americana",  flag: "🇺🇸" },
 ];
 
-const DIETARY: Array<{ value: "vegetarian" | "gluten_free" | "vegan"; label: string }> = [
-  { value: "vegetarian",  label: "Vegetariano" },
-  { value: "vegan",       label: "Vegan" },
-  { value: "gluten_free", label: "Sem Glúten" },
+// Organizer uses the shorter form "Vegetariano" / "Vegetarian" (vs the longer
+// "Pratos Vegetarianos" in the truck wizard) — both come from vocab.dietary.
+const DIETARY: Array<{ value: "vegetarian" | "gluten_free" | "vegan"; dictKey: "vegetarian_short" | "vegan" | "gluten_free" }> = [
+  { value: "vegetarian",  dictKey: "vegetarian_short" },
+  { value: "vegan",       dictKey: "vegan" },
+  { value: "gluten_free", dictKey: "gluten_free" },
 ];
 
-const SETUP_OPTIONS = [
-  { value: 0,   label: "0h" },
-  { value: 60,  label: "1h" },
-  { value: 120, label: "2h" },
-  { value: 180, label: "3h" },
-  { value: 240, label: "4h" },
-  { value: 360, label: "6h" },
-  { value: 480, label: "8h" },
+const SETUP_OPTIONS: Array<{ value: number; dictKey: "h0" | "h1" | "h2" | "h3" | "h4" | "h6" | "h8" }> = [
+  { value: 0,   dictKey: "h0" },
+  { value: 60,  dictKey: "h1" },
+  { value: 120, dictKey: "h2" },
+  { value: 180, dictKey: "h3" },
+  { value: 240, dictKey: "h4" },
+  { value: 360, dictKey: "h6" },
+  { value: 480, dictKey: "h8" },
 ];
 
-const ENERGY = [
-  { value: "nao_preciso", label: "Não preciso" },
-  { value: "ate_3kw",     label: "Até 3 kW" },
-  { value: "3_a_10kw",    label: "3 – 10 kW" },
-  { value: "mais_10kw",   label: "Mais de 10 kW" },
-] as const;
-
-const SANITATION = [
-  { value: "nao_necessario", label: "Não necessário" },
-  { value: "wc_proximo",     label: "WC próximo do local" },
-  { value: "wc_dedicado",    label: "WC dedicado para staff" },
-] as const;
-
-const EXTRA_SERVICES = [
-  "Ticketing e Gestão de Convidados",
-  "Segurança",
-  "Fotografia e Vídeo",
-  "Organização e Planeamento",
-  "Animação",
-  "Encontrar uma Venue",
-  "Limpeza e Gestão de Resíduos",
-  "Promoção do Evento",
+const ENERGY: Array<{ value: "nao_preciso" | "ate_3kw" | "3_a_10kw" | "mais_10kw" }> = [
+  { value: "nao_preciso" },
+  { value: "ate_3kw"     },
+  { value: "3_a_10kw"    },
+  { value: "mais_10kw"   },
 ];
 
-const SELECTION_MODES: Array<{ value: "open_to_offers" | "pick_myself" | "assisted"; label: string; hint: string }> = [
-  { value: "open_to_offers", label: "Estou aberto a ofertas",        hint: "Os trucks que dão match candidatam-se ao teu pedido." },
-  { value: "pick_myself",    label: "Quero escolher/procurar trucks", hint: "Vais navegar no catálogo e convidar diretamente." },
-  { value: "assisted",       label: "Preciso de ajuda especializada", hint: "A equipa Air F&B fala contigo e cura a shortlist." },
+const SANITATION: Array<{ value: "nao_necessario" | "wc_proximo" | "wc_dedicado"; dictKey: "nao_necessario" | "wc_proximo" | "wc_dedicado_staff" }> = [
+  { value: "nao_necessario", dictKey: "nao_necessario" },
+  { value: "wc_proximo",     dictKey: "wc_proximo" },
+  { value: "wc_dedicado",    dictKey: "wc_dedicado_staff" },
+];
+
+const EXTRA_SERVICES: Array<{ value: string; dictKey: "ticketing" | "security" | "photo_video" | "planning" | "entertainment" | "venue" | "cleaning" | "promotion" }> = [
+  { value: "Ticketing e Gestão de Convidados", dictKey: "ticketing" },
+  { value: "Segurança",                        dictKey: "security" },
+  { value: "Fotografia e Vídeo",               dictKey: "photo_video" },
+  { value: "Organização e Planeamento",        dictKey: "planning" },
+  { value: "Animação",                         dictKey: "entertainment" },
+  { value: "Encontrar uma Venue",              dictKey: "venue" },
+  { value: "Limpeza e Gestão de Resíduos",     dictKey: "cleaning" },
+  { value: "Promoção do Evento",               dictKey: "promotion" },
+];
+
+const SELECTION_MODES: Array<{ value: "open_to_offers" | "pick_myself" | "assisted"; labelKey: "mode_open_label" | "mode_pick_label" | "mode_assisted_label"; hintKey: "mode_open_hint" | "mode_pick_hint" | "mode_assisted_hint" }> = [
+  { value: "open_to_offers", labelKey: "mode_open_label",     hintKey: "mode_open_hint" },
+  { value: "pick_myself",    labelKey: "mode_pick_label",     hintKey: "mode_pick_hint" },
+  { value: "assisted",       labelKey: "mode_assisted_label", hintKey: "mode_assisted_hint" },
 ];
 
 export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhone, categories }: Props) {
+  const dict = useDict();
+  const t = dict.wizard.organizer;
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -142,12 +158,12 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   }
 
   function validateStep1(): string | null {
-    if (!name.trim())              return "Indica o teu nome.";
-    if (!email.trim())             return "Indica o teu email.";
-    if (!eventTitle.trim())        return "Indica o nome do evento.";
-    if (!locality.trim())          return "Indica a localidade.";
-    if (!startAt)                  return "Indica a data de início.";
-    if (endAt && endAt < startAt)  return "A data de fim não pode ser anterior ao início.";
+    if (!name.trim())              return t.errors.no_name;
+    if (!email.trim())             return t.errors.no_email;
+    if (!eventTitle.trim())        return t.errors.no_event_title;
+    if (!locality.trim())          return t.errors.no_locality;
+    if (!startAt)                  return t.errors.no_start;
+    if (endAt && endAt < startAt)  return t.errors.end_before_start;
     return null;
   }
 
@@ -256,37 +272,37 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="Seu Nome">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Insira seu nome" />
+          <Field label={t.step1.name_label}>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.step1.name_placeholder} />
           </Field>
-          <Field label="E-mail">
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@exemplo.com" />
+          <Field label={t.step1.email_label}>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.step1.email_placeholder} />
           </Field>
-          <Field label="Telefone">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(+351) 912 345 678" />
+          <Field label={t.step1.phone_label}>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.step1.phone_placeholder} />
           </Field>
-          <Field label="Nome do Evento">
-            <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} maxLength={120} placeholder="Insira o nome do evento" />
+          <Field label={t.step1.event_title_label}>
+            <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} maxLength={120} placeholder={t.step1.event_title_placeholder} />
           </Field>
-          <Field label="Endereço">
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, número, complemento" />
+          <Field label={t.step1.address_label}>
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t.step1.address_placeholder} />
           </Field>
-          <Field label="Localidade">
+          <Field label={t.step1.locality_label}>
             <CityAutocomplete
               defaultValue={locality}
-              placeholder="Cidade, região"
+              placeholder={t.step1.locality_placeholder}
               onChange={(v) => setLocality(v)}
             />
           </Field>
-          <Field label="Tipo de Evento">
+          <Field label={t.step1.kind_label}>
             <select value={kind} onChange={(e) => setKind(e.target.value)}>
-              {EVENT_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+              {EVENT_KINDS.map((k) => <option key={k.value} value={k.value}>{dict.vocab.event_kinds[k.value]}</option>)}
             </select>
           </Field>
-          <Field label={`Nº de Convidados — ${guests}`}>
+          <Field label={format(t.step1.guests_label, { n: guests })}>
             <input type="range" min={20} max={5000} step={10} value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
           </Field>
-          <Field label="Trucks Recomendados">
+          <Field label={t.step1.trucks_label}>
             <input type="number" min={1} max={10}
               value={trucksWanted}
               onChange={(e) => {
@@ -296,11 +312,11 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
                 setTrucksWanted(v);
               }} />
             <small style={{ color: "var(--muted)", fontSize: 12 }}>
-              💡 Sugestão: 1 truck por cada 120–200 pax (depende do tipo de evento).
+              {t.step1.trucks_hint}
             </small>
           </Field>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Tipo de Catering</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.step1.catering_label}</div>
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
               {CATERING_RADIOS.map((c) => (
                 <label key={c.value} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14 }}>
@@ -311,25 +327,25 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
                     checked={cateringType === c.value}
                     onChange={() => setCateringType(c.value)}
                   />
-                  {c.label}
+                  {t.step1[c.dictKey]}
                 </label>
               ))}
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Data de Início">
+            <Field label={t.step1.start_label}>
               <input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
             </Field>
-            <Field label="Data de Fim">
+            <Field label={t.step1.end_label}>
               <input type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
             </Field>
           </div>
-          <Field label={`Orçamento Estimado — € ${budget}`}>
+          <Field label={format(t.step1.budget_label, { budget })}>
             <input type="range" min={100} max={20000} step={50} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
           </Field>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14 }}>
             <input type="checkbox" checked={budgetFlex} onChange={(e) => setBudgetFlex(e.target.checked)} />
-            Orçamento flexível
+            {t.step1.budget_flex}
           </label>
         </div>
       )}
@@ -337,19 +353,19 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
       {step === 2 && (
         <div style={{ display: "grid", gap: 20 }}>
           <section>
-            <SectionTitle>Tipos de cozinha</SectionTitle>
+            <SectionTitle>{t.step2.cuisines_title}</SectionTitle>
             <div className="chips">
               {CUISINES.map((c) => (
                 <button type="button" key={c.slug} className="chip"
                   data-active={cuisines.includes(c.slug)}
                   onClick={() => setCuisines((s) => toggle(s, c.slug))}>
-                  <span style={{ fontSize: 16 }}>{c.flag}</span> {c.label}
+                  <span style={{ fontSize: 16 }}>{c.flag}</span> {dict.vocab.cuisines[c.slug]}
                 </button>
               ))}
             </div>
           </section>
           <section>
-            <SectionTitle>Especialidades</SectionTitle>
+            <SectionTitle>{t.step2.specialties_title}</SectionTitle>
             <div className="chips">
               {categories.map((c) => (
                 <button type="button" key={c.id} className="chip"
@@ -362,22 +378,22 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
             </div>
           </section>
           <section>
-            <SectionTitle>Dietas especiais</SectionTitle>
+            <SectionTitle>{t.step2.dietary_title}</SectionTitle>
             <div className="chips">
               {DIETARY.map((d) => (
                 <button type="button" key={d.value} className="chip"
                   data-active={dietary.includes(d.value)}
                   onClick={() => setDietary((s) => toggle(s, d.value))}>
-                  {d.label}
+                  {dict.vocab.dietary[d.dictKey]}
                 </button>
               ))}
             </div>
           </section>
-          <Field label="Notas para a Organização">
+          <Field label={t.step2.notes_label}>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Insira informações que considere necessárias sobre o evento"
+              placeholder={t.step2.notes_placeholder}
               style={{ minHeight: 140, resize: "vertical" }}
             />
           </Field>
@@ -387,43 +403,43 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
       {step === 3 && (
         <div style={{ display: "grid", gap: 18 }}>
           <section>
-            <SectionTitle>Horas de Montagem e Desmontagem</SectionTitle>
+            <SectionTitle>{t.step3.setup_section_title}</SectionTitle>
             <p style={{ color: "var(--muted)", margin: "0 0 12px", fontSize: 13 }}>
-              Informe quanto tempo será disponibilizado para a montagem e desmontagem dos trucks.
+              {t.step3.setup_intro}
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="Montagem">
+              <Field label={t.step3.setup_label}>
                 <select value={setupMin} onChange={(e) => setSetupMin(Number(e.target.value))}>
-                  {SETUP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {SETUP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{dict.vocab.setup_hours[o.dictKey]}</option>)}
                 </select>
               </Field>
-              <Field label="Desmontagem">
+              <Field label={t.step3.teardown_label}>
                 <select value={teardownMin} onChange={(e) => setTeardownMin(Number(e.target.value))}>
-                  {SETUP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {SETUP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{dict.vocab.setup_hours[o.dictKey]}</option>)}
                 </select>
               </Field>
             </div>
           </section>
           <section>
-            <SectionTitle>Instalação Energética</SectionTitle>
+            <SectionTitle>{t.step3.energy_section_title}</SectionTitle>
             <p style={{ color: "var(--muted)", margin: "0 0 8px", fontSize: 13 }}>
-              Informe que tipo de instalações elétricas estarão disponíveis no recinto.
+              {t.step3.energy_intro}
             </p>
             <select value={energy} onChange={(e) => setEnergy(e.target.value as typeof ENERGY[number]["value"])}>
-              {ENERGY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {ENERGY.map((o) => <option key={o.value} value={o.value}>{dict.vocab.power[o.value]}</option>)}
             </select>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 14, cursor: "pointer" }}>
               <input type="checkbox" checked={energyHelp} onChange={(e) => setEnergyHelp(e.target.checked)} />
-              Existe assistência para instalação elétrica
+              {t.step3.energy_help}
             </label>
           </section>
           <section>
-            <SectionTitle>Saneamento Básico</SectionTitle>
+            <SectionTitle>{t.step3.sanitation_section_title}</SectionTitle>
             <p style={{ color: "var(--muted)", margin: "0 0 8px", fontSize: 13 }}>
-              Informe qual o acesso a saneamento que estará acessível.
+              {t.step3.sanitation_intro}
             </p>
             <select value={sanitation} onChange={(e) => setSanitation(e.target.value as typeof SANITATION[number]["value"])}>
-              {SANITATION.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {SANITATION.map((o) => <option key={o.value} value={o.value}>{dict.vocab.sanitation[o.dictKey]}</option>)}
             </select>
           </section>
         </div>
@@ -431,16 +447,16 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
       {step === 4 && (
         <div>
-          <SectionTitle>Outros Serviços</SectionTitle>
+          <SectionTitle>{t.step4.title}</SectionTitle>
           <p style={{ color: "var(--muted)", margin: "0 0 14px", fontSize: 13 }}>
-            Selecione serviços adicionais que possa precisar para o seu evento.
+            {t.step4.intro}
           </p>
           <div className="chips">
             {EXTRA_SERVICES.map((s) => (
-              <button type="button" key={s} className="chip"
-                data-active={extras.includes(s)}
-                onClick={() => setExtras((list) => toggle(list, s))}>
-                {s}
+              <button type="button" key={s.value} className="chip"
+                data-active={extras.includes(s.value)}
+                onClick={() => setExtras((list) => toggle(list, s.value))}>
+                {dict.vocab.extra_services[s.dictKey]}
               </button>
             ))}
           </div>
@@ -450,10 +466,10 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
       {step === 5 && (
         <div>
           <h2 style={{ textAlign: "center", margin: "8px 0 6px", fontFamily: "Bebas Neue, sans-serif", color: "var(--ink)", fontSize: 26 }}>
-            Como deseja selecionar seus trucks?
+            {t.title_select_mode}
           </h2>
           <p style={{ textAlign: "center", color: "var(--muted)", margin: "0 0 20px", fontSize: 14 }}>
-            Escolha como deseja prosseguir com a seleção.
+            {t.subtitle_select_mode}
           </p>
           <div style={{ display: "grid", gap: 12, maxWidth: 520, margin: "0 auto" }}>
             {SELECTION_MODES.map((m) => (
@@ -468,8 +484,8 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
                   borderRadius: 999, cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                <div style={{ fontWeight: 700, color: "var(--ink)" }}>{m.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{m.hint}</div>
+                <div style={{ fontWeight: 700, color: "var(--ink)" }}>{t.step5[m.labelKey]}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{t.step5[m.hintKey]}</div>
               </button>
             ))}
           </div>
@@ -484,10 +500,10 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           disabled={step === 1 || busy}
         >
-          Anterior
+          {dict.common.previous}
         </button>
         <button type="button" className="btn-pill" onClick={next} disabled={busy}>
-          {busy ? "A submeter…" : step < 5 ? "Próximo" : "Finalizar"}
+          {busy ? t.submitting : step < 5 ? dict.common.next : t.finish}
         </button>
       </div>
     </div>

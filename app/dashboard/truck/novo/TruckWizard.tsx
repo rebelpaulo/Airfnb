@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { TruckPhotoUpload } from "@/components/TruckPhotoUpload";
 import { TruckPdfUpload } from "@/components/TruckPdfUpload";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { useDict } from "@/components/DictProvider";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = { userId: string; categories: Category[] };
@@ -13,44 +14,40 @@ type Props = { userId: string; categories: Category[] };
 // Cuisine types: country-flag chips. Stored as free-text in trucks.cuisine_types
 // because the original site lets owners type their own. The presets are the
 // 10 the original ships with; "outros" lets owners add custom values.
-const CUISINES: { slug: string; label: string; flag: string }[] = [
-  { slug: "portuguesa",  label: "Portuguesa",  flag: "🇵🇹" },
-  { slug: "italiana",    label: "Italiana",    flag: "🇮🇹" },
-  { slug: "japonesa",    label: "Japonesa",    flag: "🇯🇵" },
-  { slug: "turca",       label: "Turca",       flag: "🇹🇷" },
-  { slug: "espanhola",   label: "Espanhola",   flag: "🇪🇸" },
-  { slug: "chinesa",     label: "Chinesa",     flag: "🇨🇳" },
-  { slug: "mexicana",    label: "Mexicana",    flag: "🇲🇽" },
-  { slug: "tailandesa",  label: "Tailandesa",  flag: "🇹🇭" },
-  { slug: "marroquina",  label: "Marroquina",  flag: "🇲🇦" },
-  { slug: "americana",   label: "Americana",   flag: "🇺🇸" },
+// Labels are read from `dict.vocab.cuisines[slug]` at render time so the
+// translations stay in lib/i18n.ts.
+const CUISINES: { slug: keyof ReturnType<typeof useDict>["vocab"]["cuisines"]; flag: string }[] = [
+  { slug: "portuguesa",  flag: "🇵🇹" },
+  { slug: "italiana",    flag: "🇮🇹" },
+  { slug: "japonesa",    flag: "🇯🇵" },
+  { slug: "turca",       flag: "🇹🇷" },
+  { slug: "espanhola",   flag: "🇪🇸" },
+  { slug: "chinesa",     flag: "🇨🇳" },
+  { slug: "mexicana",    flag: "🇲🇽" },
+  { slug: "tailandesa",  flag: "🇹🇭" },
+  { slug: "marroquina",  flag: "🇲🇦" },
+  { slug: "americana",   flag: "🇺🇸" },
 ];
 
-const DIETARY: { value: "vegetarian" | "gluten_free" | "vegan"; label: string; icon: string }[] = [
-  { value: "vegetarian",  label: "Pratos Vegetarianos", icon: "spa" },
-  { value: "gluten_free", label: "Sem Glúten",          icon: "no_meals" },
-  { value: "vegan",       label: "Vegan",               icon: "eco" },
+const DIETARY: { value: "vegetarian" | "gluten_free" | "vegan"; dictKey: "vegetarian" | "gluten_free" | "vegan"; icon: string }[] = [
+  { value: "vegetarian",  dictKey: "vegetarian",  icon: "spa" },
+  { value: "gluten_free", dictKey: "gluten_free", icon: "no_meals" },
+  { value: "vegan",       dictKey: "vegan",       icon: "eco" },
 ];
 
-const CATERING_TYPES = [
-  { value: "fixed",   label: "Preço Fixo" },
-  { value: "percent", label: "% sobre vendas" },
-  { value: "mixed",   label: "Misto" },
+const CATERING_TYPES: { value: "fixed" | "percent" | "mixed" }[] = [
+  { value: "fixed" },
+  { value: "percent" },
+  { value: "mixed" },
 ];
 
-const SANITATION = [
-  { value: "none",        label: "Sem necessidade" },
-  { value: "wc_proximo",  label: "WC próximo do local" },
-  { value: "wc_dedicado", label: "WC dedicado" },
+const SANITATION: { value: string; dictKey: "none" | "wc_proximo" | "wc_dedicado" }[] = [
+  { value: "none",        dictKey: "none" },
+  { value: "wc_proximo",  dictKey: "wc_proximo" },
+  { value: "wc_dedicado", dictKey: "wc_dedicado" },
 ];
 
 const POWER_OPTIONS = ["nao_preciso", "ate_3kw", "3_a_10kw", "mais_10kw"] as const;
-const POWER_LABEL: Record<typeof POWER_OPTIONS[number], string> = {
-  nao_preciso:   "Não preciso",
-  ate_3kw:       "Até 3 kW",
-  "3_a_10kw":    "3 – 10 kW",
-  mais_10kw:     "Mais de 10 kW",
-};
 const POWER_KW: Record<typeof POWER_OPTIONS[number], number | null> = {
   nao_preciso:   0,
   ate_3kw:       3,
@@ -61,6 +58,8 @@ const POWER_KW: Record<typeof POWER_OPTIONS[number], number | null> = {
 const SETUP_OPTIONS = [30, 45, 60, 90, 120, 180];
 
 export function TruckWizard({ userId, categories }: Props) {
+  const dict = useDict();
+  const t = dict.wizard.truck;
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -96,8 +95,8 @@ export function TruckWizard({ userId, categories }: Props) {
 
   async function saveStep1AndAdvance() {
     setErr(null);
-    if (!name.trim())     { setErr("Indica o nome do truck.");      return; }
-    if (!baseCity.trim()) { setErr("Indica a localidade base.");    return; }
+    if (!name.trim())     { setErr(t.errors.no_name); return; }
+    if (!baseCity.trim()) { setErr(t.errors.no_city); return; }
     setBusy(true);
     try {
       const supa = supabaseBrowser();
@@ -116,7 +115,7 @@ export function TruckWizard({ userId, categories }: Props) {
         const { data: cur } = await (supa as any)
           .from("airfnb_profiles").select("role").eq("id", userId).maybeSingle();
         if (cur?.role !== "owner") {
-          setErr("Esta conta é de organizador. Para adicionar trucks usa uma conta diferente.");
+          setErr(t.errors.wrong_role);
           setBusy(false);
           return;
         }
@@ -166,7 +165,7 @@ export function TruckWizard({ userId, categories }: Props) {
   }
 
   async function saveStep2AndAdvance() {
-    if (!truckId) { setErr("Estado inválido — recarrega a página."); return; }
+    if (!truckId) { setErr(t.errors.invalid_state); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -200,7 +199,7 @@ export function TruckWizard({ userId, categories }: Props) {
   }
 
   async function saveStep3AndAdvance() {
-    if (!truckId) { setErr("Estado inválido — recarrega a página."); return; }
+    if (!truckId) { setErr(t.errors.invalid_state); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -227,46 +226,46 @@ export function TruckWizard({ userId, categories }: Props) {
 
   return (
     <div className="wizard-shell" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 16, padding: 26 }}>
-      <Stepper step={step} />
+      <Stepper step={step} labels={[t.stepper_basics, t.stepper_cuisine, t.stepper_logistics, t.stepper_media]} />
       {err && <div style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-line)", padding: "10px 14px", borderRadius: "var(--radius-sm)", margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="Nome do truck">
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ex: Divine Burguer's" />
+          <Field label={t.step1.name_label}>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder={t.step1.name_placeholder} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
-            <Field label="Localidade base">
+            <Field label={t.step1.city_label}>
               <CityAutocomplete
                 defaultValue={baseCity}
-                placeholder="Lisboa"
+                placeholder={t.step1.city_placeholder}
                 onChange={(v) => setBaseCity(v)}
               />
             </Field>
-            <Field label="Raio (km)">
+            <Field label={t.step1.radius_label}>
               <input type="number" min={5} max={500} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
             </Field>
           </div>
-          <Field label="Capacidade máxima (pax/evento)">
+          <Field label={t.step1.capacity_label}>
             <input type="number" min={10} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Eventos a partir de (pax)">
+            <Field label={t.step1.min_pax_label}>
               <input type="number" min={1} value={minPax} onChange={(e) => setMinPax(Number(e.target.value))} />
             </Field>
-            <Field label="Até (pax)">
+            <Field label={t.step1.max_pax_label}>
               <input type="number" min={1} value={maxPax} onChange={(e) => setMaxPax(Number(e.target.value))} />
             </Field>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Preço mínimo (€)">
+            <Field label={t.step1.price_min_label}>
               <input type="number" min={0} step={10} value={priceMin} onChange={(e) => setPriceMin(e.target.value === "" ? "" : Number(e.target.value))} placeholder="600" />
             </Field>
-            <Field label="Preço por pax (€)">
+            <Field label={t.step1.price_per_pax_label}>
               <input type="number" min={0} step={0.5} value={priceMax} onChange={(e) => setPriceMax(e.target.value === "" ? "" : Number(e.target.value))} placeholder="12" />
             </Field>
           </div>
-          <Field label="Tipo de catering">
+          <Field label={t.step1.catering_type_label}>
             <div className="chips">
               {CATERING_TYPES.map((c) => (
                 <button
@@ -276,7 +275,7 @@ export function TruckWizard({ userId, categories }: Props) {
                   data-active={cateringType === c.value}
                   onClick={() => setCateringType(c.value)}
                 >
-                  {c.label}
+                  {dict.vocab.catering_type[c.value]}
                 </button>
               ))}
             </div>
@@ -287,7 +286,7 @@ export function TruckWizard({ userId, categories }: Props) {
       {step === 2 && (
         <div style={{ display: "grid", gap: 20 }}>
           <section>
-            <SectionTitle>Tipos de Cozinha</SectionTitle>
+            <SectionTitle>{t.step2.cuisines_title}</SectionTitle>
             <div className="chips">
               {CUISINES.map((c) => (
                 <button
@@ -297,7 +296,7 @@ export function TruckWizard({ userId, categories }: Props) {
                   data-active={cuisines.includes(c.slug)}
                   onClick={() => setCuisines((s) => toggle(s, c.slug))}
                 >
-                  <span style={{ fontSize: 16 }}>{c.flag}</span> {c.label}
+                  <span style={{ fontSize: 16 }}>{c.flag}</span> {dict.vocab.cuisines[c.slug]}
                 </button>
               ))}
             </div>
@@ -305,14 +304,14 @@ export function TruckWizard({ userId, categories }: Props) {
               <input
                 value={cuisineOther}
                 onChange={(e) => setCuisineOther(e.target.value)}
-                placeholder="Outra (ex: Fusão indo-portuguesa)"
+                placeholder={t.step2.cuisine_other_placeholder}
                 style={{ width: "100%", maxWidth: 360 }}
               />
             </div>
           </section>
 
           <section>
-            <SectionTitle>Especialidades</SectionTitle>
+            <SectionTitle>{t.step2.specialties_title}</SectionTitle>
             <div className="chips">
               {categories.map((c) => (
                 <button
@@ -330,7 +329,7 @@ export function TruckWizard({ userId, categories }: Props) {
           </section>
 
           <section>
-            <SectionTitle>Dietas Especiais</SectionTitle>
+            <SectionTitle>{t.step2.dietary_title}</SectionTitle>
             <div className="chips">
               {DIETARY.map((d) => (
                 <button
@@ -341,7 +340,7 @@ export function TruckWizard({ userId, categories }: Props) {
                   onClick={() => setDietary((s) => toggle(s, d.value))}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{d.icon}</span>
-                  {d.label}
+                  {dict.vocab.dietary[d.dictKey]}
                 </button>
               ))}
             </div>
@@ -352,25 +351,25 @@ export function TruckWizard({ userId, categories }: Props) {
       {step === 3 && (
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Tempo de Montagem (min)">
+            <Field label={t.step3.setup_label}>
               <select value={setupMin} onChange={(e) => setSetupMin(Number(e.target.value))}>
-                {SETUP_OPTIONS.map((m) => <option key={m} value={m}>{m} min</option>)}
+                {SETUP_OPTIONS.map((m) => <option key={m} value={m}>{m} {t.step3.minutes_suffix}</option>)}
               </select>
             </Field>
-            <Field label="Tempo de Desmontagem (min)">
+            <Field label={t.step3.teardown_label}>
               <select value={teardownMin} onChange={(e) => setTeardownMin(Number(e.target.value))}>
-                {SETUP_OPTIONS.map((m) => <option key={m} value={m}>{m} min</option>)}
+                {SETUP_OPTIONS.map((m) => <option key={m} value={m}>{m} {t.step3.minutes_suffix}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Necessidade Energética">
+          <Field label={t.step3.power_label}>
             <select value={power} onChange={(e) => setPower(e.target.value as typeof POWER_OPTIONS[number])}>
-              {POWER_OPTIONS.map((p) => <option key={p} value={p}>{POWER_LABEL[p]}</option>)}
+              {POWER_OPTIONS.map((p) => <option key={p} value={p}>{dict.vocab.power[p]}</option>)}
             </select>
           </Field>
-          <Field label="Saneamento Básico">
+          <Field label={t.step3.sanitation_label}>
             <select value={sanitation} onChange={(e) => setSanitation(e.target.value)}>
-              {SANITATION.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {SANITATION.map((s) => <option key={s.value} value={s.value}>{dict.vocab.sanitation[s.dictKey]}</option>)}
             </select>
           </Field>
         </div>
@@ -379,16 +378,16 @@ export function TruckWizard({ userId, categories }: Props) {
       {step === 4 && truckId && (
         <div style={{ display: "grid", gap: 20 }}>
           <section>
-            <SectionTitle>Adicionar Fotografias</SectionTitle>
+            <SectionTitle>{t.step4.photos_title}</SectionTitle>
             <TruckPhotoUpload truckId={truckId} />
           </section>
           <section>
-            <SectionTitle>Adicionar Documentação</SectionTitle>
+            <SectionTitle>{t.step4.docs_title}</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-              <TruckPdfUpload truckId={truckId} kind="asae"      label="Certificado ASAE" />
-              <TruckPdfUpload truckId={truckId} kind="comercial" label="Certificado Comercial" />
-              <TruckPdfUpload truckId={truckId} kind="financas"  label="Certificado Finanças" />
-              <TruckPdfUpload truckId={truckId} kind="outros"    label="Outros Documentos" />
+              <TruckPdfUpload truckId={truckId} kind="asae"      label={t.step4.doc_asae} />
+              <TruckPdfUpload truckId={truckId} kind="comercial" label={t.step4.doc_comercial} />
+              <TruckPdfUpload truckId={truckId} kind="financas"  label={t.step4.doc_financas} />
+              <TruckPdfUpload truckId={truckId} kind="outros"    label={t.step4.doc_outros} />
             </div>
           </section>
         </div>
@@ -403,7 +402,7 @@ export function TruckWizard({ userId, categories }: Props) {
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           disabled={step === 1 || busy}
         >
-          Voltar
+          {dict.common.previous}
         </button>
         {step < 4 ? (
           <button
@@ -412,11 +411,11 @@ export function TruckWizard({ userId, categories }: Props) {
             onClick={step === 1 ? saveStep1AndAdvance : step === 2 ? saveStep2AndAdvance : saveStep3AndAdvance}
             disabled={busy}
           >
-            {busy ? "A guardar…" : "Próximo"}
+            {busy ? dict.common.saving : dict.common.next}
           </button>
         ) : (
           <button type="button" className="btn-pill" onClick={finish}>
-            Finalizar
+            {t.finish}
           </button>
         )}
       </div>
@@ -424,11 +423,10 @@ export function TruckWizard({ userId, categories }: Props) {
   );
 }
 
-function Stepper({ step }: { step: number }) {
-  const steps = ["Básico", "Cozinha", "Logística", "Mídia"];
+function Stepper({ step, labels }: { step: number; labels: string[] }) {
   return (
     <ol style={{ display: "flex", gap: 12, padding: 0, margin: "0 0 22px", listStyle: "none", flexWrap: "wrap" }}>
-      {steps.map((label, i) => {
+      {labels.map((label, i) => {
         const n = i + 1;
         const done = n < step;
         const active = n === step;
@@ -444,7 +442,7 @@ function Stepper({ step }: { step: number }) {
             <span style={{ color: active ? "var(--ink)" : "var(--muted)", fontWeight: active ? 700 : 500, fontSize: 14 }}>
               {label}
             </span>
-            {n < steps.length && <span style={{ width: 24, height: 2, background: "#E5E5E5", marginLeft: 4 }} />}
+            {n < labels.length && <span style={{ width: 24, height: 2, background: "#E5E5E5", marginLeft: 4 }} />}
           </li>
         );
       })}
