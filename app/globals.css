@@ -78,12 +78,19 @@ img { display: block; max-width: 100%; height: auto; }
   justify-content: space-between;
   padding: 14px 36px;
   color: #fff;
-  background: transparent;
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
-}
-.site-header.scrolled {
+  /* Opaque by default — every page except the landing renders white-on-white
+     for the header otherwise. The home page opts back into transparent-over-
+     hero via the :has() rule below. */
   background: var(--orange-hero);
   box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+/* Landing hero only — let the header start see-through and gain the orange
+   plate after the user scrolls past the curve. :has() is supported in every
+   evergreen browser since Chrome 105 / Safari 15.4 / Firefox 121. */
+body:has(.hero) .site-header:not(.scrolled) {
+  background: transparent;
+  box-shadow: none;
 }
 .site-header .brand {
   display: flex;
