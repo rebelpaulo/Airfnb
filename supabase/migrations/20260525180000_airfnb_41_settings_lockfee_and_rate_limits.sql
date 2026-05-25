@@ -59,10 +59,11 @@ declare
   v_organizer_share numeric;
 begin
   -- Read from settings table; fall back to the historical 25/25 split.
+  -- (p_application is still part of the signature so callers don't change,
+  --  but the calculation no longer depends on application data.)
   v_platform_fee    := public.airfnb_setting_int('lock_fee.platform_fee',    25);
   v_organizer_share := public.airfnb_setting_int('lock_fee.organizer_share', 25);
 
-  perform 1 from public.airfnb_applications where id = p_application;
   return jsonb_build_object(
     'platform_fee',    v_platform_fee,
     'organizer_share', v_organizer_share,
