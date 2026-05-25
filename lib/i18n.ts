@@ -1,12 +1,26 @@
-// Minimal i18n: type-safe dictionaries keyed by namespace, locale read from
-// cookie or Accept-Language header on the server. No URL routing rewrite —
-// keeps every existing path stable while opening the door for /en later.
+// Type-safe i18n. Locale read from cookie or Accept-Language header on
+// the server. No URL routing rewrite — every existing path stays stable.
+//
+// Architecture:
+//   - Server components: `const dict = await getDictionary(); dict.namespace.key`
+//   - Client components: wrap tree in <DictProvider> (already done in
+//     app/layout.tsx) and read via `useDict()` from components/DictProvider
+//   - Dictionary keys are validated by `satisfies Record<Locale, ...>` —
+//     missing translations between PT and EN fail typecheck.
 
 import { cookies, headers } from "next/headers";
 
 export type Locale = "pt" | "en";
 const SUPPORTED: Locale[] = ["pt", "en"];
 const DEFAULT: Locale = "pt";
+
+// ---------------------------------------------------------------------------
+// Dictionary
+//
+// New namespaces are added per translation-PR. Keep the structure parallel
+// between PT and EN — if PT has a key, EN must have it too (and vice-versa).
+// The `satisfies` line below enforces this at typecheck time.
+// ---------------------------------------------------------------------------
 
 export const dictionaries = {
   pt: {
@@ -22,6 +36,25 @@ export const dictionaries = {
       guests:         "Convidados",
       city_placeholder:  "Cidade ou localidade",
       guests_placeholder: "Nº convidados",
+      back_home:      "← Voltar à página inicial",
+      loading:        "A carregar…",
+      saving:         "A guardar…",
+      sending:        "A enviar…",
+      submit:         "Submeter",
+      cancel:         "Cancelar",
+      save:           "Guardar",
+      next:           "Seguinte",
+      previous:       "Anterior",
+      confirm:        "Confirmar",
+      yes:            "Sim",
+      no:             "Não",
+      optional:       "(opcional)",
+      required:       "*",
+      search:         "Pesquisar",
+      filter:         "Filtros",
+      clear_filters:  "limpar filtros",
+      see_all:        "Ver tudo",
+      learn_more:     "Saber mais",
     },
     nav: {
       find_trucks: "Encontrar Trucks",
@@ -31,6 +64,9 @@ export const dictionaries = {
       login:       "Entrar",
       signup:      "Registar",
       logout:      "Terminar sessão",
+      dashboard:   "Dashboard",
+      conversations: "Conversas",
+      notifications: "Notificações",
     },
     footer: {
       newsletter_title: "Receba todas as novidades do mercado",
@@ -53,6 +89,25 @@ export const dictionaries = {
       guests:         "Guests",
       city_placeholder:  "City or area",
       guests_placeholder: "Guest count",
+      back_home:      "← Back to home",
+      loading:        "Loading…",
+      saving:         "Saving…",
+      sending:        "Sending…",
+      submit:         "Submit",
+      cancel:         "Cancel",
+      save:           "Save",
+      next:           "Next",
+      previous:       "Previous",
+      confirm:        "Confirm",
+      yes:            "Yes",
+      no:             "No",
+      optional:       "(optional)",
+      required:       "*",
+      search:         "Search",
+      filter:         "Filters",
+      clear_filters:  "clear filters",
+      see_all:        "See all",
+      learn_more:     "Learn more",
     },
     nav: {
       find_trucks: "Find Trucks",
@@ -62,6 +117,9 @@ export const dictionaries = {
       login:       "Log in",
       signup:      "Sign up",
       logout:      "Log out",
+      dashboard:   "Dashboard",
+      conversations: "Conversations",
+      notifications: "Notifications",
     },
     footer: {
       newsletter_title: "Get all the news from the marketplace",
@@ -71,8 +129,16 @@ export const dictionaries = {
       about:            "Air F&B",
     },
   },
-} satisfies Record<Locale, Record<string, Record<string, string>>>;
+} satisfies Record<Locale, {
+  common: Record<string, string>;
+  nav: Record<string, string>;
+  footer: Record<string, string>;
+}>;
 
+// Dictionary type is derived from PT (always present) and serves both locales
+// because the `satisfies` constraint guarantees structural parity. Without
+// `as const` the values widen to `string`, so `dictionaries[locale]` matches
+// the Dictionary type cleanly without the "two unrelated types" error.
 export type Dictionary = (typeof dictionaries)["pt"];
 
 export function isSupportedLocale(s: string | undefined | null): s is Locale {
