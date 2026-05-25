@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { useDict } from "@/components/DictProvider";
 
 type TabKey = "personal" | "billing";
@@ -31,7 +31,6 @@ export function ProfileTabs({ personal, billing, initial = "personal" }: Props) 
   const dict = useDict();
   const t = (dict.dashboard_profile as Record<string, string>);
   const [tab, setTab] = useState<TabKey>(initial);
-  const tablistRef = useRef<HTMLDivElement | null>(null);
 
   // Instance-scoped IDs — avoids duplicate DOM IDs if <ProfileTabs/> is
   // ever rendered more than once on the same page, which would otherwise
@@ -53,7 +52,9 @@ export function ProfileTabs({ personal, billing, initial = "personal" }: Props) 
       e.preventDefault();
       setTab(next);
       // Move focus to the newly active tab so a screen reader announces it.
-      const btn = tablistRef.current?.querySelector<HTMLButtonElement>(`#${TAB_IDS[next]}`);
+      // Use getElementById — React 19's useId() returns IDs containing ":"
+      // which are invalid in querySelector without CSS.escape.
+      const btn = document.getElementById(TAB_IDS[next]) as HTMLButtonElement | null;
       btn?.focus();
     }
   }
@@ -61,7 +62,6 @@ export function ProfileTabs({ personal, billing, initial = "personal" }: Props) 
   return (
     <div>
       <div
-        ref={tablistRef}
         role="tablist"
         aria-label={t.tablist_aria ?? "Profile sections"}
         onKeyDown={onKeyDown}
