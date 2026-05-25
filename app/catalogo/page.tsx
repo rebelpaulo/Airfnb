@@ -113,18 +113,42 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     .order("name_pt");
   const categories = categoriesData ?? [];
 
+  // Value → dictionary-key lookups so active-filter chips show translated
+  // labels instead of raw URL slugs (e.g. "italiana", "vegan", "nao_preciso").
+  // Mirrors the same maps used by FilterModal.
+  const tFilter = dict.catalog.filter_modal as Record<string, string>;
+  const CUISINE_KEY: Record<string, string> = {
+    portuguesa: "cuisine_pt", italiana: "cuisine_it", japonesa: "cuisine_jp",
+    turca: "cuisine_tr", espanhola: "cuisine_es", chinesa: "cuisine_cn",
+    mexicana: "cuisine_mx", tailandesa: "cuisine_th", marroquina: "cuisine_ma",
+    americana: "cuisine_us",
+  };
+  const DIETARY_KEY: Record<string, string> = {
+    vegetarian: "dietary_vegetarian", vegan: "dietary_vegan", gluten_free: "dietary_gluten_free",
+  };
+  const POWER_KEY: Record<string, string> = {
+    nao_preciso: "power_none", ate_3kw: "power_3", "3_a_10kw": "power_3_10", mais_10kw: "power_10_plus",
+  };
+  const SANI_KEY: Record<string, string> = {
+    none: "sani_none", wc_proximo: "sani_close", wc_dedicado: "sani_dedicated",
+  };
+  const CATERING_KEY: Record<string, string> = {
+    food: "catering_food", drinks: "catering_drinks", food_and_drinks: "catering_both",
+  };
+  const lookup = (map: Record<string, string>, v: string) => tFilter[map[v] ?? ""] ?? v;
+
   const activeFilters: Array<{ key: string; label: string }> = [];
   if (city)             activeFilters.push({ key: "city",      label: `${t.filter_city}: ${city}` });
   if (cats?.length)     activeFilters.push({ key: "cats",      label: `${t.filter_specialties}: ${cats.join(", ")}` });
   if (pax)              activeFilters.push({ key: "pax",       label: `≥ ${pax} ${t.filter_pax}` });
   if (priceMin)         activeFilters.push({ key: "price_min", label: `${t.filter_min} ${priceMin}` });
   if (priceMax)         activeFilters.push({ key: "price_max", label: `${t.filter_max} ${priceMax}` });
-  if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `${t.filter_cuisines}: ${cuisines.join(", ")}` });
-  if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `${t.filter_dietary}: ${dietary.join(", ")}` });
+  if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `${t.filter_cuisines}: ${cuisines.map((c) => lookup(CUISINE_KEY, c)).join(", ")}` });
+  if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `${t.filter_dietary}: ${dietary.map((d) => lookup(DIETARY_KEY, d)).join(", ")}` });
   if (setupMax)         activeFilters.push({ key: "setup_max", label: `${t.filter_setup} ≤ ${setupMax}${t.filter_setup_unit}` });
-  if (power)            activeFilters.push({ key: "power",     label: `${t.filter_power}: ${power}` });
-  if (sanitation)       activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${sanitation}` });
-  if (serves)           activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${serves.replace("_and_", " & ")}` });
+  if (power)            activeFilters.push({ key: "power",     label: `${t.filter_power}: ${lookup(POWER_KEY, power)}` });
+  if (sanitation)       activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${lookup(SANI_KEY, sanitation)}` });
+  if (serves)           activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${lookup(CATERING_KEY, serves)}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>

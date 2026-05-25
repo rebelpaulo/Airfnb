@@ -194,7 +194,14 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
 
         <aside style={{ position: "sticky", top: 100, alignSelf: "flex-start", padding: 22, background: "#fff", borderRadius: 14, boxShadow: "var(--shadow-card)" }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: "var(--orange)" }}>
-            ★ {Number(truck.rating_avg).toFixed(1)} <span style={{ fontSize: 14, color: "var(--muted)" }}>({truck.rating_count} {t.reviews})</span>
+            {truck.rating_count > 0 && Number.isFinite(Number(truck.rating_avg)) ? (
+              <>
+                ★ {Number(truck.rating_avg).toFixed(1)}{" "}
+                <span style={{ fontSize: 14, color: "var(--muted)" }}>({truck.rating_count} {t.reviews})</span>
+              </>
+            ) : (
+              <span style={{ fontSize: 14, color: "var(--muted)" }}>{t.unrated}</span>
+            )}
           </div>
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
             <div><strong>{t.label_city}</strong> {truck.base_city ?? t.em_dash}</div>

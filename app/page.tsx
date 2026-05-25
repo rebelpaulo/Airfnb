@@ -31,6 +31,12 @@ const CATEGORY_SLUGS = [
   { slug: "sandwich",        key: "cat_sandwich",  icon: "bakery_dining" },
 ] as const;
 
+// slug → dictionary-key lookup so featured-truck cards can render their
+// category subtitle in the active locale instead of leaking the raw DB slug.
+const CATEGORY_KEY_BY_SLUG = Object.fromEntries(
+  CATEGORY_SLUGS.map((c) => [c.slug, c.key]),
+) as Record<(typeof CATEGORY_SLUGS)[number]["slug"], (typeof CATEGORY_SLUGS)[number]["key"]>;
+
 const THEME_IMAGES = [
   { key: "theme_weddings",    img: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80" },
   { key: "theme_festivals",   img: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80" },
@@ -159,7 +165,15 @@ export default async function HomePage() {
                   </div>
                   <div className="info">
                     <h3>{tr.name}</h3>
-                    <div className="subtitle">{(tr.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
+                    <div className="subtitle">
+                      {(tr.category_slugs ?? [])
+                        .slice(0, 3)
+                        .map((slug: string) => {
+                          const key = CATEGORY_KEY_BY_SLUG[slug as keyof typeof CATEGORY_KEY_BY_SLUG];
+                          return key ? (t as Record<string, string>)[key] ?? slug : slug;
+                        })
+                        .join(" · ")}
+                    </div>
                     <div className="meta">
                       <span className="loc">
                         <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>

@@ -264,7 +264,7 @@ export function Header({ user, locale = "pt" }: Props) {
               </li>
 
               <DrawerLink href="/blog"        onClose={() => setDrawerOpen(false)}>{t.drawer_blog}</DrawerLink>
-              <DrawerLink href="/privacidade" onClose={() => setDrawerOpen(false)}>{t.drawer_terms}</DrawerLink>
+              <DrawerLink href="/termos"      onClose={() => setDrawerOpen(false)}>{t.drawer_terms}</DrawerLink>
               <DrawerLink href="/ajuda"       onClose={() => setDrawerOpen(false)}>{t.drawer_help}</DrawerLink>
             </ul>
 
