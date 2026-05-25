@@ -100,10 +100,12 @@ export default async function NotificacoesPage() {
 
 function labelFor(kind: string) {
   switch (kind) {
-    case "application.accepted": return "🎉 A tua candidatura foi aceite!";
-    case "application.rejected": return "Candidatura não selecionada.";
-    case "booking.confirmed":    return "Reserva confirmada.";
-    case "booking.cancelled":    return "Reserva cancelada.";
+    case "application.received":     return "Nova candidatura ao teu evento.";
+    case "application.shortlisted":  return "A tua candidatura está em shortlist.";
+    case "application.accepted":     return "🎉 A tua candidatura foi aceite!";
+    case "application.rejected":     return "Candidatura não selecionada.";
+    case "booking.confirmed":        return "Reserva confirmada.";
+    case "booking.cancelled":        return "Reserva cancelada.";
     default: return kind;
   }
 }
