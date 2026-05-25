@@ -1430,8 +1430,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   .skel { animation: none; }
-  .truck-card { transition: none; }
-  .truck-card:hover .thumb img { transform: none; }
+  .truck-card,
+  .truck-card .thumb img { transition: none; }
+  .truck-card:hover,
+  .truck-card:hover .thumb img {
+    /* Neutralise the lift + zoom + glow under reduced motion — disabling
+       transition alone still let the static hover state apply on mouse-over. */
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 /* 4. Empty state — friendly soft background, centred CTA */
