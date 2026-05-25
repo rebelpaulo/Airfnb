@@ -5,6 +5,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
 import { FilterModal } from "./FilterModal";
 import { getDictionary } from "@/lib/i18n";
+import { getFavoritedTruckIds } from "@/lib/favorites";
+import { HeartButton } from "@/components/HeartButton";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
@@ -128,6 +130,12 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   const { data: trucks = [], error } = await q;
   if (error) console.error("catalogo query failed", error.message);
 
+  // One read for which trucks the current user has hearted; HeartButton
+  // gets the initial state per-card. Unauth visitors return empty Set.
+  const favoritedIds = await getFavoritedTruckIds();
+  const { data: { user } } = await supa.auth.getUser();
+  const authed = !!user;
+
   const { data: categoriesData } = await (supa as any)
     .from("airfnb_categories")
     .select("id, slug, name_pt, icon")
@@ -226,6 +234,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
                   style={{ objectFit: "cover" }}
                 />
+                <HeartButton truckId={tr.id} initialFavorited={favoritedIds.has(tr.id)} authed={authed} />
               </div>
               <div className="info">
                 <h3>{tr.name}</h3>
