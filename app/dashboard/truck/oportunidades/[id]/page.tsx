@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,12 @@ export default async function OportunidadeDetailPage({
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/truck/oportunidades/${id}`);
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.truck_opportunity_detail;
+  const vocab = dict.vocab;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
@@ -61,9 +68,12 @@ export default async function OportunidadeDetailPage({
 
   async function apply(formData: FormData) {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.dashboard.truck_opportunity_detail;
+
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth);
 
     const truckId = String(formData.get("truck_id") ?? "");
 
@@ -78,26 +88,26 @@ export default async function OportunidadeDetailPage({
 
     const coverMessage = String(formData.get("cover_message") ?? "").trim();
 
-    if (!truckId)                                                       throw new Error("Escolhe o teu truck.");
-    if (!Number.isFinite(proposedPrice) || proposedPrice <= 0)          throw new Error("Indica um preço proposto válido.");
-    if (proposedPrice > 1_000_000)                                      throw new Error("Preço fora dos limites razoáveis.");
+    if (!truckId)                                                       throw new Error(t.err_no_truck);
+    if (!Number.isFinite(proposedPrice) || proposedPrice <= 0)          throw new Error(t.err_invalid_price);
+    if (proposedPrice > 1_000_000)                                      throw new Error(t.err_price_too_high);
     if (estimatedServings !== null && (!Number.isInteger(estimatedServings) || estimatedServings < 0)) {
-      throw new Error("Servings estimados inválidos.");
+      throw new Error(t.err_invalid_servings);
     }
     if (coverMessage.length < 30) {
-      throw new Error("A mensagem de apresentação deve ter pelo menos 30 caracteres.");
+      throw new Error(t.err_message_too_short);
     }
 
     // Re-verify ownership server-side (the form `truck_id` is user-controlled)
-    const { data: t } = await (supa as any)
+    const { data: tr } = await (supa as any)
       .from("airfnb_trucks")
       .select("id, owner_id, status")
       .eq("id", truckId)
       .maybeSingle();
-    if (!t || t.owner_id !== user.id) throw new Error("Sem permissão para este truck.");
-    if (t.status !== "active") {
+    if (!tr || tr.owner_id !== user.id) throw new Error(t.err_no_truck_perm);
+    if (tr.status !== "active") {
       // A truck in 'paused' or 'pending_review' shouldn't be able to apply
-      throw new Error("Só trucks activos podem candidatar-se.");
+      throw new Error(t.err_truck_not_active);
     }
 
     // Rate limit (50/truck/day) is enforced by a BEFORE INSERT trigger on
@@ -117,14 +127,14 @@ export default async function OportunidadeDetailPage({
       .select("id, status, start_at, applications_deadline")
       .eq("id", id)
       .maybeSingle();
-    if (!req) throw new Error("Pedido não encontrado.");
-    if (req.status !== "open")                            throw new Error("Este pedido já não está aberto a candidaturas.");
-    if (Date.parse(req.start_at) <= nowMs)                throw new Error("O evento já decorreu.");
+    if (!req) throw new Error(t.err_request_not_found);
+    if (req.status !== "open")                            throw new Error(t.err_request_closed);
+    if (Date.parse(req.start_at) <= nowMs)                throw new Error(t.err_event_past);
     // Use <= to match the RLS policy boundary (which allows applications_deadline > now()).
     // Otherwise we'd let the request through at the exact boundary and then surface
     // an RLS-rejected cryptic error instead of our friendly message.
     if (req.applications_deadline && Date.parse(req.applications_deadline) <= nowMs) {
-      throw new Error("Prazo de candidatura expirado.");
+      throw new Error(t.err_deadline_expired);
     }
 
     // Unique on (request_id, truck_id) — DB will reject duplicates. We
@@ -139,7 +149,7 @@ export default async function OportunidadeDetailPage({
     });
     if (error) {
       if (error.code === "23505") {
-        throw new Error("Já existe uma candidatura deste truck para este pedido.");
+        throw new Error(t.err_duplicate);
       }
       throw new Error(error.message);
     }
@@ -148,20 +158,33 @@ export default async function OportunidadeDetailPage({
     redirect("/dashboard/truck/aplicacoes");
   }
 
+  function fmtDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  function labelEnergy(v: string): string {
+    const m = vocab.power as Record<string, string>;
+    return m[v] ?? v;
+  }
+  function labelSanitation(v: string): string {
+    const m = vocab.sanitation as Record<string, string>;
+    return m[v] ?? v;
+  }
+
   return (
     <div className="dash" style={{ maxWidth: 820 }}>
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp;
-        <Link href="/dashboard/truck/oportunidades">Oportunidades</Link> &nbsp;/&nbsp;
+        <Link href="/dashboard/truck">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp;
+        <Link href="/dashboard/truck/oportunidades">{t.breadcrumb_opportunities}</Link> &nbsp;/&nbsp;
         <span>{req.title}</span>
       </nav>
 
       <header style={{ marginTop: 14 }}>
         <h1 style={{ margin: 0 }}>{req.title}</h1>
         <div style={{ color: "var(--muted)", marginTop: 6 }}>
-          {fmtDate(req.start_at)} · {req.city ?? req.locality ?? "—"} · {req.expected_pax} pax · {req.slots_needed ?? 1} truck(s)
+          {fmtDate(req.start_at)} · {req.city ?? req.locality ?? "—"} · {req.expected_pax} pax · {req.slots_needed ?? 1} {t.truck_plural_suffix}
           {req.budget_min || req.budget_max
-            ? ` · orçamento ${money(req.budget_min ?? 0)} – ${money(req.budget_max ?? 0)}`
+            ? ` · ${t.budget_prefix} ${money(req.budget_min ?? 0)} – ${money(req.budget_max ?? 0)}`
             : ""}
         </div>
         {req.notes && (
@@ -174,46 +197,46 @@ export default async function OportunidadeDetailPage({
       {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes || req.address_line) && (
         <section style={{ marginTop: 18, padding: 18, background: "#fff", border: "1px solid var(--line)", borderRadius: 12 }}>
           <h2 style={{ margin: 0, fontSize: 15, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 700 }}>
-            Briefing do organizador
+            {t.briefing_title}
           </h2>
           <dl style={{ marginTop: 12, display: "grid", gridTemplateColumns: "180px 1fr", rowGap: 8, columnGap: 14, fontSize: 14 }}>
             {req.desired_cuisines?.length > 0 && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Cozinhas pretendidas</dt>
+                <dt style={{ color: "var(--muted)" }}>{t.label_cuisines}</dt>
                 <dd style={{ margin: 0 }}>{req.desired_cuisines.join(", ")}</dd>
               </>
             )}
             {req.dietary_requirements?.length > 0 && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Restrições alimentares</dt>
+                <dt style={{ color: "var(--muted)" }}>{t.label_dietary}</dt>
                 <dd style={{ margin: 0 }}>{req.dietary_requirements.join(", ")}</dd>
               </>
             )}
             {req.energy_need && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Necessidade de energia</dt>
+                <dt style={{ color: "var(--muted)" }}>{t.label_energy}</dt>
                 <dd style={{ margin: 0 }}>
                   {labelEnergy(req.energy_need)}
-                  {req.power_available ? " · disponível no local" : ""}
-                  {req.energy_assistance ? " · assistência fornecida" : ""}
+                  {req.power_available ? ` · ${t.energy_available}` : ""}
+                  {req.energy_assistance ? ` · ${t.energy_assistance}` : ""}
                 </dd>
               </>
             )}
             {req.sanitation_level && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Sanitação</dt>
+                <dt style={{ color: "var(--muted)" }}>{t.label_sanitation}</dt>
                 <dd style={{ margin: 0 }}>{labelSanitation(req.sanitation_level)}</dd>
               </>
             )}
             {req.setup_minutes && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Tempo de setup</dt>
-                <dd style={{ margin: 0 }}>{req.setup_minutes} min</dd>
+                <dt style={{ color: "var(--muted)" }}>{t.label_setup_time}</dt>
+                <dd style={{ margin: 0 }}>{req.setup_minutes} {t.setup_min_suffix}</dd>
               </>
             )}
             {req.address_line && (
               <>
-                <dt style={{ color: "var(--muted)" }}>Morada</dt>
+                <dt style={{ color: "var(--muted)" }}>{t.label_address}</dt>
                 <dd style={{ margin: 0 }}>{req.address_line}</dd>
               </>
             )}
@@ -223,81 +246,58 @@ export default async function OportunidadeDetailPage({
 
       {existingApp ? (
         <section style={{ marginTop: 26, padding: 20, border: "1px solid var(--line)", borderRadius: 14, background: "#F8FFF9" }}>
-          <h2 style={{ margin: 0, fontSize: 20 }}>Já te candidataste</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>{t.already_applied_title}</h2>
           <p style={{ color: "var(--muted)", marginTop: 6, fontSize: 14 }}>
-            Status: <strong style={{ color: "var(--ink)" }}>{existingApp.status}</strong> ·
-            Proposta: <strong style={{ color: "var(--ink)" }}>{money(existingApp.proposed_price)}</strong>
+            {t.already_applied_status} <strong style={{ color: "var(--ink)" }}>{existingApp.status}</strong> ·
+            {" "}{t.already_applied_proposal} <strong style={{ color: "var(--ink)" }}>{money(existingApp.proposed_price)}</strong>
           </p>
           <p style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{existingApp.cover_message}</p>
           <Link href="/dashboard/truck/aplicacoes" className="btn-pill outline"
                 style={{ marginTop: 12, borderColor: "var(--line)", color: "var(--ink)" }}>
-            Ver todas as candidaturas
+            {t.already_applied_view_all}
           </Link>
         </section>
       ) : (
         <form action={apply} style={{ marginTop: 26, padding: 22, background: "#fff", border: "1px solid var(--line)", borderRadius: 14, display: "grid", gap: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 22 }}>Candidatar</h2>
+          <h2 style={{ margin: 0, fontSize: 22 }}>{t.form_title}</h2>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Qual truck?</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.form_truck_label}</span>
             <select name="truck_id" defaultValue={selectedTruckId}>
-              {myTrucks.map((t: any) => (
-                <option key={t.id} value={t.id}>{t.name}{t.status !== "active" ? ` (${t.status})` : ""}</option>
+              {myTrucks.map((tr: any) => (
+                <option key={tr.id} value={tr.id}>{tr.name}{tr.status !== "active" ? ` (${tr.status})` : ""}</option>
               ))}
             </select>
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Preço proposto (€)</span>
-            <input name="proposed_price" type="number" required min={0} step={10}
-                   placeholder={req.budget_min ? String(req.budget_min) : "800"} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.form_price_label}</span>
+            <input name="proposed_price" type="number" required min={1} step={10}
+                   placeholder={req.budget_min ? String(req.budget_min) : t.form_price_default_placeholder} />
             <small style={{ color: "var(--muted)", fontSize: 12 }}>
-              Valor total da tua proposta. O organizador vê isto na shortlist.
+              {t.form_price_hint}
             </small>
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Servings estimados (opcional)</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.form_servings_label}</span>
             <input name="estimated_servings" type="number" min={0} placeholder={String(req.expected_pax ?? 100)} />
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Mensagem de apresentação</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.form_message_label}</span>
             <textarea name="cover_message" required minLength={30} rows={6}
-                      placeholder="Porquê o teu truck para este evento? Especialidades, casos de sucesso, disponibilidade…" />
+                      placeholder={t.form_message_placeholder} />
             <small style={{ color: "var(--muted)", fontSize: 12 }}>
-              Mínimo 30 caracteres. É a primeira coisa que o organizador lê.
+              {t.form_message_hint}
             </small>
           </label>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="btn-pill" type="submit">Submeter candidatura</button>
+            <button className="btn-pill" type="submit">{t.form_submit}</button>
           </div>
         </form>
       )}
     </div>
   );
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function labelEnergy(v: string): string {
-  switch (v) {
-    case "nao_preciso": return "Não preciso";
-    case "ate_3kw":     return "Até 3 kW";
-    case "3_a_10kw":    return "3 – 10 kW";
-    case "mais_10kw":   return "Mais de 10 kW";
-    default: return v;
-  }
-}
-function labelSanitation(v: string): string {
-  // enum airfnb_sanitation_level: {nao_necessario, wc_proximo, wc_dedicado}
-  switch (v) {
-    case "nao_necessario": return "Sem necessidade";
-    case "wc_proximo":     return "WC próximo do local";
-    case "wc_dedicado":    return "WC dedicado";
-    default: return v;
-  }
 }

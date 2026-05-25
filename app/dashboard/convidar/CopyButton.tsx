@@ -1,7 +1,10 @@
 "use client";
 import { useState } from "react";
+import { useDict } from "@/components/DictProvider";
 
 export function CopyButton({ text }: { text: string }) {
+  const dict = useDict();
+  const t = dict.dashboard.shared_referral_copy;
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -15,11 +18,11 @@ export function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         } catch {
           // Fallback for browsers without clipboard API (e.g., http preview)
-          window.prompt("Copia o link:", text);
+          window.prompt(t.fallback_prompt, text);
         }
       }}
     >
-      {copied ? "Copiado ✓" : "Copiar"}
+      {copied ? t.copied : t.copy}
     </button>
   );
 }

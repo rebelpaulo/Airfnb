@@ -2,15 +2,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict } from "@/components/DictProvider";
 
 export function DeleteAccountButton() {
+  const dict = useDict();
+  const t = dict.dashboard.shared_delete_account;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr]   = useState<string | null>(null);
   const [confirm, setConfirm] = useState("");
 
-  const phrase = "APAGAR A MINHA CONTA";
-  const enabled = confirm.trim().toUpperCase() === phrase && !busy;
+  const phrase = t.confirm_phrase;
+  // Normalize both sides — if a locale ever defines the phrase in mixed/lower
+  // case, the comparison still works. Uppercasing only the input would deadlock.
+  const enabled =
+    confirm.trim().toLocaleUpperCase() === phrase.trim().toLocaleUpperCase() && !busy;
 
   async function deleteAccount() {
     setBusy(true);
@@ -31,7 +37,7 @@ export function DeleteAccountButton() {
   return (
     <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
       <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
-        <span>Para confirmar, escreve <code>{phrase}</code></span>
+        <span>{t.confirm_pre}<code>{phrase}</code></span>
         <input
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
@@ -47,7 +53,7 @@ export function DeleteAccountButton() {
         className="btn-pill"
         style={{ padding: "10px 22px", background: enabled ? "#8B1100" : "#C5A097", border: "none", color: "#fff", cursor: enabled ? "pointer" : "not-allowed" }}
       >
-        {busy ? "A apagar…" : "Apagar definitivamente"}
+        {busy ? t.deleting : t.delete_permanently}
       </button>
     </div>
   );

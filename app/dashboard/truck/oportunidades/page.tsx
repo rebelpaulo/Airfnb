@@ -2,8 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+
+function format(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
+}
 
 /**
  * Truck-side feed of OPEN event requests the owner could apply to.
@@ -17,6 +22,11 @@ export default async function OportunidadesPage() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/oportunidades");
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.truck_opportunities;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   const { data: myTrucks } = await (supa as any)
     .from("airfnb_trucks")
@@ -53,7 +63,7 @@ export default async function OportunidadesPage() {
   // Surface RPC failures explicitly — silently treating an error as "no
   // matches" would mislead the owner into thinking there's no work for them.
   if (scoreErr) {
-    throw new Error(`Não foi possível calcular os matches agora: ${scoreErr.message}`);
+    throw new Error(format(t.score_error, { msg: scoreErr.message }));
   }
 
   // Best-truck-per-request dedup (keep highest score)
@@ -83,19 +93,23 @@ export default async function OportunidadesPage() {
     .filter((x) => x.match)
     .sort((a, b) => (b.match!.match_score) - (a.match!.match_score));
 
+  function fmtDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" });
+  }
+
   return (
     <div className="dash">
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp; <span>Oportunidades</span>
+        <Link href="/dashboard/truck">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_current}</span>
       </nav>
-      <h1 style={{ margin: 0 }}>Pedidos abertos para ti</h1>
+      <h1 style={{ margin: 0 }}>{t.title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        Ordenado pelo score de match — quanto mais alto, melhor o pedido encaixa no perfil dos teus trucks.
+        {t.subtitle}
       </p>
 
       {opportunities.length === 0 ? (
         <div className="dash empty" style={{ marginTop: 24 }}>
-          De momento não há pedidos abertos que dêem match com os teus trucks. Volta mais tarde.
+          {t.empty}
         </div>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, marginTop: 22, display: "grid", gap: 12 }}>
@@ -105,23 +119,23 @@ export default async function OportunidadesPage() {
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <h3 style={{ margin: 0 }}>{req.title}</h3>
                   <span style={{ background: scoreColor(match!.match_score), color: "#fff", padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4 }}>
-                    {Math.round(match!.match_score)}% match
+                    {Math.round(match!.match_score)}{t.percent_match}
                   </span>
                   {applied && (
                     <span style={{ background: "#888", color: "#fff", padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
-                      Já candidataste
+                      {t.already_applied}
                     </span>
                   )}
                 </div>
                 <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-                  {fmtDate(req.start_at)} · {req.city ?? "—"} · {req.expected_pax} pax · {req.slots_needed ?? 1} {req.slots_needed === 1 ? "truck" : "trucks"}
+                  {fmtDate(req.start_at)} · {req.city ?? "—"} · {req.expected_pax} {t.pax_suffix} · {req.slots_needed ?? 1} {req.slots_needed === 1 ? t.truck_singular : t.truck_plural}
                   {req.budget_min || req.budget_max
-                    ? ` · orçamento ${money(req.budget_min ?? 0)} – ${money(req.budget_max ?? 0)}`
+                    ? ` · ${t.budget_prefix} ${money(req.budget_min ?? 0)} – ${money(req.budget_max ?? 0)}`
                     : ""}
                 </div>
                 <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 2 }}>
-                  Melhor encaixe: <strong style={{ color: "var(--ink)" }}>{match!.truck_name}</strong>
-                  {req.applications_deadline && ` · candidaturas até ${fmtDate(req.applications_deadline)}`}
+                  {t.best_fit} <strong style={{ color: "var(--ink)" }}>{match!.truck_name}</strong>
+                  {req.applications_deadline && ` · ${t.applications_until} ${fmtDate(req.applications_deadline)}`}
                 </div>
               </div>
               <Link
@@ -129,7 +143,7 @@ export default async function OportunidadesPage() {
                 className="btn-pill"
                 style={{ padding: "10px 22px" }}
               >
-                {applied ? "Ver candidatura" : "Candidatar"}
+                {applied ? t.view_application : t.apply_cta}
               </Link>
             </li>
           ))}
@@ -143,8 +157,4 @@ function scoreColor(s: number): string {
   if (s >= 70) return "#10A37F";
   if (s >= 40) return "var(--orange)";
   return "#888";
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
 }

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict } from "@/components/DictProvider";
 
 /**
  * Header notification bell. Shows the count of UNREAD notifications for the
@@ -13,6 +14,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
  * in this app).
  */
 export function NotifBell({ userId }: { userId: string }) {
+  const dict = useDict();
+  const t = dict.dashboard.shared_notification_bell;
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export function NotifBell({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <Link className="icon-chip" href="/dashboard/notificacoes" aria-label={`Notificações${unread ? ` (${unread} por ler)` : ""}`}
+    <Link className="icon-chip" href="/dashboard/notificacoes" aria-label={`${t.aria_base}${unread ? ` (${unread} ${t.aria_unread_suffix})` : ""}`}
           style={{ position: "relative" }}>
       <span className="material-symbols-outlined">notifications</span>
       {unread > 0 && (

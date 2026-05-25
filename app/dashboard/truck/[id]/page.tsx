@@ -5,13 +5,19 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
 import { truckCover } from "@/lib/img";
+import { getDictionary } from "@/lib/i18n";
+import type { Dictionary } from "@/lib/i18n";
+
+function format(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
+}
 
 /**
  * Per-truck management screen.
  *
  * Shows a completion meter computed from the fields the truck needs to fill
  * before it can be submitted for admin review. Reaching 100% reveals the
- * "Submeter para revisão" button which flips the status to `pending_review`.
+ * "Submit for review" button which flips the status to `pending_review`.
  */
 type Checklist = {
   key: string;
@@ -26,6 +32,9 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/truck/${id}`);
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.truck_profile_editor;
 
   const { data: truck } = await (supa as any)
     .from("airfnb_trucks")
@@ -63,24 +72,24 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     );
 
   const checklist: Checklist[] = [
-    // Step 1 — Básico (35%)
-    { key: "name",        label: "Nome do truck",                            weight: 5,  done: !!truck.name?.trim() },
-    { key: "city",        label: "Localidade base e raio",                   weight: 5,  done: !!truck.base_city?.trim() && !!truck.service_radius_km },
-    { key: "capacity",    label: "Capacidade (pax)",                         weight: 5,  done: !!truck.capacity },
-    { key: "pax_range",   label: "Faixa de eventos (min/max pax)",           weight: 5,  done: !!truck.min_event_pax && !!truck.max_event_pax },
-    { key: "price",       label: "Preço base + preço por pax",               weight: 10, done: !!truck.base_price && !!truck.price_per_pax },
-    { key: "description", label: "Descrição (≥ 80 caracteres)",              weight: 5,  done: (truck.description ?? "").trim().length >= 80 },
-    // Step 2 — Cozinha (15%)
-    { key: "cuisines",    label: "Tipos de cozinha (≥ 1)",                   weight: 5,  done: (truck.cuisine_types ?? []).length >= 1 },
-    { key: "categories",  label: "Especialidades (≥ 1)",                     weight: 10, done: cats.length >= 1 },
-    // Step 3 — Logística (10%)
-    { key: "logistics",   label: "Logística (montagem / energia / saneamento)", weight: 10, done: !!truck.setup_minutes && !!truck.teardown_minutes && truck.power_required_kw != null && !!truck.sanitation_required },
-    // Step 4 — Mídia (40%)
-    { key: "cover",       label: "Foto de capa",                             weight: 10, done: images.some((i) => i.is_cover) },
-    { key: "gallery",     label: "Galeria (≥ 4 fotos no total)",             weight: 10, done: images.length >= 4 },
-    { key: "doc_asae",    label: "Certificado ASAE",                         weight: 8,  done: docValid("asae") },
-    { key: "doc_comerc",  label: "Certificado Comercial",                    weight: 6,  done: docValid("comercial") },
-    { key: "doc_finan",   label: "Certificado Finanças",                     weight: 6,  done: docValid("financas") },
+    // Step 1 — Basics (35%)
+    { key: "name",        label: t.check_name,         weight: 5,  done: !!truck.name?.trim() },
+    { key: "city",        label: t.check_city,         weight: 5,  done: !!truck.base_city?.trim() && !!truck.service_radius_km },
+    { key: "capacity",    label: t.check_capacity,     weight: 5,  done: !!truck.capacity },
+    { key: "pax_range",   label: t.check_pax_range,    weight: 5,  done: !!truck.min_event_pax && !!truck.max_event_pax },
+    { key: "price",       label: t.check_price,        weight: 10, done: !!truck.base_price && !!truck.price_per_pax },
+    { key: "description", label: t.check_description,  weight: 5,  done: (truck.description ?? "").trim().length >= 80 },
+    // Step 2 — Cuisine (15%)
+    { key: "cuisines",    label: t.check_cuisines,     weight: 5,  done: (truck.cuisine_types ?? []).length >= 1 },
+    { key: "categories",  label: t.check_categories,   weight: 10, done: cats.length >= 1 },
+    // Step 3 — Logistics (10%)
+    { key: "logistics",   label: t.check_logistics,    weight: 10, done: !!truck.setup_minutes && !!truck.teardown_minutes && truck.power_required_kw != null && !!truck.sanitation_required },
+    // Step 4 — Media (40%)
+    { key: "cover",       label: t.check_cover,        weight: 10, done: images.some((i) => i.is_cover) },
+    { key: "gallery",     label: t.check_gallery,      weight: 10, done: images.length >= 4 },
+    { key: "doc_asae",    label: t.check_doc_asae,     weight: 8,  done: docValid("asae") },
+    { key: "doc_comerc",  label: t.check_doc_comerc,   weight: 6,  done: docValid("comercial") },
+    { key: "doc_finan",   label: t.check_doc_finan,    weight: 6,  done: docValid("financas") },
   ];
   const progress = checklist.reduce((sum, c) => sum + (c.done ? c.weight : 0), 0);
   const canSubmit = progress >= 100 && truck.status === "draft";
@@ -91,9 +100,11 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   // ---- server actions ----
   async function submitForReview() {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.dashboard.truck_profile_editor;
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth);
 
     // Re-fetch everything server-side and recompute the checklist — never
     // trust the UI's `canSubmit` boolean. A user could craft a request
@@ -106,10 +117,10 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
       (supa as any).from("airfnb_truck_categories").select("category_id").eq("truck_id", id),
       (supa as any).from("airfnb_truck_documents").select("id, kind, expires_at").eq("truck_id", id),
     ]);
-    const t = tRes.data;
-    if (!t) throw new Error("Truck não encontrado.");
-    if (t.owner_id !== user.id) throw new Error("Sem permissão.");
-    if (t.status !== "draft") throw new Error("Só trucks em rascunho podem ser submetidos.");
+    const tr = tRes.data;
+    if (!tr) throw new Error(t.err_truck_not_found);
+    if (tr.owner_id !== user.id) throw new Error(t.err_no_perm);
+    if (tr.status !== "draft") throw new Error(t.err_not_draft);
 
     const imgs = (iRes.data as any[]) ?? [];
     const cats  = (cRes.data as any[]) ?? [];
@@ -124,15 +135,15 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
       );
 
     const score = [
-      [5,  !!t.name?.trim()],
-      [5,  !!t.base_city?.trim() && !!t.service_radius_km],
-      [5,  !!t.capacity],
-      [5,  !!t.min_event_pax && !!t.max_event_pax],
-      [10, !!t.base_price && !!t.price_per_pax],
-      [5,  (t.description ?? "").trim().length >= 80],
-      [5,  (t.cuisine_types ?? []).length >= 1],
+      [5,  !!tr.name?.trim()],
+      [5,  !!tr.base_city?.trim() && !!tr.service_radius_km],
+      [5,  !!tr.capacity],
+      [5,  !!tr.min_event_pax && !!tr.max_event_pax],
+      [10, !!tr.base_price && !!tr.price_per_pax],
+      [5,  (tr.description ?? "").trim().length >= 80],
+      [5,  (tr.cuisine_types ?? []).length >= 1],
       [10, cats.length >= 1],
-      [10, !!t.setup_minutes && !!t.teardown_minutes && t.power_required_kw != null && !!t.sanitation_required],
+      [10, !!tr.setup_minutes && !!tr.teardown_minutes && tr.power_required_kw != null && !!tr.sanitation_required],
       [10, imgs.some((i) => i.is_cover)],
       [10, imgs.length >= 4],
       [8,  docOk("asae")],
@@ -141,7 +152,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     ].reduce((s, [w, ok]) => s + ((ok as boolean) ? (w as number) : 0), 0);
 
     if (score < 100) {
-      throw new Error(`Faltam dados (${score}% completo). Completa o checklist antes de submeter.`);
+      throw new Error(format(t.err_incomplete, { score }));
     }
 
     const { error } = await (supa as any)
@@ -157,9 +168,11 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
 
   async function pause() {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.dashboard.truck_profile_editor;
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth);
     const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "paused" })
       .eq("id", id).eq("owner_id", user.id).eq("status", "active");
@@ -168,9 +181,11 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   }
   async function resume() {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.dashboard.truck_profile_editor;
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth);
     const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "active" })
       .eq("id", id).eq("owner_id", user.id).eq("status", "paused");
@@ -181,7 +196,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   return (
     <div className="dash" style={{ maxWidth: 1100 }}>
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Os meus trucks</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
+        <Link href="/dashboard/truck">{t.breadcrumb_my_trucks}</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
       </nav>
 
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 24, alignItems: "center" }}>
@@ -197,7 +212,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
         <div>
           <h1 style={{ margin: 0 }}>{truck.name}</h1>
           <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <StatusBadge status={truck.status} />
+            <StatusBadge status={truck.status} dict={dict} />
             <span style={{ color: "var(--muted)" }}>★ {Number(truck.rating_avg).toFixed(1)} ({truck.rating_count})</span>
             <span style={{ color: "var(--muted)" }}>·</span>
             <span style={{ color: "var(--muted)" }}>{truck.base_city ?? "—"}</span>
@@ -211,7 +226,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 14, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 13, color: "var(--muted)", letterSpacing: 0.4, textTransform: "uppercase", fontWeight: 700 }}>
-              Completude do perfil
+              {t.progress_title}
             </div>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 44, color: "var(--orange)", lineHeight: 1 }}>
               {progress}%
@@ -227,28 +242,28 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
             </div>
             <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
               {progress < 100
-                ? "Completa todos os campos para submeteres o truck para revisão da equipa."
+                ? t.progress_below
                 : truck.status === "draft"
-                  ? "Tudo pronto! Submete para revisão e a equipa valida em 24-48h."
+                  ? t.progress_ready
                   : truck.status === "pending_review"
-                    ? "Em análise pela equipa Air F&B. Notificamos-te quando for aprovado."
-                    : "Tudo em ordem."}
+                    ? t.progress_pending
+                    : t.progress_ok}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {canSubmit && (
               <form action={submitForReview}>
-                <button className="btn-pill" type="submit">Submeter para revisão</button>
+                <button className="btn-pill" type="submit">{t.submit_for_review}</button>
               </form>
             )}
             {truck.status === "active" && (
               <form action={pause}>
-                <button className="btn-pill" type="submit" style={{ background: "#888" }}>Pausar</button>
+                <button className="btn-pill" type="submit" style={{ background: "#888" }}>{t.pause}</button>
               </form>
             )}
             {truck.status === "paused" && (
               <form action={resume}>
-                <button className="btn-pill" type="submit">Retomar</button>
+                <button className="btn-pill" type="submit">{t.resume}</button>
               </form>
             )}
           </div>
@@ -273,43 +288,43 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <Link className="btn-pill outline" href={`/dashboard/truck/${id}/editar`}
                 style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
-            Editar dados básicos
+            {t.edit_basics}
           </Link>
           <Link className="btn-pill outline" href={`/dashboard/truck/${id}/fotos`}
                 style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
-            Galeria de fotos ({images.length})
+            {t.gallery_label} ({images.length})
           </Link>
           <Link className="btn-pill outline" href={`/dashboard/truck/${id}/menu`}
                 style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
-            Menu ({menu.length})
+            {t.menu_label} ({menu.length})
           </Link>
           <Link className="btn-pill outline" href={`/dashboard/truck/${id}/documentos`}
                 style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
-            Documentos ({docs.length})
+            {t.documents_label} ({docs.length})
           </Link>
         </div>
         <p style={{ color: "var(--muted)", marginTop: 14, fontSize: 13 }}>
-          Os ecrãs detalhados (fotos, menu, documentos) chegam no próximo bloco — por enquanto,
-          o essencial vive em "Editar dados básicos" e tu acompanhas a percentagem aqui.
+          {t.coming_soon_note}
         </p>
       </section>
 
       {truck.base_price && (
         <p style={{ marginTop: 20, color: "var(--muted)" }}>
-          Preço base: {money(truck.base_price)} · Por pax: {money(truck.price_per_pax)}
+          {t.base_price_label} {money(truck.base_price)} · {t.per_pax_label} {money(truck.price_per_pax)}
         </p>
       )}
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, dict }: { status: string; dict: Dictionary }) {
+  const t = dict.dashboard.truck_profile_editor;
   const map: Record<string, { label: string; bg: string }> = {
-    draft:          { label: "Rascunho",   bg: "#888" },
-    pending_review: { label: "Em revisão", bg: "var(--teal)" },
-    active:         { label: "Activo",     bg: "#10A37F" },
-    paused:         { label: "Pausado",    bg: "#B85C00" },
-    archived:       { label: "Arquivado",  bg: "#444" },
+    draft:          { label: t.status_draft,          bg: "#888" },
+    pending_review: { label: t.status_pending_review, bg: "var(--teal)" },
+    active:         { label: t.status_active,         bg: "#10A37F" },
+    paused:         { label: t.status_paused,         bg: "#B85C00" },
+    archived:       { label: t.status_archived,       bg: "#444" },
   };
   const v = map[status] ?? { label: status, bg: "#444" };
   return (
