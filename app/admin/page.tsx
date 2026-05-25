@@ -28,8 +28,16 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="dash" style={{ maxWidth: 1100 }}>
-      <h1 style={{ margin: 0 }}>Admin</h1>
-      <p style={{ color: "var(--muted)", marginTop: 6 }}>{t.subtitle}</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Admin</h1>
+          <p style={{ color: "var(--muted)", marginTop: 6 }}>{t.subtitle}</p>
+        </div>
+        <Link href="/admin/definicoes" className="btn-pill outline"
+              style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", fontSize: 14 }}>
+          ⚙️ Definições
+        </Link>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 22 }}>
         <Stat label={t.stat_trucks_active}      value={m.trucks_active} sub={`${m.trucks_total} ${t.stat_total_suffix}`} />
