@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { TruckPhotoUpload } from "@/components/TruckPhotoUpload";
 import { TruckPdfUpload } from "@/components/TruckPdfUpload";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = { userId: string; categories: Category[] };
@@ -218,7 +219,11 @@ export function TruckWizard({ userId, categories }: Props) {
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
             <Field label="Localidade base">
-              <input value={baseCity} onChange={(e) => setBaseCity(e.target.value)} placeholder="Lisboa" />
+              <CityAutocomplete
+                defaultValue={baseCity}
+                placeholder="Lisboa"
+                onChange={(v) => setBaseCity(v)}
+              />
             </Field>
             <Field label="Raio (km)">
               <input type="number" min={5} max={500} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
