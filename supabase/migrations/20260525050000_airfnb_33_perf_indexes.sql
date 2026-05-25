@@ -25,7 +25,10 @@ create index if not exists airfnb_messages_created_at_brin
   on public.airfnb_messages using brin (created_at);
 
 -- Notifications dropdown: filter user_id + unread + order by created_at desc.
-create index if not exists airfnb_notifications_user_unread_idx
+-- Distinct name from migration 07's airfnb_notifications_user_unread_idx
+-- (which is just (user_id) where read_at is null) — IF NOT EXISTS would
+-- silently keep the older 1-col version and never add the created_at sort.
+create index if not exists airfnb_notifications_user_unread_created_idx
   on public.airfnb_notifications (user_id, created_at desc)
   where read_at is null;
 
