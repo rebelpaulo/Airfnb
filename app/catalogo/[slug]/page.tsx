@@ -6,6 +6,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
 import { truckCover, TRUCK_PLACEHOLDER } from "@/lib/img";
 import { getDictionary } from "@/lib/i18n";
+import { getFavoritedTruckIds } from "@/lib/favorites";
+import { HeartButton } from "@/components/HeartButton";
 
 // TODO: i18n metadata via generateMetadata
 export async function generateMetadata(
@@ -69,6 +71,11 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
   const cats = (truck.airfnb_truck_categories ?? []).map((tc:any)=> tc.airfnb_categories?.name_pt).filter(Boolean);
 
   const { data: { user } } = await supa.auth.getUser();
+  const authed = !!user;
+  // Heart state for the sidebar button. One read per page; falls back to
+  // empty Set for anon visitors (HeartButton then renders a sign-in CTA).
+  const favoritedIds = await getFavoritedTruckIds();
+  const initialFavorited = favoritedIds.has(truck.id);
   let myOpenRequests: { id: string; title: string }[] = [];
   if (user) {
     const { data: openReqs } = await (supa as any)
@@ -193,6 +200,9 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
         </div>
 
         <aside style={{ position: "sticky", top: 100, alignSelf: "flex-start", padding: 22, background: "#fff", borderRadius: 14, boxShadow: "var(--shadow-card)" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+            <HeartButton truckId={truck.id} initialFavorited={initialFavorited} authed={authed} absolute={false} />
+          </div>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: "var(--orange)" }}>
             {truck.rating_count > 0 && Number.isFinite(Number(truck.rating_avg)) ? (
               <>

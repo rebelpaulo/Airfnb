@@ -803,6 +803,11 @@ export const dictionaries = {
       empty_cta:                 "Ver catálogo",
       remove:                    "Remover dos favoritos",
     },
+    favorites_button: {
+      add:               "Adicionar aos favoritos",
+      remove:            "Remover dos favoritos",
+      sign_in_required:  "Entra para guardar",
+    },
     dashboard_profile: {
       page_title:                "O meu perfil",
       subtitle:                  "Estes dados são partilhados com os parceiros quando confirmas um evento.",
@@ -2129,6 +2134,11 @@ export const dictionaries = {
       empty_cta:                 "Browse catalog",
       remove:                    "Remove from favorites",
     },
+    favorites_button: {
+      add:               "Add to favorites",
+      remove:            "Remove from favorites",
+      sign_in_required:  "Sign in to save",
+    },
     dashboard_profile: {
       page_title:                "My profile",
       subtitle:                  "This information is shared with partners when you confirm an event.",
@@ -2699,6 +2709,7 @@ export const dictionaries = {
   admin_trucks: Record<string, string>;
   dashboard_sidebar: Record<string, string>;
   dashboard_favorites: Record<string, string>;
+  favorites_button: Record<string, string>;
   dashboard_profile: Record<string, string>;
   vocab: Record<string, Record<string, string>>;
   wizard: Record<string, Record<string, string | Record<string, string>>>;

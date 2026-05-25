@@ -6,6 +6,8 @@ import { truckCover } from "@/lib/img";
 import { Logo } from "@/components/Logo";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { getDictionary } from "@/lib/i18n";
+import { getFavoritedTruckIds } from "@/lib/favorites";
+import { HeartButton } from "@/components/HeartButton";
 
 export const revalidate = 60;
 
@@ -80,6 +82,12 @@ export default async function HomePage() {
       .limit(6);
     trucks = (data as any[]) ?? [];
   }
+
+  // Hearts on the featured cards. One DB read for the user's full favourites;
+  // empty Set for visitors so the heart still renders (turns into sign-in CTA).
+  const favoritedIds = await getFavoritedTruckIds();
+  const { data: { user } } = await supa.auth.getUser();
+  const authed = !!user;
 
   return (
     <>
@@ -156,7 +164,7 @@ export default async function HomePage() {
             <div className="truck-grid">
               {trucks.map((tr: any, idx: number) => (
                 <Link key={tr.id} href={`/catalogo/${tr.slug}`} className="truck-card">
-                  <div className="thumb">
+                  <div className="thumb" style={{ position: "relative" }}>
                     <Image
                       src={truckCover(tr.cover_url)}
                       alt={tr.name}
@@ -165,6 +173,7 @@ export default async function HomePage() {
                       priority={idx === 0}
                       style={{ objectFit: "cover" }}
                     />
+                    <HeartButton truckId={tr.id} initialFavorited={favoritedIds.has(tr.id)} authed={authed} />
                   </div>
                   <div className="info">
                     <h3>{tr.name}</h3>
