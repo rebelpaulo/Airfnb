@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
@@ -129,6 +129,13 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   // ---- Step 5: selection mode ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
 
+  // Honeypot: hidden field invisible to humans but eagerly filled by naive
+  // form-scraping bots. We use a ref to read the LIVE DOM value at submit
+  // time — React onChange only fires when input events bubble, so a bot
+  // that mutates `input.value` directly via JS would bypass a state-only
+  // check. Reading the ref catches both cases.
+  const honeypotRef = useRef<HTMLInputElement | null>(null);
+
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
@@ -147,7 +154,24 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
     setBusy(true);
     setErr(null);
     try {
+      // Honeypot tripwire — silently no-op (don't reveal the trap exists).
+      // Read the live DOM value (not React state) so DOM-mutating bots that
+      // skip the onChange path still get caught.
+      const honeypotVal = honeypotRef.current?.value ?? "";
+      if (honeypotVal.trim() !== "") {
+        setBusy(false);
+        router.push("/dashboard/organizer");
+        return;
+      }
+
       const supa = supabaseBrowser();
+
+      // Rate limit (10 pedidos/organizer/day) is enforced by a BEFORE INSERT
+      // trigger on airfnb_event_requests. We don't precheck here because the
+      // precheck calls the SAME mutating RPC and would double-charge the
+      // bucket (halving the effective cap to 5). The trigger raises a
+      // Portuguese exception we surface to the user via the catch path.
+
       // selection_mode → discovery_mode mapping for the marketplace match logic
       const discovery =
         selectionMode === "pick_myself" ? "curated" :
@@ -212,6 +236,20 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
   return (
     <div className="wizard-shell" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 16, padding: 26 }}>
+      {/* Honeypot — visually hidden + aria-hidden so humans never see or
+          tab into it; bots that auto-fill every input trip the no-op path.
+          Uncontrolled (ref-only) so DOM-mutating bots can't bypass via
+          direct value assignment without firing change events. */}
+      <input
+        ref={honeypotRef}
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        defaultValue=""
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
       <DotStepper step={step} total={5} />
       {err && <div style={{ background: "#FFE6DF", color: "#8B1100", padding: "10px 14px", borderRadius: 10, margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 

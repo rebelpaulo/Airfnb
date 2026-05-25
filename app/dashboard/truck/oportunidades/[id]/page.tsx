@@ -100,6 +100,12 @@ export default async function OportunidadeDetailPage({
       throw new Error("Só trucks activos podem candidatar-se.");
     }
 
+    // Rate limit (50/truck/day) is enforced by a BEFORE INSERT trigger on
+    // airfnb_applications. We don't precheck here because the precheck would
+    // ALSO call the mutating RPC and double-charge the bucket (halving the
+    // effective cap to 25). The trigger raises a Portuguese error we surface
+    // verbatim in the catch below.
+
     // Re-check request eligibility deterministically. Without this we'd let
     // the user submit, see the row blocked by RLS, and get a cryptic error
     // instead of a clear "this brief closed / deadline passed" message.
