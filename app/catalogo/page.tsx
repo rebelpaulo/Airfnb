@@ -147,12 +147,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
       {activeFilters.length > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0 8px" }}>
           {activeFilters.map((f) => (
-            <span key={f.key} style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "6px 12px", borderRadius: 999,
-              background: "#FFF6F2", color: "var(--orange-deep)",
-              fontSize: 13, fontWeight: 600,
-            }}>{f.label}</span>
+            <span key={f.key} className="active-filter-chip">{f.label}</span>
           ))}
           <Link href="/catalogo" style={{ color: "var(--muted)", fontSize: 13, alignSelf: "center" }}>
             limpar filtros
