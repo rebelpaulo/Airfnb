@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { OrganizerWizard } from "./OrganizerWizard";
+import { WrongAccountType } from "@/components/WrongAccountType";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,15 @@ export default async function PublicarPage() {
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
-    .select("display_name, email, phone")
+    .select("display_name, email, phone, role")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Roles are exclusive — a truck owner can't pivot into organizing events.
+  // They have to use a different email.
+  if (profile?.role === "owner") {
+    return <WrongAccountType intent="organize_event" currentRole="owner" />;
+  }
 
   const { data: categoriesData } = await (supa as any)
     .from("airfnb_categories")

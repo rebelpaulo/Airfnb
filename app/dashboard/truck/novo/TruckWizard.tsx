@@ -101,8 +101,18 @@ export function TruckWizard({ userId, categories }: Props) {
     setBusy(true);
     try {
       const supa = supabaseBrowser();
-      // ensure profile.role is owner
-      await (supa as any).from("airfnb_profiles").update({ role: "owner" }).eq("id", userId);
+      // ensure profile.role is owner — but never overwrite an existing role.
+      // Roles are exclusive; an organizer must create a separate account.
+      const { data: cur } = await (supa as any)
+        .from("airfnb_profiles").select("role").eq("id", userId).maybeSingle();
+      if (cur?.role === "organizer") {
+        setErr("Esta conta é de organizador. Para adicionar trucks usa uma conta diferente.");
+        setBusy(false);
+        return;
+      }
+      if (!cur?.role) {
+        await (supa as any).from("airfnb_profiles").update({ role: "owner" }).eq("id", userId);
+      }
 
       if (truckId) {
         // editing an in-progress draft
