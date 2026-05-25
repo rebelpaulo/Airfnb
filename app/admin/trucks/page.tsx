@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +24,8 @@ export default async function AdminTrucksQueuePage() {
 
   const dict = await getDictionary();
   const tt = dict.admin_trucks;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   async function approve(formData: FormData) {
     "use server";
@@ -77,7 +79,7 @@ export default async function AdminTrucksQueuePage() {
               <div>
                 <h2 style={{ margin: 0, fontSize: 20 }}>{t.name}</h2>
                 <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>
-                  {t.base_city ?? "—"} · {t.owner_name ?? "—"} · {tt.submitted_label} {new Date(t.created_at).toLocaleDateString("pt-PT")}
+                  {t.base_city ?? "—"} · {t.owner_name ?? "—"} · {tt.submitted_label} {new Date(t.created_at).toLocaleDateString(dateLocale)}
                 </div>
               </div>
               {t.description && (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,8 @@ export default async function AdminDashboardPage() {
 
   const dict = await getDictionary();
   const t = dict.admin;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   return (
     <div className="dash" style={{ maxWidth: 1100 }}>
@@ -53,7 +55,7 @@ export default async function AdminDashboardPage() {
                 <div>
                   <strong>{tr.name}</strong>
                   <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                    {tr.base_city ?? "—"} · {t.submitted_by} {tr.owner_name ?? "—"} · {new Date(tr.created_at).toLocaleDateString("pt-PT")}
+                    {tr.base_city ?? "—"} · {t.submitted_by} {tr.owner_name ?? "—"} · {new Date(tr.created_at).toLocaleDateString(dateLocale)}
                   </div>
                 </div>
                 <Link href={`/admin/trucks#${tr.id}`} className="btn-pill outline" style={{ padding: "8px 16px", borderColor: "var(--teal)", color: "var(--teal)" }}>
