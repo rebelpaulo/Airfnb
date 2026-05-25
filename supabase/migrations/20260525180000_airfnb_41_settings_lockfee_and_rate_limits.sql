@@ -40,8 +40,13 @@ begin
   return v_parsed;
 end $$;
 
-revoke execute on function public.airfnb_setting_int(text, int) from public, anon;
-grant  execute on function public.airfnb_setting_int(text, int) to authenticated, service_role;
+-- Lock down to service_role only — the helper is SECURITY DEFINER so its
+-- own SECURITY DEFINER callers (triggers, airfnb_calculate_lock_fee) can
+-- still invoke it from elevated context. Direct authenticated access
+-- would let any logged-in user enumerate admin-only setting values via
+-- raw SQL, which we don't want.
+revoke execute on function public.airfnb_setting_int(text, int) from public, anon, authenticated;
+grant  execute on function public.airfnb_setting_int(text, int) to service_role;
 
 -- =========================================================================
 -- 2. Lock-fee calculator now reads the split from settings. Defaults match
