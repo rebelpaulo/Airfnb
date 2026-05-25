@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getDictionary } from "@/lib/i18n";
 
 type Props = {
   /** what the user tried to do */
@@ -13,38 +14,33 @@ type Props = {
  * a single email cannot be both organizer and truck owner — they have to use
  * separate accounts.
  */
-export function WrongAccountType({ intent, currentRole }: Props) {
+export async function WrongAccountType({ intent, currentRole }: Props) {
+  const dict = await getDictionary();
+  const t = dict.wrong_account_type;
   const isOrg = currentRole === "organizer";
-  const title = intent === "add_truck"
-    ? "Esta conta é de organizador"
-    : "Esta conta é de food truck";
-  const lead = intent === "add_truck"
-    ? "Para adicionar um food truck precisas de uma conta de operador de truck. As duas funções no marketplace são exclusivas — cada conta serve um lado."
-    : "Para organizar um evento precisas de uma conta de organizador. As duas funções no marketplace são exclusivas — cada conta serve um lado.";
+  const title = intent === "add_truck" ? t.title_truck : t.title_event;
+  const lead  = intent === "add_truck" ? t.lead_truck  : t.lead_event;
   // The `next` param contains its own query string (?as=...), so it must be
   // URL-encoded before being placed inside another query string — otherwise
   // the parser only captures up to the first unencoded `?` and the as= flag
   // silently drops.
   const cta = intent === "add_truck"
-    ? { href: `/logout?next=${encodeURIComponent("/signup?as=truck")}`, label: "Sair e criar conta de Food Truck" }
-    : { href: `/logout?next=${encodeURIComponent("/signup?as=organizer")}`, label: "Sair e criar conta de Organizador" };
+    ? { href: `/logout?next=${encodeURIComponent("/signup?as=truck")}`, label: t.cta_logout_truck }
+    : { href: `/logout?next=${encodeURIComponent("/signup?as=organizer")}`, label: t.cta_logout_event };
   const back = isOrg
-    ? { href: "/dashboard/organizer", label: "← Voltar ao meu painel de organizador" }
-    : { href: "/dashboard/truck", label: "← Voltar ao meu painel de truck" };
+    ? { href: "/dashboard/organizer", label: t.back_organizer }
+    : { href: "/dashboard/truck", label: t.back_truck };
 
   return (
     <div className="dash" style={{ maxWidth: 640 }}>
       <div style={{ marginTop: 24, padding: 28, background: "#fff", border: "1px solid var(--line)", borderRadius: 16 }}>
         <div style={{ fontSize: 13, color: "var(--muted)", letterSpacing: 0.4, textTransform: "uppercase", fontWeight: 700 }}>
-          Tipo de conta incompatível
+          {t.eyebrow}
         </div>
         <h1 style={{ margin: "6px 0 12px", fontSize: 28 }}>{title}</h1>
         <p style={{ lineHeight: 1.6, color: "var(--ink)" }}>{lead}</p>
         <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 12 }}>
-          Razão: a separação evita conflitos de interesse (um truck a publicar
-          eventos para si mesmo) e simplifica faturação, avaliações e RGPD.
-          Se a tua empresa precisa de ambos os lados, usa dois emails — um
-          para cada conta.
+          {t.reason}
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
           <Link href={cta.href as any} className="btn-pill">{cta.label}</Link>
