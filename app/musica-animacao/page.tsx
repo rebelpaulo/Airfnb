@@ -1,65 +1,82 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { PartnerLeadForm, type FieldConfig } from "@/components/PartnerLeadForm";
 
 export const metadata: Metadata = {
-  title: "Música e animação",
-  description: "DJs, bandas ao vivo e animação para complementar o teu food truck — sugestões de parceiros e dicas práticas.",
+  title: "Música & Animação — Air F&B",
+  description:
+    "DJ, banda ao vivo, animação infantil, fotografia ou vídeo? Os nossos parceiros cobrem todas as áreas de entretenimento para eventos. Diz-nos o que precisas — propomos as melhores opções.",
   alternates: { canonical: "/musica-animacao" },
 };
 
+const fields: FieldConfig[] = [
+  { type: "text",   name: "event_type",  label: "Tipo de evento", required: true, placeholder: "Ex.: casamento, festa corporativa, festival" },
+  { type: "date",   name: "event_date",  label: "Data do evento", required: true },
+  { type: "text",   name: "venue",       label: "Local / cidade", placeholder: "Onde vai ser?" },
+  { type: "number", name: "guest_count", label: "Nº estimado de convidados", placeholder: "Ex.: 100" },
+  { type: "checkboxes", name: "services", label: "O que precisas?", options: [
+    { value: "dj",          label: "DJ" },
+    { value: "live_band",   label: "Banda ao vivo" },
+    { value: "kids",        label: "Animação infantil" },
+    { value: "host",        label: "Apresentador / MC" },
+    { value: "photo",       label: "Fotografia" },
+    { value: "video",       label: "Vídeo" },
+    { value: "lighting",    label: "Iluminação cénica" },
+    { value: "sound",       label: "PA / som" },
+  ] },
+  { type: "select", name: "duration", label: "Duração aproximada", options: [
+    { value: "2-3h",  label: "2–3 horas" },
+    { value: "4-6h",  label: "4–6 horas" },
+    { value: "6-10h", label: "6–10 horas" },
+    { value: "10h+",  label: "Mais de 10 horas / multi-dia" },
+  ] },
+  { type: "textarea", name: "vibe", label: "Estilo / vibe que procuras", rows: 3,
+    placeholder: "Ex.: lounge no cocktail, set animado depois do jantar, foco em música portuguesa…" },
+];
+
 export default function MusicaAnimacaoPage() {
   return (
-    <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 760 }}>
-      <h1 className="section-title">Música e animação</h1>
-      <p style={{ color: "var(--muted)", marginTop: -10 }}>
-        O som certo transforma o teu evento — escolhe-o com a mesma curadoria
-        que escolhes o catering.
+    <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 820 }}>
+      <h1 className="section-title">Música &amp; Animação</h1>
+      <p style={{ color: "var(--muted)", marginTop: -10, fontSize: 17 }}>
+        Da playlist de cocktail à pista cheia às 3 da manhã — temos parceiros
+        para qualquer ambiente.
       </p>
 
-      <p style={{ lineHeight: 1.7, marginTop: 22 }}>
-        Um food truck cria um ambiente descontraído, quase de mercado nocturno.
-        A música e a animação que escolheres devem acompanhar esse tom: nem
-        formal de mais, nem caótico ao ponto de tapar a conversa. Aqui
-        partilhamos o que funciona para diferentes tipos de evento.
-      </p>
+      <section style={{
+        marginTop: 26, padding: 22, background: "#fff",
+        border: "1px solid var(--line)", borderRadius: 14,
+      }}>
+        <h2 style={{ margin: 0, fontSize: 22 }}>Rede curada de profissionais</h2>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
+          Trabalhamos com DJs, bandas, animadores, fotógrafos e técnicos
+          espalhados pelo país. Não vendemos um pacote único — combinamos
+          quem encaixa com o teu evento (estilo, duração, orçamento) e
+          devolvemos 2–3 propostas comparáveis.
+        </p>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
+          Como já sabemos a tipologia de food trucks que vais ter, calibramos
+          o ambiente sonoro à hora (mais discreto à mesa, mais alto na pista)
+          sem chocar com o serviço.
+        </p>
+        <ul style={{ marginTop: 14, paddingLeft: 20, color: "var(--ink)", lineHeight: 1.7 }}>
+          <li>Selecção por estilo, duração e tipo de evento</li>
+          <li>Profissionais com seguro e contrato em PT</li>
+          <li>Iluminação e som incluídos quando faz sentido</li>
+          <li>Resposta em 24h úteis</li>
+        </ul>
+      </section>
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Para cada tipo de evento</h2>
-      <ul style={{ lineHeight: 1.8 }}>
-        <li><strong>Casamentos</strong> — banda acústica durante o serviço, DJ para a pista a partir das 23h.</li>
-        <li><strong>Eventos corporativos</strong> — playlist curada com volume controlado durante o networking, opcional DJ no after.</li>
-        <li><strong>Aniversários e festas privadas</strong> — DJ residente ou playlist colaborativa em Spotify; karaoke costuma resultar bem.</li>
-        <li><strong>Lançamentos e activações de marca</strong> — DJ com identidade alinhada à marca, eventual performance ao vivo de 30 minutos.</li>
-        <li><strong>Festivais e mercados</strong> — alinhamento de várias bandas em palco partilhado, com pausas para chamada aos trucks.</li>
-      </ul>
+      <h2 style={{ marginTop: 36, fontSize: 22 }}>Conta-nos o que imaginas</h2>
+      <PartnerLeadForm
+        kind="music"
+        intro="Quanto melhor descreveres a vibe, mais afinada a proposta."
+        fields={fields}
+        cta="Quero propostas de música e animação"
+      />
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Logística que costuma falhar</h2>
-      <ul style={{ lineHeight: 1.8 }}>
-        <li>Som a competir com o motor do truck — separa as zonas ou desliga o gerador durante a actuação.</li>
-        <li>Falta de pontos de corrente independentes para PA e cozinha.</li>
-        <li>Horário de início mal combinado com o pico do serviço — coordena com o truck.</li>
-        <li>Licença SPA / passagem de obra em eventos públicos esquecida na produção.</li>
-      </ul>
-
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Parceiros</h2>
-      <p style={{ lineHeight: 1.7 }}>
-        Estamos a construir uma rede de DJs, bandas e animadores recomendados
-        — com perfis verificados e disponibilidade visível. Para já, quando
-        publicas o evento podes deixar nota a indicar que procuras sugestão
-        de animação. A equipa responde em 48 horas com 2 a 3 contactos
-        compatíveis.
-      </p>
-
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Pronto a montar o ambiente?</h2>
-      <p style={{ lineHeight: 1.7 }}>
-        Começa por publicar o evento com o truck. A animação encaixa depois,
-        com mais clareza sobre horário e número de convidados.
-      </p>
-      <p style={{ marginTop: 18 }}>
-        <Link href="/publicar" className="btn-pill">Organizar evento</Link>
-      </p>
-
-      <p style={{ marginTop: 32 }}>
-        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar</Link>
+      <p style={{ marginTop: 28, fontSize: 14 }}>
+        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar à página inicial</Link>
       </p>
     </div>
   );

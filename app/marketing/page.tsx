@@ -1,69 +1,87 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { PartnerLeadForm, type FieldConfig } from "@/components/PartnerLeadForm";
 
 export const metadata: Metadata = {
-  title: "Marketing",
-  description: "Divulgação, convites e materiais gráficos para eventos com food truck — apoio à comunicação antes, durante e depois do evento.",
+  title: "Marketing & Publicidade para Eventos — Air F&B",
+  description:
+    "Convites, sinalética, redes sociais, QR codes no recinto, relatórios pós-evento. Em parceria com agências e estúdios que conhecem o mercado de eventos.",
   alternates: { canonical: "/marketing" },
 };
 
+const fields: FieldConfig[] = [
+  { type: "text",   name: "event_name", label: "Nome / tema do evento", required: true, placeholder: "Ex.: Open Day Empresa X" },
+  { type: "date",   name: "event_date", label: "Data do evento", required: true },
+  { type: "number", name: "guest_count", label: "Audiência esperada", placeholder: "Ex.: 500" },
+  { type: "checkboxes", name: "phase", label: "Em que fase precisas de ajuda?", options: [
+    { value: "before", label: "Antes — convites, save-the-date, campanhas" },
+    { value: "during", label: "Durante — sinalética, QR codes, social wall" },
+    { value: "after",  label: "Depois — relatório, foto-rescaldo, follow-up" },
+  ] },
+  { type: "checkboxes", name: "channels", label: "Canais a cobrir", options: [
+    { value: "instagram", label: "Instagram" },
+    { value: "facebook",  label: "Facebook" },
+    { value: "linkedin",  label: "LinkedIn" },
+    { value: "tiktok",    label: "TikTok" },
+    { value: "press",     label: "Imprensa" },
+    { value: "email",     label: "Email marketing" },
+    { value: "physical",  label: "Material físico (sinalética, flyers)" },
+  ] },
+  { type: "select", name: "budget", label: "Orçamento aproximado", options: [
+    { value: "lt_2k",   label: "Até €2 000" },
+    { value: "2k_5k",   label: "€2 000 – €5 000" },
+    { value: "5k_15k",  label: "€5 000 – €15 000" },
+    { value: "15k_plus", label: "Acima de €15 000" },
+    { value: "open",     label: "Em aberto — proponham" },
+  ] },
+  { type: "textarea", name: "goals", label: "Objectivos principais", rows: 3,
+    placeholder: "Ex.: encher a sala, gerar leads B2B, brand awareness…" },
+];
+
 export default function MarketingPage() {
   return (
-    <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 760 }}>
-      <h1 className="section-title">Marketing</h1>
-      <p style={{ color: "var(--muted)", marginTop: -10 }}>
-        Comunica o teu evento como uma marca — antes, durante e depois.
+    <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 820 }}>
+      <h1 className="section-title">Marketing &amp; Publicidade</h1>
+      <p style={{ color: "var(--muted)", marginTop: -10, fontSize: 17 }}>
+        Da convocatória ao relatório pós-evento — os nossos parceiros
+        tratam de toda a comunicação para que tu trates da experiência.
       </p>
 
-      <p style={{ lineHeight: 1.7, marginTop: 22 }}>
-        A diferença entre um evento meio cheio e um evento com fila à entrada
-        está quase sempre na comunicação. Ajudamos organizadores e operadores
-        de food truck a montar a comunicação certa para cada tipo de evento —
-        do convite digital ao relatório pós-evento.
-      </p>
+      <section style={{
+        marginTop: 26, padding: 22, background: "#fff",
+        border: "1px solid var(--line)", borderRadius: 14,
+      }}>
+        <h2 style={{ margin: 0, fontSize: 22 }}>Comunicação completa, sem mil agências</h2>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
+          Trabalhamos com agências, estúdios criativos e freelancers que
+          conhecem o ritmo de eventos. Em vez de coordenares 5 contactos
+          diferentes, falamos com um único parceiro que assume tudo: convites
+          digitais, anúncios pagos, sinalética no recinto, social wall em
+          directo e relatório de impacto.
+        </p>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
+          Para clientes Air F&amp;B, conseguimos integrar a oferta de food
+          (cardápios, fotos dos trucks, copy) nos materiais — economiza
+          dias de produção.
+        </p>
+        <ul style={{ marginTop: 14, paddingLeft: 20, color: "var(--ink)", lineHeight: 1.7 }}>
+          <li><strong>Antes</strong> — save-the-date, landing pages, campanhas pagas, imprensa</li>
+          <li><strong>Durante</strong> — sinalética, QR codes, social wall, fotografia ao vivo</li>
+          <li><strong>Depois</strong> — relatório de impacto, foto-rescaldo, follow-up por email</li>
+          <li>Briefing único, proposta consolidada</li>
+        </ul>
+      </section>
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Antes do evento</h2>
-      <ul style={{ lineHeight: 1.8 }}>
-        <li>Convite digital com data, morada, mapa e RSVP.</li>
-        <li>Imagem do truck escolhido — para gerar expectativa nos convidados.</li>
-        <li>Stories e posts curtos com countdown, em formato vertical.</li>
-        <li>Cartaz imprimível em A3 e A4 para eventos abertos ao público.</li>
-      </ul>
+      <h2 style={{ marginTop: 36, fontSize: 22 }}>Conta-nos o que precisas comunicar</h2>
+      <PartnerLeadForm
+        kind="marketing"
+        intro="Quanto mais objectivo dado, mais accionável a proposta."
+        fields={fields}
+        cta="Quero proposta de comunicação"
+      />
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Durante o evento</h2>
-      <ul style={{ lineHeight: 1.8 }}>
-        <li>Sinalética de menu no truck, com preços visíveis e legíveis a 3 metros.</li>
-        <li>QR code que ligue à página do evento ou ao Instagram do truck.</li>
-        <li>Photo spot identificado, para fotos que circulem nas redes.</li>
-        <li>Hashtag dedicada, se o evento for público ou de marca.</li>
-      </ul>
-
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Depois do evento</h2>
-      <ul style={{ lineHeight: 1.8 }}>
-        <li>Email de agradecimento aos convidados, com galeria de fotos.</li>
-        <li>Relatório curto para sponsors ou direcção, com números do evento.</li>
-        <li>Avaliação do truck no Air F&amp;B — ajuda os próximos organizadores.</li>
-      </ul>
-
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Para operadores de truck</h2>
-      <p style={{ lineHeight: 1.7 }}>
-        Se tens um food truck no Air F&amp;B, divulgamos a tua presença nos
-        eventos públicos onde estás escalado: post no Instagram, citação no
-        nosso blog e link directo do catálogo. Quanto mais completo for o teu
-        perfil (fotos, ementa, certificações), mais visibilidade tens.
-      </p>
-
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 32 }}>Vamos começar?</h2>
-      <p style={{ lineHeight: 1.7 }}>
-        Publica o evento e a equipa indica que materiais fazem sentido para o
-        teu caso — sem custo adicional.
-      </p>
-      <p style={{ marginTop: 18 }}>
-        <Link href="/publicar" className="btn-pill">Organizar evento</Link>
-      </p>
-
-      <p style={{ marginTop: 32 }}>
-        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar</Link>
+      <p style={{ marginTop: 28, fontSize: 14 }}>
+        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar à página inicial</Link>
       </p>
     </div>
   );
