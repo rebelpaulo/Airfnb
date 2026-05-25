@@ -1,11 +1,14 @@
 // Gateway page for the truck-owner registration funnel.
 // Routes the user through the right step depending on their state:
 //   - not logged in → /signup?as=truck
-//   - logged in, role != owner → /onboarding/truck (company info + role upgrade)
-//   - logged in, role = owner, no trucks → /dashboard/truck/novo (add first truck)
-//   - logged in, role = owner, has trucks → /dashboard/truck (manage)
+//   - logged in, role = 'organizer' → block with WrongAccountType (roles are exclusive)
+//   - logged in, role = 'owner', onboarding incomplete → /onboarding/truck
+//   - logged in, role = 'owner', no trucks → /dashboard/truck/novo
+//   - logged in, role = 'owner', has trucks → /dashboard/truck
+//   - logged in, role = null → /onboarding/truck (first-time choice → owner)
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { WrongAccountType } from "@/components/WrongAccountType";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +25,14 @@ export default async function RegistarPage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  // Need to upgrade to owner + collect company info first
+  // Roles are exclusive — an organizer account can't pivot into a truck
+  // operator. They have to use a different email. Block here instead of
+  // silently flipping the role in /onboarding/truck.
+  if (profile?.role === "organizer") {
+    return <WrongAccountType intent="add_truck" currentRole="organizer" />;
+  }
+
+  // No profile / no role yet, or onboarding incomplete → run the wizard
   if (!profile || profile.role !== "owner" || !profile.onboarding_completed) {
     redirect("/onboarding/truck");
   }

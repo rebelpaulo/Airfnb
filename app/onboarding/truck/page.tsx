@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { WrongAccountType } from "@/components/WrongAccountType";
 
 export default async function OnboardingTruckPage() {
   const supa = await supabaseServer();
@@ -10,9 +11,16 @@ export default async function OnboardingTruckPage() {
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
-    .select("full_name, phone, company_name, vat_number, avatar_url, onboarding_completed")
+    .select("full_name, phone, company_name, vat_number, avatar_url, role, onboarding_completed")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Roles are exclusive — block organizers before the wizard silently flips
+  // them to "owner". They have to create a separate account.
+  if (profile?.role === "organizer") {
+    return <WrongAccountType intent="add_truck" currentRole="organizer" />;
+  }
+
   if (profile?.onboarding_completed) {
     // already onboarded; skip wizard but make sure they have a truck row
     const { data: existing } = await (supa as any)
@@ -40,13 +48,32 @@ export default async function OnboardingTruckPage() {
       throw new Error("NIF tem de ter 9 dígitos.");
     }
 
+    // Atomic role claim — exclusive roles. Setting role=owner only when it
+    // is still NULL closes the read-then-write race (a concurrent request
+    // setting role=organizer between read and write would otherwise be
+    // overwritten). Then re-check that the row ended up as owner.
+    const claim = await (supa as any)
+      .from("airfnb_profiles")
+      .update({ role: "owner" })
+      .eq("id", user.id)
+      .is("role", null)
+      .select("role");
+    if (claim.error) throw new Error(claim.error.message);
+
+    if (!claim.data?.length) {
+      const { data: cur } = await (supa as any)
+        .from("airfnb_profiles").select("role").eq("id", user.id).maybeSingle();
+      if (cur?.role !== "owner") {
+        throw new Error("Esta conta é de organizador. Não pode adicionar trucks.");
+      }
+    }
+
     const { error: profErr } = await (supa as any)
       .from("airfnb_profiles")
       .update({
         full_name, phone,
         company_name,
         vat_number,
-        role: "owner",
         marketing_opt_in: marketing,
         onboarding_completed: true,
       })
