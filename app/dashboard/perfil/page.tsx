@@ -24,7 +24,10 @@ export default async function ProfilePage({ searchParams }: {
 
   const dict = await getDictionary();
   const t = dict.dashboard_profile;
+  // Only the literal "1" flips the banner — any other value (or absence)
+  // hides it. Stops a stray ?ok=anything from showing a false confirmation.
   const { ok } = await searchParams;
+  const showSaved = ok === "1";
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
@@ -74,7 +77,7 @@ export default async function ProfilePage({ searchParams }: {
       <h1 style={{ margin: 0 }}>{t.page_title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>{t.subtitle}</p>
 
-      {ok && (
+      {showSaved && (
         <div style={{
           marginTop: 20, padding: 12,
           background: "var(--success-bg)", color: "var(--success-text)",

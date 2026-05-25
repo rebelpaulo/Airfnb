@@ -33,7 +33,9 @@ export default async function FavoritesPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  const favorites = ((favRows as any[]) ?? []).filter((r) => r.airfnb_v_truck_card);
+  // Guard on `slug` (not just row existence) — without slug we'd build
+  // an invalid `/catalogo/null` link below.
+  const favorites = ((favRows as any[]) ?? []).filter((r) => r.airfnb_v_truck_card?.slug);
 
   return (
     <div className="dash" style={{ maxWidth: 1100, padding: "32px 28px" }}>
@@ -55,8 +57,8 @@ export default async function FavoritesPage() {
               <Link key={r.truck_id} href={`/catalogo/${tr.slug}`} className="truck-card">
                 <div className="thumb" style={{ position: "relative" }}>
                   <Image
-                    src={truckCover(tr)}
-                    alt={tr.name}
+                    src={truckCover(tr.cover_url)}
+                    alt={tr.name ?? "Truck"}
                     fill
                     sizes="(max-width: 600px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     style={{ objectFit: "cover" }}
