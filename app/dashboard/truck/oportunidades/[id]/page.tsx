@@ -171,7 +171,7 @@ export default async function OportunidadeDetailPage({
         )}
       </header>
 
-      {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes) && (
+      {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes || req.address_line) && (
         <section style={{ marginTop: 18, padding: 18, background: "#fff", border: "1px solid var(--line)", borderRadius: 12 }}>
           <h2 style={{ margin: 0, fontSize: 15, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 700 }}>
             Briefing do organizador
@@ -293,10 +293,11 @@ function labelEnergy(v: string): string {
   }
 }
 function labelSanitation(v: string): string {
+  // enum airfnb_sanitation_level: {nao_necessario, wc_proximo, wc_dedicado}
   switch (v) {
-    case "none":        return "Sem necessidade";
-    case "wc_proximo":  return "WC próximo do local";
-    case "wc_dedicado": return "WC dedicado";
+    case "nao_necessario": return "Sem necessidade";
+    case "wc_proximo":     return "WC próximo do local";
+    case "wc_dedicado":    return "WC dedicado";
     default: return v;
   }
 }

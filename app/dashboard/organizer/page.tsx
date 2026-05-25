@@ -9,13 +9,15 @@ export default async function OrganizerDashboard() {
   if (!user) redirect("/login?next=/dashboard/organizer");
 
   // Roles are exclusive — a truck owner landing here would see an empty
-  // organizer dashboard with no recovery path. Block early.
-  const { data: profile } = await (supa as any)
+  // organizer dashboard with no recovery path. Block early. Treat a
+  // lookup error as deny-by-default: better to render the block-page
+  // than to silently let a possibly-wrong-role user through.
+  const { data: profile, error: profileError } = await (supa as any)
     .from("airfnb_profiles")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
-  if (profile?.role === "owner") {
+  if (profileError || profile?.role === "owner") {
     return <WrongAccountType intent="organize_event" currentRole="owner" />;
   }
 
