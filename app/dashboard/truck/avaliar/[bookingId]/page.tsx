@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { StarRating } from "@/components/StarRating";
+import { getDictionary } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export default async function AvaliarOrganizerPage({
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/truck/avaliar/${bookingId}`);
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.truck_review;
 
   const { data: booking } = await (supa as any)
     .from("airfnb_bookings")
@@ -51,9 +55,11 @@ export default async function AvaliarOrganizerPage({
 
   async function submitReview(formData: FormData) {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.dashboard.truck_review;
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth);
 
     const truckId      = String(formData.get("truck_id") ?? "");
     const reliability  = Number(formData.get("rating_reliability")   ?? 0);
@@ -61,11 +67,11 @@ export default async function AvaliarOrganizerPage({
     const payment      = Number(formData.get("rating_payment")       ?? 0);
     const body         = String(formData.get("body") ?? "").trim();
 
-    if (!truckId) throw new Error("Truck inválido.");
+    if (!truckId) throw new Error(t.err_invalid_truck);
     if (![reliability, communication, payment].every((n) => n >= 1 && n <= 5)) {
-      throw new Error("Indica 1–5 estrelas em cada categoria.");
+      throw new Error(t.err_invalid_ratings);
     }
-    if (body.length < 20) throw new Error("Comentário deve ter pelo menos 20 caracteres.");
+    if (body.length < 20) throw new Error(t.err_comment_too_short);
 
     // Re-check truck ownership + booking participation server-side.
     const { data: own } = await (supa as any)
@@ -75,7 +81,7 @@ export default async function AvaliarOrganizerPage({
       .eq("truck_id", truckId)
       .maybeSingle();
     if (!own || (own as any).airfnb_trucks?.owner_id !== user.id) {
-      throw new Error("Sem permissão para avaliar em nome deste truck.");
+      throw new Error(t.err_no_truck_perm);
     }
     const { data: b } = await (supa as any)
       .from("airfnb_bookings")
@@ -83,7 +89,7 @@ export default async function AvaliarOrganizerPage({
       .eq("id", bookingId)
       .maybeSingle();
     if (!b || (b.status !== "confirmed" && b.status !== "completed")) {
-      throw new Error("Só podes avaliar bookings confirmados.");
+      throw new Error(t.err_booking_not_confirmed);
     }
 
     // organizer_id comes from the booking, not the form — never trust the client
@@ -98,7 +104,7 @@ export default async function AvaliarOrganizerPage({
       is_verified:          true,
     });
     if (error) {
-      if (error.code === "23505") throw new Error("Já avaliaste este organizador para este evento.");
+      if (error.code === "23505") throw new Error(t.err_duplicate);
       throw new Error(error.message);
     }
     revalidatePath(`/dashboard/truck/avaliar/${bookingId}`);
@@ -109,38 +115,38 @@ export default async function AvaliarOrganizerPage({
   return (
     <div className="dash" style={{ maxWidth: 820 }}>
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp; <span>Avaliar organizador</span>
+        <Link href="/dashboard/truck">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_current}</span>
       </nav>
-      <h1 style={{ margin: 0 }}>Avaliar {orgProfile?.display_name ?? "organizador"}</h1>
+      <h1 style={{ margin: 0 }}>{t.title_prefix} {orgProfile?.display_name ?? t.title_fallback}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        Evento: {(booking.airfnb_events as any)?.title ?? "—"}
+        {t.event_label} {(booking.airfnb_events as any)?.title ?? "—"}
       </p>
 
       <div style={{ display: "grid", gap: 18, marginTop: 22 }}>
         {myTrucks.map((bt) => {
-          const t = bt.airfnb_trucks;
+          const tr = bt.airfnb_trucks;
           const existing = reviewByTruck.get(bt.truck_id);
           return (
             <section key={bt.truck_id} style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>Em nome de: {t?.name ?? "—"}</h2>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{t.on_behalf_of} {tr?.name ?? "—"}</h2>
               {existing ? (
                 <div style={{ marginTop: 14, padding: 14, background: "var(--success-bg)", border: "1px solid var(--success-line)", borderRadius: "var(--radius-sm)" }}>
-                  <strong style={{ color: "var(--success-text)" }}>★ {existing.rating_overall} — já avaliaste</strong>
+                  <strong style={{ color: "var(--success-text)" }}>{t.already_reviewed_prefix} {existing.rating_overall} {t.already_reviewed_suffix}</strong>
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap", color: "var(--ink)" }}>{existing.body}</p>
                 </div>
               ) : (
                 <form action={submitReview} style={{ marginTop: 14, display: "grid", gap: 14 }}>
                   <input type="hidden" name="truck_id" value={bt.truck_id} />
-                  <StarRating name="rating_reliability"   label="Fiabilidade (cumpriu o combinado?)" required />
-                  <StarRating name="rating_communication" label="Comunicação"                         required />
-                  <StarRating name="rating_payment"       label="Pagamento (atempado e correto?)"    required />
+                  <StarRating name="rating_reliability"   label={t.label_reliability}   required />
+                  <StarRating name="rating_communication" label={t.label_communication} required />
+                  <StarRating name="rating_payment"       label={t.label_payment}       required />
                   <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>Comentário</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{t.label_comment}</span>
                     <textarea name="body" required minLength={20} rows={4}
-                      placeholder="Trabalharias outra vez com este organizador?" />
+                      placeholder={t.comment_placeholder} />
                   </label>
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button type="submit" className="btn-pill">Publicar avaliação</button>
+                    <button type="submit" className="btn-pill">{t.submit}</button>
                   </div>
                 </form>
               )}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { CopyButton } from "./CopyButton";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,11 @@ export default async function ConvidarPage() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/convidar");
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.shared_referral;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
@@ -32,16 +38,18 @@ export default async function ConvidarPage() {
     .limit(50);
   const redemptions: any[] = (redeemed as any[]) ?? [];
 
+  const refCount = profile?.referrals_count ?? 0;
+
   return (
     <div className="dash" style={{ maxWidth: 720 }}>
-      <h1 style={{ margin: 0 }}>Convidar amigos</h1>
+      <h1 style={{ margin: 0 }}>{t.title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        Partilha o teu link e ajuda outros organizers / trucks a entrar.
+        {t.subtitle}
       </p>
 
       <section style={{ marginTop: 24, background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
         <div style={{ fontSize: 13, color: "var(--muted)", letterSpacing: 0.4, textTransform: "uppercase", fontWeight: 700 }}>
-          O teu código
+          {t.your_code}
         </div>
         <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 48, color: "var(--orange)", lineHeight: 1, marginTop: 4 }}>
           {code ?? "—"}
@@ -58,24 +66,24 @@ export default async function ConvidarPage() {
           </div>
         ) : (
           <div style={{ marginTop: 14, padding: 12, background: "#FFF6F2", border: "1px solid #FFE0D2", borderRadius: 10, fontSize: 13, color: "var(--orange-deep)" }}>
-            Ainda sem código atribuído. Recarrega a página em instantes ou contacta o suporte.
+            {t.no_code}
           </div>
         )}
         <div style={{ marginTop: 14, fontSize: 13, color: "var(--muted)" }}>
-          <strong style={{ color: "var(--ink)" }}>{profile?.referrals_count ?? 0}</strong>
-          {" "}{(profile?.referrals_count ?? 0) === 1 ? "pessoa" : "pessoas"} registaram-se com o teu link.
+          <strong style={{ color: "var(--ink)" }}>{refCount}</strong>
+          {" "}{refCount === 1 ? t.signed_up_singular : t.signed_up_plural} {t.signed_up_suffix}
         </div>
       </section>
 
       {redemptions.length > 0 && (
         <section style={{ marginTop: 26 }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Quem entrou pelo teu link</h2>
+          <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>{t.redemptions_title}</h2>
           <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
             {redemptions.map((r, i) => (
               <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "#fff" }}>
                 <span>{r.display_name ?? "—"}</span>
                 <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                  {new Date(r.created_at).toLocaleDateString("pt-PT")}
+                  {new Date(r.created_at).toLocaleDateString(dateLocale)}
                 </span>
               </li>
             ))}
@@ -84,7 +92,7 @@ export default async function ConvidarPage() {
       )}
 
       <p style={{ marginTop: 26, color: "var(--muted)", fontSize: 13 }}>
-        <Link href="/dashboard/organizer" style={{ color: "var(--teal)" }}>← Voltar ao dashboard</Link>
+        <Link href="/dashboard/organizer" style={{ color: "var(--teal)" }}>{t.back_to_dashboard}</Link>
       </p>
     </div>
   );

@@ -2,11 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export default async function MinhasCandidaturasPage() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/truck/aplicacoes");
+
+  const dict = await getDictionary();
+  const t = dict.dashboard.truck_applications;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   // Multi-truck companies have more than one truck under the same owner —
   // surface candidaturas for ALL of them in one feed, not just the first.
@@ -44,12 +50,12 @@ export default async function MinhasCandidaturasPage() {
   return (
     <div className="dash">
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp; <span>Candidaturas</span>
+        <Link href="/dashboard/truck">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_current}</span>
       </nav>
-      <h1>As minhas candidaturas</h1>
+      <h1>{t.title}</h1>
 
       {apps.length === 0 ? (
-        <div className="empty">Ainda não submeteste nenhuma candidatura. <Link href="/dashboard/truck/oportunidades" style={{ color: "var(--orange)" }}>Ver pedidos abertos</Link>.</div>
+        <div className="empty">{t.empty_prefix}<Link href="/dashboard/truck/oportunidades" style={{ color: "var(--orange)" }}>{t.empty_link}</Link>{t.empty_suffix}</div>
       ) : (
         <div className="request-grid">
           {apps.map((a: any) => (
@@ -57,11 +63,11 @@ export default async function MinhasCandidaturasPage() {
               <h3>{a.airfnb_event_requests?.title ?? "—"}</h3>
               <div className="row">
                 <span><span className="material-symbols-outlined">event</span>
-                  {a.airfnb_event_requests?.start_at && new Date(a.airfnb_event_requests.start_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                  {a.airfnb_event_requests?.start_at && new Date(a.airfnb_event_requests.start_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}
                 </span>
                 <span><span className="material-symbols-outlined">location_on</span>{a.airfnb_event_requests?.city ?? "—"}</span>
-                <span>Proposta: {money(a.proposed_price)}</span>
-                <span style={{ color: "var(--muted)", fontSize: 12 }}>via {truckNameById.get(a.truck_id) ?? "—"}</span>
+                <span>{t.proposal_prefix} {money(a.proposed_price)}</span>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>{t.via_prefix} {truckNameById.get(a.truck_id) ?? "—"}</span>
               </div>
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="match-badge">{a.status}</span>
@@ -69,7 +75,7 @@ export default async function MinhasCandidaturasPage() {
                   <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     {convByApp.has(a.id) && (
                       <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
-                        Conversa →
+                        {t.conversation_link}
                       </Link>
                     )}
                     {(() => {
@@ -81,11 +87,11 @@ export default async function MinhasCandidaturasPage() {
                               <a href={`/api/calendar/${b.ics_token}.ics`}
                                  target="_blank" rel="noopener noreferrer"
                                  style={{ color: "var(--teal)", fontWeight: 600 }}>
-                                📅 Calendário
+                                {t.calendar_link}
                               </a>
                             )}
                             <Link href={`/dashboard/truck/avaliar/${b.id}`} style={{ color: "var(--orange-deep)", fontWeight: 600 }}>
-                              ★ Avaliar organizador →
+                              {t.review_link}
                             </Link>
                           </>
                         );
@@ -93,7 +99,7 @@ export default async function MinhasCandidaturasPage() {
                       // Lock fee still pending — show the pay link instead of the review one.
                       return (
                         <Link href={`/dashboard/truck/lock/${a.id}`} style={{ color: "var(--orange)", fontWeight: 600 }}>
-                          ⏰ Pagar lock-fee →
+                          {t.pay_lock_link}
                         </Link>
                       );
                     })()}
@@ -103,11 +109,11 @@ export default async function MinhasCandidaturasPage() {
                   // oportunidades route redirects closed requests to /aplicacoes,
                   // so the link would just bounce back for non-open briefs.
                   <Link href={`/dashboard/truck/oportunidades/${a.airfnb_event_requests?.id}`} style={{ color: "var(--teal)", fontWeight: 600 }}>
-                    Ver pedido →
+                    {t.view_request_link}
                   </Link>
                 ) : (
                   <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                    Pedido {a.airfnb_event_requests?.status ?? "fechado"}
+                    {t.request_closed_prefix} {a.airfnb_event_requests?.status ?? t.request_closed_fallback}
                   </span>
                 )}
               </div>

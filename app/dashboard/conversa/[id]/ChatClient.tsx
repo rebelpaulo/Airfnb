@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict, useLocale } from "@/components/DictProvider";
 
 type Msg = { id: string; body: string | null; sender_id: string | null; created_at: string };
 
@@ -13,6 +14,11 @@ export function ChatClient({
   initialMessages: Msg[];
   currentUserId: string;
 }) {
+  const dict = useDict();
+  const t = dict.dashboard.shared_conversation_detail;
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
+
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,14 +69,14 @@ export function ChatClient({
 
   return (
     <div className="dash" style={{ maxWidth: 780 }}>
-      <h1>Conversa</h1>
+      <h1>{t.title}</h1>
       <div style={{
         background:"#fff", border:"1px solid var(--line)", borderRadius:14, padding:20,
         minHeight:400, maxHeight:520, overflowY:"auto", display:"flex", flexDirection:"column", gap:10,
       }}>
         {messages.length === 0 ? (
           <div style={{ color: "var(--muted)", textAlign: "center", margin: "auto" }}>
-            Nenhuma mensagem ainda. Sê o primeiro.
+            {t.empty}
           </div>
         ) : messages.map((m) => {
           const mine = m.sender_id === currentUserId;
@@ -85,7 +91,7 @@ export function ChatClient({
                 lineHeight: 1.45,
               }}>{m.body}</div>
               <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2, textAlign: mine ? "right" : "left" }}>
-                {new Date(m.created_at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(m.created_at).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
           );
@@ -94,9 +100,9 @@ export function ChatClient({
       </div>
       <form onSubmit={send} style={{ display: "flex", gap: 10, marginTop: 14 }}>
         <input value={text} onChange={(e) => setText(e.target.value)}
-          placeholder="Escreve a tua mensagem..."
+          placeholder={t.input_placeholder}
           className="filters-btn" style={{ flex: 1, padding: "12px 16px" }} />
-        <button className="btn-pill" type="submit" disabled={busy}>Enviar</button>
+        <button className="btn-pill" type="submit" disabled={busy}>{t.send}</button>
       </form>
     </div>
   );

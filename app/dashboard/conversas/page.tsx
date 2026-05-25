@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,11 @@ export default async function ConversasPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/conversas");
 
+  const dict = await getDictionary();
+  const t = dict.dashboard.shared_conversations;
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
+
   // Pull every conversation the user participates in, plus the metadata we
   // need for each row (last message preview, unread count, the "other side"
   // display name, and the request/event the conversation is anchored to).
@@ -38,10 +44,9 @@ export default async function ConversasPage() {
   if (parts.length === 0) {
     return (
       <div className="dash">
-        <h1>Conversas</h1>
+        <h1>{t.title}</h1>
         <div className="empty">
-          Ainda não tens nenhuma conversa. Vão aparecer aqui quando uma candidatura
-          for aceite ou um pedido for atribuído.
+          {t.empty}
         </div>
       </div>
     );
@@ -102,9 +107,9 @@ export default async function ConversasPage() {
 
   return (
     <div className="dash" style={{ maxWidth: 780 }}>
-      <h1 style={{ margin: 0 }}>Conversas</h1>
+      <h1 style={{ margin: 0 }}>{t.title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        Conversa diretamente com o organizador ou truck de cada candidatura aceite.
+        {t.subtitle}
       </p>
 
       <ul style={{ listStyle: "none", padding: 0, marginTop: 18, display: "grid", gap: 8 }}>
@@ -128,8 +133,8 @@ export default async function ConversasPage() {
                   )}
                 </div>
                 <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>
-                  {r.request_title ?? "Sem evento associado"}
-                  {r.start_at && ` · ${new Date(r.start_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}`}
+                  {r.request_title ?? t.no_event}
+                  {r.start_at && ` · ${new Date(r.start_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}`}
                   {r.city && ` · ${r.city}`}
                 </div>
                 <div style={{
@@ -138,11 +143,11 @@ export default async function ConversasPage() {
                   fontWeight: r.unread_count > 0 ? 600 : 400,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
-                  {r.last_message_body ?? "Sem mensagens ainda."}
+                  {r.last_message_body ?? t.no_messages}
                 </div>
               </div>
               <div style={{ fontSize: 11, color: "var(--muted)", alignSelf: "start" }}>
-                {r.last_message_at && new Date(r.last_message_at).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                {r.last_message_at && new Date(r.last_message_at).toLocaleString(dateLocale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
               </div>
             </Link>
           </li>
