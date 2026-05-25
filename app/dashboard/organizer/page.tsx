@@ -1,11 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { WrongAccountType } from "@/components/WrongAccountType";
 
 export default async function OrganizerDashboard() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/organizer");
+
+  // Roles are exclusive — a truck owner landing here would see an empty
+  // organizer dashboard with no recovery path. Block early. Treat a
+  // lookup error as deny-by-default: better to render the block-page
+  // than to silently let a possibly-wrong-role user through.
+  const { data: profile, error: profileError } = await (supa as any)
+    .from("airfnb_profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError || profile?.role === "owner") {
+    return <WrongAccountType intent="organize_event" currentRole="owner" />;
+  }
 
   const { data: requestsData } = await (supa as any)
     .from("airfnb_event_requests")

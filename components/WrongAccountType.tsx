@@ -21,9 +21,13 @@ export function WrongAccountType({ intent, currentRole }: Props) {
   const lead = intent === "add_truck"
     ? "Para adicionar um food truck precisas de uma conta de operador de truck. As duas funções no marketplace são exclusivas — cada conta serve um lado."
     : "Para organizar um evento precisas de uma conta de organizador. As duas funções no marketplace são exclusivas — cada conta serve um lado.";
+  // The `next` param contains its own query string (?as=...), so it must be
+  // URL-encoded before being placed inside another query string — otherwise
+  // the parser only captures up to the first unencoded `?` and the as= flag
+  // silently drops.
   const cta = intent === "add_truck"
-    ? { href: "/logout?next=/signup?as=truck", label: "Sair e criar conta de Food Truck" }
-    : { href: "/logout?next=/signup?as=organizer", label: "Sair e criar conta de Organizador" };
+    ? { href: `/logout?next=${encodeURIComponent("/signup?as=truck")}`, label: "Sair e criar conta de Food Truck" }
+    : { href: `/logout?next=${encodeURIComponent("/signup?as=organizer")}`, label: "Sair e criar conta de Organizador" };
   const back = isOrg
     ? { href: "/dashboard/organizer", label: "← Voltar ao meu painel de organizador" }
     : { href: "/dashboard/truck", label: "← Voltar ao meu painel de truck" };

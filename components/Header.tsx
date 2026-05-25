@@ -122,9 +122,15 @@ export function Header({ user, locale = "pt" }: Props) {
       </div>
       <ul className="main-nav">
         <li><Link href="/catalogo">Encontrar Trucks</Link></li>
-        <li><Link href="/publicar">Organizar evento</Link></li>
+        {/* Roles are exclusive — only show the CTA for the *other* side
+            (or both when there's no logged-in user / no role yet). */}
+        {(user?.role !== "owner") && (
+          <li><Link href="/publicar">Organizar evento</Link></li>
+        )}
         <li><Link href="/blog">Blog</Link></li>
-        <li><Link href="/registar">Adicionar Truck</Link></li>
+        {(user?.role !== "organizer") && (
+          <li><Link href="/registar">Adicionar Truck</Link></li>
+        )}
       </ul>
       <div className="header-actions">
         {user ? (
