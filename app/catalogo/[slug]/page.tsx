@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -140,8 +141,15 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginTop: 24 }}>
         <div>
-          <div className="thumb" style={{ aspectRatio: "16/10" }}>
-            <img src={truckCover(images[0]?.url)} alt={truck.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div className="thumb" style={{ aspectRatio: "16/10", position: "relative" }}>
+            <Image
+              src={truckCover(images[0]?.url)}
+              alt={truck.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 66vw"
+              priority
+              style={{ objectFit: "cover" }}
+            />
           </div>
           {images.length > 1 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
