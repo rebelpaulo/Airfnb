@@ -14,9 +14,20 @@ export async function POST(req: NextRequest) {
   }
   if (!SUPPORTED.has(lang)) lang = "pt";
 
-  // Redirect back to the page the user came from, falling back to /
-  const back = req.headers.get("referer") ?? "/";
-  const res = NextResponse.redirect(back, 303);
+  // Redirect back to where the user came from, but only when the Referer
+  // is same-origin. Otherwise we'd have an open-redirect primitive — an
+  // attacker could send a victim a POST with a crafted Referer pointing
+  // off-site and we'd happily 303 them away.
+  const ref = req.headers.get("referer");
+  const here = new URL(req.url);
+  let back = "/";
+  if (ref) {
+    try {
+      const u = new URL(ref);
+      if (u.origin === here.origin) back = u.pathname + u.search;
+    } catch { /* malformed Referer — ignore */ }
+  }
+  const res = NextResponse.redirect(new URL(back, here.origin), 303);
   res.cookies.set("airfnb_locale", lang, {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,   // 1 year

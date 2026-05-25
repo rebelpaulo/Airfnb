@@ -93,9 +93,23 @@ export async function getLocale(): Promise<Locale> {
 
   const headerStore = await headers();
   const accept = headerStore.get("accept-language") ?? "";
-  // grab the first two-letter lang code
-  const m = accept.match(/^([a-z]{2})/i);
-  if (m && isSupportedLocale(m[1].toLowerCase())) return m[1].toLowerCase() as Locale;
+  // Parse the full Accept-Language list with q-values and return the highest-
+  // ranked tag that we support. Falls back to DEFAULT when nothing matches —
+  // previously we only inspected the first tag, so 'fr-FR,fr;q=0.9,en;q=0.8'
+  // wrongly fell through to pt instead of picking en.
+  const ranked = accept
+    .split(",")
+    .map((part) => {
+      const [tag, ...params] = part.trim().split(";");
+      const q = parseFloat(params.find((p) => p.trim().startsWith("q="))?.split("=")[1] ?? "1") || 0;
+      const lang = tag.split("-")[0]?.toLowerCase() ?? "";
+      return { lang, q };
+    })
+    .filter((r) => r.lang && r.q > 0)
+    .sort((a, b) => b.q - a.q);
+  for (const r of ranked) {
+    if (isSupportedLocale(r.lang)) return r.lang as Locale;
+  }
   return DEFAULT;
 }
 
