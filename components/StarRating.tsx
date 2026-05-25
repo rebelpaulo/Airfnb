@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useDict } from "@/components/DictProvider";
 
 type Props = {
   name: string;
@@ -12,8 +13,18 @@ type Props = {
  * Hidden input that posts the value, with 5 clickable star buttons.
  * Plain CSS for the filled/empty state so this works in server-rendered
  * forms without extra deps.
+ *
+ * Internal copy (aria-label and the no-rating fallback) is read from the
+ * dict so mixed-language UI doesn't leak when the parent page is EN but
+ * the component used to be hardcoded PT.
  */
 export function StarRating({ name, label, defaultValue = 0, required = false }: Props) {
+  const dict = useDict();
+  const t = (dict as any).forms?.star_rating ?? {
+    star_label_one: "estrela",
+    star_label_many: "estrelas",
+    unrated:        "Sem rating",
+  };
   const [value, setValue] = useState(defaultValue);
   const [hover, setHover] = useState(0);
   const display = hover || value;
@@ -28,7 +39,7 @@ export function StarRating({ name, label, defaultValue = 0, required = false }: 
           <button
             key={n}
             type="button"
-            aria-label={`${n} ${n === 1 ? "estrela" : "estrelas"}`}
+            aria-label={`${n} ${n === 1 ? t.star_label_one : t.star_label_many}`}
             onClick={() => setValue(n)}
             onMouseEnter={() => setHover(n)}
             style={{
@@ -42,7 +53,7 @@ export function StarRating({ name, label, defaultValue = 0, required = false }: 
           </button>
         ))}
         <span style={{ alignSelf: "center", marginLeft: 8, fontSize: 13, color: "var(--muted)" }}>
-          {value > 0 ? `${value}/5` : "Sem rating"}
+          {value > 0 ? `${value}/5` : t.unrated}
         </span>
       </div>
       <input type="hidden" name={name} value={value || ""} required={required} />

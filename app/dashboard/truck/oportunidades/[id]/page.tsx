@@ -272,7 +272,7 @@ export default async function OportunidadeDetailPage({
 
           <label style={{ display: "grid", gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>{t.form_price_label}</span>
-            <input name="proposed_price" type="number" required min={0} step={10}
+            <input name="proposed_price" type="number" required min={1} step={10}
                    placeholder={req.budget_min ? String(req.budget_min) : t.form_price_default_placeholder} />
             <small style={{ color: "var(--muted)", fontSize: 12 }}>
               {t.form_price_hint}

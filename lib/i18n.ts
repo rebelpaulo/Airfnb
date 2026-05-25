@@ -634,6 +634,11 @@ export const dictionaries = {
         err_not_pdf:    "Tem de ser um PDF.",
         err_too_large:  "Ficheiro muito grande (>{maxMb}MB).",
       },
+      star_rating: {
+        star_label_one:  "estrela",
+        star_label_many: "estrelas",
+        unrated:         "Sem rating",
+      },
     },
     auth: {
       login: {
@@ -1799,6 +1804,11 @@ export const dictionaries = {
         expires_label:  "Expires",
         err_not_pdf:    "Must be a PDF.",
         err_too_large:  "File too large (>{maxMb}MB).",
+      },
+      star_rating: {
+        star_label_one:  "star",
+        star_label_many: "stars",
+        unrated:         "Not rated",
       },
     },
     auth: {

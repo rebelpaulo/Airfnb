@@ -13,7 +13,10 @@ export function DeleteAccountButton() {
   const [confirm, setConfirm] = useState("");
 
   const phrase = t.confirm_phrase;
-  const enabled = confirm.trim().toUpperCase() === phrase && !busy;
+  // Normalize both sides — if a locale ever defines the phrase in mixed/lower
+  // case, the comparison still works. Uppercasing only the input would deadlock.
+  const enabled =
+    confirm.trim().toLocaleUpperCase() === phrase.trim().toLocaleUpperCase() && !busy;
 
   async function deleteAccount() {
     setBusy(true);
