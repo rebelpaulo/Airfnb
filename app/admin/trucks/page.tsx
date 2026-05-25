@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
+import { getDictionary } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,9 @@ export default async function AdminTrucksQueuePage() {
     .rpc("airfnb_admin_pending_trucks", { p_limit: 100 });
   const trucks: any[] = (pendingTrucks as any[]) ?? [];
 
+  const dict = await getDictionary();
+  const tt = dict.admin_trucks;
+
   async function approve(formData: FormData) {
     "use server";
     const id = String(formData.get("truck_id"));
@@ -35,7 +39,8 @@ export default async function AdminTrucksQueuePage() {
     const id = String(formData.get("truck_id"));
     const reason = String(formData.get("reason") ?? "").trim();
     if (reason.length < 10) {
-      throw new Error("Indica uma razão de pelo menos 10 caracteres — o dono vê isto.");
+      const d = await getDictionary();
+      throw new Error(d.admin_trucks.err_reason_too_short);
     }
     const supa = await supabaseServer();
     const { error } = await (supa as any).rpc("airfnb_admin_reject_truck", { p_truck: id, p_reason: reason });
@@ -47,11 +52,13 @@ export default async function AdminTrucksQueuePage() {
   return (
     <div className="dash" style={{ maxWidth: 1100 }}>
       <nav className="breadcrumb">
-        <Link href="/admin">Admin</Link> &nbsp;/&nbsp; <span>Trucks pendentes</span>
+        <Link href="/admin">Admin</Link> &nbsp;/&nbsp; <span>{tt.breadcrumb_current}</span>
       </nav>
-      <h1 style={{ margin: 0 }}>Moderação — Trucks</h1>
+      <h1 style={{ margin: 0 }}>{tt.page_title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        {trucks.length === 0 ? "Sem trucks à espera." : `${trucks.length} truck${trucks.length === 1 ? "" : "s"} à espera de revisão.`}
+        {trucks.length === 0
+          ? tt.empty
+          : `${trucks.length} ${trucks.length === 1 ? tt.waiting_singular : tt.waiting_plural}`}
       </p>
 
       <div style={{ display: "grid", gap: 16, marginTop: 22 }}>
@@ -70,7 +77,7 @@ export default async function AdminTrucksQueuePage() {
               <div>
                 <h2 style={{ margin: 0, fontSize: 20 }}>{t.name}</h2>
                 <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>
-                  {t.base_city ?? "—"} · {t.owner_name ?? "—"} · submetido {new Date(t.created_at).toLocaleDateString("pt-PT")}
+                  {t.base_city ?? "—"} · {t.owner_name ?? "—"} · {tt.submitted_label} {new Date(t.created_at).toLocaleDateString("pt-PT")}
                 </div>
               </div>
               {t.description && (
@@ -81,25 +88,25 @@ export default async function AdminTrucksQueuePage() {
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
                 <Link href={`/catalogo/${t.slug}`} target="_blank" className="btn-pill outline"
                       style={{ padding: "8px 18px", borderColor: "var(--line)", color: "var(--ink)" }}>
-                  Ver no catálogo
+                  {tt.view_in_catalog}
                 </Link>
                 <form action={approve}>
                   <input type="hidden" name="truck_id" value={t.id} />
                   <button type="submit" className="btn-pill" style={{ padding: "8px 18px", background: "#10A37F" }}>
-                    Aprovar
+                    {tt.approve}
                   </button>
                 </form>
                 <form action={reject} style={{ display: "flex", gap: 8 }}>
                   <input type="hidden" name="truck_id" value={t.id} />
                   <input
                     name="reason"
-                    placeholder="Razão (vê o dono)"
+                    placeholder={tt.reason_placeholder}
                     minLength={10}
                     required
                     style={{ padding: "8px 12px", border: "1.5px solid var(--line)", borderRadius: 999, fontSize: 13, minWidth: 220 }}
                   />
                   <button type="submit" className="btn-pill" style={{ padding: "8px 18px", background: "#8B1100" }}>
-                    Rejeitar
+                    {tt.reject}
                   </button>
                 </form>
               </div>

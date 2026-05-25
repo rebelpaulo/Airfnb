@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
+import { getDictionary } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -20,40 +21,43 @@ export default async function AdminDashboardPage() {
     .rpc("airfnb_admin_pending_trucks", { p_limit: 5 });
   const pending: any[] = (pendingTrucks as any[]) ?? [];
 
+  const dict = await getDictionary();
+  const t = dict.admin;
+
   return (
     <div className="dash" style={{ maxWidth: 1100 }}>
       <h1 style={{ margin: 0 }}>Admin</h1>
-      <p style={{ color: "var(--muted)", marginTop: 6 }}>Visão rápida do estado da plataforma.</p>
+      <p style={{ color: "var(--muted)", marginTop: 6 }}>{t.subtitle}</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 22 }}>
-        <Stat label="Trucks ativos"        value={m.trucks_active} sub={`${m.trucks_total} no total`} />
-        <Stat label="Trucks pending"       value={m.trucks_pending} accent={m.trucks_pending > 0 ? "var(--orange)" : undefined} />
-        <Stat label="Pedidos abertos"      value={m.requests_open} />
-        <Stat label="Bookings confirmadas" value={m.bookings_confirmed} />
-        <Stat label="Lock-fees pagas"      value={m.lockfees_paid_count} sub={money(m.lockfees_paid_total ?? 0)} />
-        <Stat label="Receita plataforma"   value={money(m.revenue_platform ?? 0)} accent="#10A37F" />
-        <Stat label="Users na plataforma"  value={m.organizers_total} />
+        <Stat label={t.stat_trucks_active}      value={m.trucks_active} sub={`${m.trucks_total} ${t.stat_total_suffix}`} />
+        <Stat label={t.stat_trucks_pending}     value={m.trucks_pending} accent={m.trucks_pending > 0 ? "var(--orange)" : undefined} />
+        <Stat label={t.stat_open_requests}      value={m.requests_open} />
+        <Stat label={t.stat_bookings_confirmed} value={m.bookings_confirmed} />
+        <Stat label={t.stat_lockfees_paid}      value={m.lockfees_paid_count} sub={money(m.lockfees_paid_total ?? 0)} />
+        <Stat label={t.stat_revenue}            value={money(m.revenue_platform ?? 0)} accent="#10A37F" />
+        <Stat label={t.stat_users}              value={m.organizers_total} />
       </div>
 
       <section style={{ marginTop: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <h2 style={{ margin: 0 }}>Trucks à espera de revisão</h2>
-          <Link href="/admin/trucks" style={{ color: "var(--teal)", fontWeight: 600 }}>Ver todos →</Link>
+          <h2 style={{ margin: 0 }}>{t.pending_title}</h2>
+          <Link href="/admin/trucks" style={{ color: "var(--teal)", fontWeight: 600 }}>{t.view_all}</Link>
         </div>
         {pending.length === 0 ? (
-          <div className="empty" style={{ marginTop: 12 }}>Sem trucks pendentes.</div>
+          <div className="empty" style={{ marginTop: 12 }}>{t.empty_pending}</div>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, marginTop: 14, display: "grid", gap: 10 }}>
-            {pending.map((t) => (
-              <li key={t.id} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 14, background: "#fff", display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+            {pending.map((tr) => (
+              <li key={tr.id} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 14, background: "#fff", display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
                 <div>
-                  <strong>{t.name}</strong>
+                  <strong>{tr.name}</strong>
                   <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                    {t.base_city ?? "—"} · submetido por {t.owner_name ?? "—"} · {new Date(t.created_at).toLocaleDateString("pt-PT")}
+                    {tr.base_city ?? "—"} · {t.submitted_by} {tr.owner_name ?? "—"} · {new Date(tr.created_at).toLocaleDateString("pt-PT")}
                   </div>
                 </div>
-                <Link href={`/admin/trucks#${t.id}`} className="btn-pill outline" style={{ padding: "8px 16px", borderColor: "var(--teal)", color: "var(--teal)" }}>
-                  Rever
+                <Link href={`/admin/trucks#${tr.id}`} className="btn-pill outline" style={{ padding: "8px 16px", borderColor: "var(--teal)", color: "var(--teal)" }}>
+                  {t.review}
                 </Link>
               </li>
             ))}
