@@ -12,7 +12,14 @@ const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https
 
 function ics_escape(s: string): string {
   // RFC 5545 §3.3.11 — escape \, ; , and newlines inside TEXT values.
-  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+  // Normalize all CR/CRLF to LF *before* escaping so a value containing a
+  // raw \r can't break out of a property line and inject extra fields.
+  return s
+    .replace(/\r\n?/g, "\n")
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\n/g, "\\n");
 }
 function ics_date(iso: string): string {
   // UTC basic format: 20260525T143000Z
@@ -31,6 +38,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     return new NextResponse("Calendar event not found", { status: 404 });
   }
   const b = (data as any[])[0];
+  // airfnb_bookings.starts_at is nullable in the schema. Without this guard,
+  // new Date(null).toISOString() would emit 19700101T000000Z and the consumer
+  // would happily render an event at the Unix epoch — fail fast instead.
+  if (!b.starts_at) {
+    return new NextResponse("Booking has no start time", { status: 422 });
+  }
 
   const uid = `${b.id}@airfnb`;
   const title  = `Air F&B — ${b.title}${b.truck_names ? ` (${b.truck_names})` : ""}`;
