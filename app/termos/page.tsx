@@ -1,81 +1,52 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { getDictionary } from "@/lib/i18n";
 
+// TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Termos e Condições",
   description: "Termos de utilização do marketplace Air F&B.",
   alternates: { canonical: "/termos" },
 };
 
-export default function TermosPage() {
+export default async function TermosPage() {
+  const dict = await getDictionary();
+  const t = dict.terms;
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 780 }}>
-      <h1 className="section-title">Termos e Condições</h1>
-      <p style={{ color: "var(--muted)", marginTop: -6 }}>
-        Última atualização: 25 de maio de 2026.
-      </p>
+      <h1 className="section-title">{t.page_title}</h1>
+      <p style={{ color: "var(--muted)", marginTop: -6 }}>{t.last_updated}</p>
 
-      <Section title="1. Quem somos e o que é a Air F&B">
-        A Air F&amp;B (a "plataforma") opera um marketplace que liga organizadores
-        de eventos a operadores de food trucks. Não somos parte nos contratos
-        entre organizadores e trucks — somos um intermediário tecnológico.
+      <Section title={t.s1_title}>{t.s1_body}</Section>
+
+      <Section title={t.s2_title}>
+        {t.s2_pre}
+        <Link href="/privacidade" style={{ color: "var(--orange)" }}>{t.s2_link}</Link>
+        {t.s2_post}
       </Section>
 
-      <Section title="2. Aceitação">
-        Ao criar conta aceitas estes termos e a <Link href="/privacidade" style={{ color: "var(--orange)" }}>Política de Privacidade</Link>.
-        Se não concordas, não uses o serviço.
+      <Section title={t.s3_title}>{t.s3_body}</Section>
+      <Section title={t.s4_title}>{t.s4_body}</Section>
+      <Section title={t.s5_title}>{t.s5_body}</Section>
+      <Section title={t.s6_title}>{t.s6_body}</Section>
+
+      <Section title={t.s7_title}>
+        {t.s7_pre}
+        <Link href="/dashboard/conta" style={{ color: "var(--orange)" }}>{t.s7_link}</Link>
+        {t.s7_post}
       </Section>
 
-      <Section title="3. Conta">
-        Tens de ter pelo menos 18 anos. És responsável pela password e por todas
-        as ações na tua conta. Devemos ser informados imediatamente em caso de
-        suspeita de uso não autorizado.
-      </Section>
+      <Section title={t.s8_title}>{t.s8_body}</Section>
+      <Section title={t.s9_title}>{t.s9_body}</Section>
 
-      <Section title="4. Lock-fee e pagamentos">
-        Quando uma candidatura é aceite o truck paga um lock-fee de €50 para
-        confirmar a reserva (€25 plataforma + €25 split organizer). Sem
-        pagamento dentro do prazo, a candidatura expira e o slot fica
-        novamente disponível. Pagamentos processados por Stripe — os dados de
-        cartão nunca passam pelos nossos servidores.
-      </Section>
-
-      <Section title="5. Conduta">
-        Não publicar conteúdo ilegal, ofensivo, ou que viole direitos de terceiros.
-        Não tentar contornar o lock-fee combinando fora da plataforma após match.
-        Não automatizar candidaturas / pedidos (rate-limits estão activos).
-      </Section>
-
-      <Section title="6. Avaliações">
-        Avaliações organizer↔truck são publicadas após confirmação do evento.
-        Reservamo-nos o direito de remover avaliações com linguagem abusiva,
-        difamação ou conteúdo claramente falso.
-      </Section>
-
-      <Section title="7. Suspensão e remoção">
-        Podemos suspender ou apagar contas que violem estes termos. Podes
-        apagar a tua conta a qualquer momento em <Link href="/dashboard/conta" style={{ color: "var(--orange)" }}>A minha conta</Link>.
-      </Section>
-
-      <Section title="8. Limitação de responsabilidade">
-        A Air F&amp;B não responde pelo cumprimento dos contratos entre
-        organizadores e trucks, pela qualidade da comida servida, nem por
-        danos resultantes da execução do evento. O nosso limite máximo de
-        responsabilidade é, em qualquer caso, o lock-fee aplicável.
-      </Section>
-
-      <Section title="9. Lei aplicável">
-        Lei portuguesa. Tribunal competente: Comarca de Lisboa.
-      </Section>
-
-      <Section title="10. Contacto">
+      <Section title={t.s10_title}>
         <a href="mailto:legal@airfnb.pt">legal@airfnb.pt</a>
       </Section>
 
       <p style={{ marginTop: 40 }}>
-        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar</Link>
-        &nbsp;·&nbsp;
-        <Link href="/privacidade" style={{ color: "var(--orange)" }}>Política de Privacidade →</Link>
+        <Link href="/" style={{ color: "var(--orange)" }}>{t.back}</Link>
+        {t.sep}
+        <Link href="/privacidade" style={{ color: "var(--orange)" }}>{t.to_privacy}</Link>
       </p>
     </div>
   );

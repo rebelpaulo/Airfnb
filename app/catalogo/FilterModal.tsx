@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useDict } from "@/components/DictProvider";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 
@@ -21,42 +22,44 @@ type Props = {
   categories: Category[];
 };
 
-const CUISINES = [
-  { slug: "portuguesa", label: "Portuguesa", flag: "🇵🇹" },
-  { slug: "italiana",   label: "Italiana",   flag: "🇮🇹" },
-  { slug: "japonesa",   label: "Japonesa",   flag: "🇯🇵" },
-  { slug: "turca",      label: "Turca",      flag: "🇹🇷" },
-  { slug: "espanhola",  label: "Espanhola",  flag: "🇪🇸" },
-  { slug: "chinesa",    label: "Chinesa",    flag: "🇨🇳" },
-  { slug: "mexicana",   label: "Mexicana",   flag: "🇲🇽" },
-  { slug: "tailandesa", label: "Tailandesa", flag: "🇹🇭" },
-  { slug: "marroquina", label: "Marroquina", flag: "🇲🇦" },
-  { slug: "americana",  label: "Americana",  flag: "🇺🇸" },
-];
-const DIETARY = [
-  { value: "vegetarian",  label: "Vegetariano" },
-  { value: "vegan",       label: "Vegan" },
-  { value: "gluten_free", label: "Sem Glúten" },
-];
-const SETUP = [
-  { v: 30,  l: "Até 30 min" },
-  { v: 60,  l: "Até 1h" },
-  { v: 120, l: "Até 2h" },
-  { v: 180, l: "Até 3h" },
-];
-const POWER = [
-  { v: "nao_preciso", l: "Não preciso" },
-  { v: "ate_3kw",     l: "Até 3 kW" },
-  { v: "3_a_10kw",    l: "3 – 10 kW" },
-  { v: "mais_10kw",   l: "Mais de 10 kW" },
-];
-const SANI = [
-  { v: "none",        l: "Sem necessidade" },
-  { v: "wc_proximo",  l: "WC próximo" },
-  { v: "wc_dedicado", l: "WC dedicado" },
-];
+const CUISINE_SLUGS = [
+  { slug: "portuguesa", key: "cuisine_pt", flag: "🇵🇹" },
+  { slug: "italiana",   key: "cuisine_it", flag: "🇮🇹" },
+  { slug: "japonesa",   key: "cuisine_jp", flag: "🇯🇵" },
+  { slug: "turca",      key: "cuisine_tr", flag: "🇹🇷" },
+  { slug: "espanhola",  key: "cuisine_es", flag: "🇪🇸" },
+  { slug: "chinesa",    key: "cuisine_cn", flag: "🇨🇳" },
+  { slug: "mexicana",   key: "cuisine_mx", flag: "🇲🇽" },
+  { slug: "tailandesa", key: "cuisine_th", flag: "🇹🇭" },
+  { slug: "marroquina", key: "cuisine_ma", flag: "🇲🇦" },
+  { slug: "americana",  key: "cuisine_us", flag: "🇺🇸" },
+] as const;
+const DIETARY_VALUES = [
+  { value: "vegetarian",  key: "dietary_vegetarian" },
+  { value: "vegan",       key: "dietary_vegan" },
+  { value: "gluten_free", key: "dietary_gluten_free" },
+] as const;
+const SETUP_VALUES = [
+  { v: 30,  key: "setup_30" },
+  { v: 60,  key: "setup_60" },
+  { v: 120, key: "setup_120" },
+  { v: 180, key: "setup_180" },
+] as const;
+const POWER_VALUES = [
+  { v: "nao_preciso", key: "power_none" },
+  { v: "ate_3kw",     key: "power_3" },
+  { v: "3_a_10kw",    key: "power_3_10" },
+  { v: "mais_10kw",   key: "power_10_plus" },
+] as const;
+const SANI_VALUES = [
+  { v: "none",        key: "sani_none" },
+  { v: "wc_proximo",  key: "sani_close" },
+  { v: "wc_dedicado", key: "sani_dedicated" },
+] as const;
 
 export function FilterModal({ initial, categories }: Props) {
+  const dict = useDict();
+  const t = dict.catalog.filter_modal;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   // Section disclosure state — mirrors the original modal: pickers collapse by
@@ -117,7 +120,7 @@ export function FilterModal({ initial, categories }: Props) {
         }}
       >
         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>tune</span>
-        Filtros
+        {t.button_label}
       </button>
 
       {open && (
@@ -141,56 +144,56 @@ export function FilterModal({ initial, categories }: Props) {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <h2 style={{ margin: 0, fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: "var(--ink)" }}>
-                Filtros
+                {t.title}
               </h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Fechar"
+              <button type="button" onClick={() => setOpen(false)} aria-label={t.close_aria}
                 style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 22, color: "var(--muted)" }}>
                 ×
               </button>
             </div>
 
             <div style={{ display: "grid", gap: 18 }}>
-              <Field label="Localização">
-                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lisboa" />
+              <Field label={t.loc_label}>
+                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t.loc_placeholder} />
               </Field>
 
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Capacidade — <span style={{ color: "var(--orange)" }}>{pax} pessoas</span>
+                  {t.capacity_label} — <span style={{ color: "var(--orange)" }}>{pax} {t.capacity_people}</span>
                 </div>
                 <input type="range" min={20} max={2000} step={10} value={pax} onChange={(e) => setPax(Number(e.target.value))} style={{ width: "100%" }} />
               </div>
 
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Intervalo de Preço (€)</div>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.price_label}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <input type="number" min={0} step={10} value={priceMin} onChange={(e) => setPriceMin(e.target.value === "" ? "" : Number(e.target.value))} placeholder="min" />
-                  <input type="number" min={0} step={10} value={priceMax} onChange={(e) => setPriceMax(e.target.value === "" ? "" : Number(e.target.value))} placeholder="max" />
+                  <input type="number" min={0} step={10} value={priceMin} onChange={(e) => setPriceMin(e.target.value === "" ? "" : Number(e.target.value))} placeholder={t.price_min} />
+                  <input type="number" min={0} step={10} value={priceMax} onChange={(e) => setPriceMax(e.target.value === "" ? "" : Number(e.target.value))} placeholder={t.price_max} />
                 </div>
               </div>
 
-              <Field label="Tipo de Catering">
+              <Field label={t.catering_label}>
                 <select value={cateringType} onChange={(e) => setCateringType(e.target.value)}>
-                  <option value="">Indiferente</option>
-                  <option value="food">Só Comida</option>
-                  <option value="drinks">Só Bebida</option>
-                  <option value="food_and_drinks">Comida e Bebida</option>
+                  <option value="">{t.catering_any}</option>
+                  <option value="food">{t.catering_food}</option>
+                  <option value="drinks">{t.catering_drinks}</option>
+                  <option value="food_and_drinks">{t.catering_both}</option>
                 </select>
               </Field>
 
-              <Disclosure label="Tipo de Cozinha" open={!!openSect.cuisine} onToggle={() => toggleSect("cuisine")}>
+              <Disclosure label={t.cuisine_label} open={!!openSect.cuisine} onToggle={() => toggleSect("cuisine")}>
                 <div className="chips">
-                  {CUISINES.map((c) => (
+                  {CUISINE_SLUGS.map((c) => (
                     <button type="button" key={c.slug} className="chip"
                       data-active={cuisines.includes(c.slug)}
                       onClick={() => setCuisines((s) => toggle(s, c.slug))}>
-                      <span style={{ fontSize: 16 }}>{c.flag}</span> {c.label}
+                      <span style={{ fontSize: 16 }}>{c.flag}</span> {t[c.key]}
                     </button>
                   ))}
                 </div>
               </Disclosure>
 
-              <Disclosure label="Especialidades" open={!!openSect.spec} onToggle={() => toggleSect("spec")}>
+              <Disclosure label={t.specialties_label} open={!!openSect.spec} onToggle={() => toggleSect("spec")}>
                 <div className="chips">
                   {categories.map((c) => (
                     <button type="button" key={c.id} className="chip"
@@ -203,36 +206,36 @@ export function FilterModal({ initial, categories }: Props) {
                 </div>
               </Disclosure>
 
-              <Disclosure label="Dietas Especiais" open={!!openSect.diet} onToggle={() => toggleSect("diet")}>
+              <Disclosure label={t.dietary_label} open={!!openSect.diet} onToggle={() => toggleSect("diet")}>
                 <div className="chips">
-                  {DIETARY.map((d) => (
+                  {DIETARY_VALUES.map((d) => (
                     <button type="button" key={d.value} className="chip"
                       data-active={dietary.includes(d.value)}
                       onClick={() => setDietary((s) => toggle(s, d.value))}>
-                      {d.label}
+                      {t[d.key]}
                     </button>
                   ))}
                 </div>
               </Disclosure>
 
-              <Disclosure label="Horas de Montagem/Desmontagem" open={!!openSect.setup} onToggle={() => toggleSect("setup")}>
+              <Disclosure label={t.setup_label} open={!!openSect.setup} onToggle={() => toggleSect("setup")}>
                 <select value={setupMax} onChange={(e) => setSetupMax(e.target.value === "" ? "" : Number(e.target.value))}>
-                  <option value="">Indiferente</option>
-                  {SETUP.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+                  <option value="">{t.setup_any}</option>
+                  {SETUP_VALUES.map((s) => <option key={s.v} value={s.v}>{t[s.key]}</option>)}
                 </select>
               </Disclosure>
 
-              <Disclosure label="Necessidade Energética" open={!!openSect.power} onToggle={() => toggleSect("power")}>
+              <Disclosure label={t.power_label} open={!!openSect.power} onToggle={() => toggleSect("power")}>
                 <select value={power} onChange={(e) => setPower(e.target.value)}>
-                  <option value="">Indiferente</option>
-                  {POWER.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
+                  <option value="">{t.power_any}</option>
+                  {POWER_VALUES.map((p) => <option key={p.v} value={p.v}>{t[p.key]}</option>)}
                 </select>
               </Disclosure>
 
-              <Disclosure label="Saneamento Básico" open={!!openSect.sani} onToggle={() => toggleSect("sani")}>
+              <Disclosure label={t.sani_label} open={!!openSect.sani} onToggle={() => toggleSect("sani")}>
                 <select value={sanitation} onChange={(e) => setSanitation(e.target.value)}>
-                  <option value="">Indiferente</option>
-                  {SANI.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+                  <option value="">{t.sani_any}</option>
+                  {SANI_VALUES.map((s) => <option key={s.v} value={s.v}>{t[s.key]}</option>)}
                 </select>
               </Disclosure>
             </div>
@@ -240,11 +243,11 @@ export function FilterModal({ initial, categories }: Props) {
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 22, gap: 10 }}>
               <button type="button" onClick={reset}
                 style={{ background: "transparent", border: "1px solid var(--line)", padding: "10px 18px", borderRadius: 999, cursor: "pointer", color: "var(--muted)" }}>
-                Limpar
+                {t.reset_btn}
               </button>
               <button type="button" onClick={submit} className="btn-pill"
                 style={{ padding: "12px 28px", background: "#1F7CFF" }}>
-                Submeter Filtros
+                {t.submit_btn}
               </button>
             </div>
           </div>

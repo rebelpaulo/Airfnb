@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { PartnerLeadForm, type FieldConfig } from "@/components/PartnerLeadForm";
+import { getDictionary } from "@/lib/i18n";
 
+// TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Marketing & Publicidade para Eventos — Air F&B",
   description:
@@ -9,79 +11,68 @@ export const metadata: Metadata = {
   alternates: { canonical: "/marketing" },
 };
 
-const fields: FieldConfig[] = [
-  { type: "text",   name: "event_name", label: "Nome / tema do evento", required: true, placeholder: "Ex.: Open Day Empresa X" },
-  { type: "date",   name: "event_date", label: "Data do evento", required: true },
-  { type: "number", name: "guest_count", label: "Audiência esperada", placeholder: "Ex.: 500" },
-  { type: "checkboxes", name: "phase", label: "Em que fase precisas de ajuda?", options: [
-    { value: "before", label: "Antes — convites, save-the-date, campanhas" },
-    { value: "during", label: "Durante — sinalética, QR codes, social wall" },
-    { value: "after",  label: "Depois — relatório, foto-rescaldo, follow-up" },
-  ] },
-  { type: "checkboxes", name: "channels", label: "Canais a cobrir", options: [
-    { value: "instagram", label: "Instagram" },
-    { value: "facebook",  label: "Facebook" },
-    { value: "linkedin",  label: "LinkedIn" },
-    { value: "tiktok",    label: "TikTok" },
-    { value: "press",     label: "Imprensa" },
-    { value: "email",     label: "Email marketing" },
-    { value: "physical",  label: "Material físico (sinalética, flyers)" },
-  ] },
-  { type: "select", name: "budget", label: "Orçamento aproximado", options: [
-    { value: "lt_2k",   label: "Até €2 000" },
-    { value: "2k_5k",   label: "€2 000 – €5 000" },
-    { value: "5k_15k",  label: "€5 000 – €15 000" },
-    { value: "15k_plus", label: "Acima de €15 000" },
-    { value: "open",     label: "Em aberto — proponham" },
-  ] },
-  { type: "textarea", name: "goals", label: "Objectivos principais", rows: 3,
-    placeholder: "Ex.: encher a sala, gerar leads B2B, brand awareness…" },
-];
+export default async function MarketingPage() {
+  const dict = await getDictionary();
+  const t = dict.services.marketing;
+  const fields: FieldConfig[] = [
+    { type: "text",   name: "event_name", label: t.f_event_name_label, required: true, placeholder: t.f_event_name_placeholder },
+    { type: "date",   name: "event_date", label: t.f_event_date_label, required: true },
+    { type: "number", name: "guest_count", label: t.f_audience_label, placeholder: t.f_audience_placeholder },
+    { type: "checkboxes", name: "phase", label: t.f_phase_label, options: [
+      { value: "before", label: t.f_phase_before },
+      { value: "during", label: t.f_phase_during },
+      { value: "after",  label: t.f_phase_after },
+    ] },
+    { type: "checkboxes", name: "channels", label: t.f_channels_label, options: [
+      { value: "instagram", label: t.f_channels_instagram },
+      { value: "facebook",  label: t.f_channels_facebook },
+      { value: "linkedin",  label: t.f_channels_linkedin },
+      { value: "tiktok",    label: t.f_channels_tiktok },
+      { value: "press",     label: t.f_channels_press },
+      { value: "email",     label: t.f_channels_email },
+      { value: "physical",  label: t.f_channels_physical },
+    ] },
+    { type: "select", name: "budget", label: t.f_budget_label, options: [
+      { value: "lt_2k",   label: t.f_budget_lt_2k },
+      { value: "2k_5k",   label: t.f_budget_2k_5k },
+      { value: "5k_15k",  label: t.f_budget_5k_15k },
+      { value: "15k_plus", label: t.f_budget_15k_plus },
+      { value: "open",     label: t.f_budget_open },
+    ] },
+    { type: "textarea", name: "goals", label: t.f_goals_label, rows: 3,
+      placeholder: t.f_goals_placeholder },
+  ];
 
-export default function MarketingPage() {
   return (
     <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 820 }}>
-      <h1 className="section-title">Marketing &amp; Publicidade</h1>
-      <p style={{ color: "var(--muted)", marginTop: -10, fontSize: 17 }}>
-        Da convocatória ao relatório pós-evento — os nossos parceiros
-        tratam de toda a comunicação para que tu trates da experiência.
-      </p>
+      <h1 className="section-title">{t.page_title}</h1>
+      <p style={{ color: "var(--muted)", marginTop: -10, fontSize: 17 }}>{t.subtitle}</p>
 
       <section style={{
         marginTop: 26, padding: 22, background: "#fff",
         border: "1px solid var(--line)", borderRadius: 14,
       }}>
-        <h2 style={{ margin: 0, fontSize: 22 }}>Comunicação completa, sem mil agências</h2>
-        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
-          Trabalhamos com agências, estúdios criativos e freelancers que
-          conhecem o ritmo de eventos. Em vez de coordenares 5 contactos
-          diferentes, falamos com um único parceiro que assume tudo: convites
-          digitais, anúncios pagos, sinalética no recinto, social wall em
-          directo e relatório de impacto.
-        </p>
-        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>
-          Para clientes Air F&amp;B, conseguimos integrar a oferta de food
-          (cardápios, fotos dos trucks, copy) nos materiais — economiza
-          dias de produção.
-        </p>
+        <h2 style={{ margin: 0, fontSize: 22 }}>{t.sec_title}</h2>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>{t.sec_p1}</p>
+        <p style={{ marginTop: 10, lineHeight: 1.6, color: "var(--ink)" }}>{t.sec_p2}</p>
         <ul style={{ marginTop: 14, paddingLeft: 20, color: "var(--ink)", lineHeight: 1.7 }}>
-          <li><strong>Antes</strong> — save-the-date, landing pages, campanhas pagas, imprensa</li>
-          <li><strong>Durante</strong> — sinalética, QR codes, social wall, fotografia ao vivo</li>
-          <li><strong>Depois</strong> — relatório de impacto, foto-rescaldo, follow-up por email</li>
-          <li>Briefing único, proposta consolidada</li>
+          <li><strong>{t.bullet1_label}</strong>{t.bullet1_body}</li>
+          <li><strong>{t.bullet2_label}</strong>{t.bullet2_body}</li>
+          <li><strong>{t.bullet3_label}</strong>{t.bullet3_body}</li>
+          <li>{t.bullet4}</li>
         </ul>
       </section>
 
-      <h2 style={{ marginTop: 36, fontSize: 22 }}>Conta-nos o que precisas comunicar</h2>
+      <h2 style={{ marginTop: 36, fontSize: 22 }}>{t.form_heading}</h2>
       <PartnerLeadForm
         kind="marketing"
-        intro="Quanto mais objectivo dado, mais accionável a proposta."
+        intro={t.form_intro}
         fields={fields}
-        cta="Quero proposta de comunicação"
+        cta={t.form_cta}
       />
 
       <p style={{ marginTop: 28, fontSize: 14 }}>
-        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar à página inicial</Link>
+        <Link href="/" style={{ color: "var(--orange)" }}>{t.back_home}</Link>
       </p>
     </div>
   );

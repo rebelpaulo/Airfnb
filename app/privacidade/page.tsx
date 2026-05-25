@@ -1,94 +1,91 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { getDictionary } from "@/lib/i18n";
 
+// TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Política de Privacidade",
   description: "Como a Air F&B trata os teus dados pessoais sob o RGPD.",
   alternates: { canonical: "/privacidade" },
 };
 
-export default function PrivacidadePage() {
+export default async function PrivacidadePage() {
+  const dict = await getDictionary();
+  const t = dict.privacy;
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 780 }}>
-      <h1 className="section-title">Política de Privacidade</h1>
-      <p style={{ color: "var(--muted)", marginTop: -6 }}>
-        Última atualização: 25 de maio de 2026.
-      </p>
+      <h1 className="section-title">{t.page_title}</h1>
+      <p style={{ color: "var(--muted)", marginTop: -6 }}>{t.last_updated}</p>
 
-      <Section title="Quem somos">
-        Air F&amp;B opera o marketplace de food trucks em <strong>airfnb.vercel.app</strong>.
-        Para questões de privacidade escreve para <a href="mailto:privacidade@airfnb.pt">privacidade@airfnb.pt</a>.
+      <Section title={t.who_title}>
+        {t.who_body_pre}<strong>{t.who_domain}</strong>{t.who_body_mid}
+        <a href="mailto:privacidade@airfnb.pt">privacidade@airfnb.pt</a>{t.who_body_post}
       </Section>
 
-      <Section title="Dados que recolhemos">
+      <Section title={t.data_title}>
         <ul>
-          <li><strong>Conta</strong>: email, nome, password (hash), papel (organizer / owner), idioma.</li>
-          <li><strong>Perfil</strong>: empresa, NIF, telefone, avatar, cidade base.</li>
-          <li><strong>Conteúdo do marketplace</strong>: trucks que publicas, pedidos de evento que crias, candidaturas, mensagens nas conversas, avaliações.</li>
-          <li><strong>Pagamentos</strong>: registo dos lock-fees pagos (montante, referência Stripe). Os dados do cartão ficam no Stripe — nunca chegam aos nossos servidores.</li>
-          <li><strong>Técnicos</strong>: IP truncado, user-agent, timestamps de pedidos a APIs.</li>
+          <li><strong>{t.data_account_label}</strong>{t.data_account_body}</li>
+          <li><strong>{t.data_profile_label}</strong>{t.data_profile_body}</li>
+          <li><strong>{t.data_content_label}</strong>{t.data_content_body}</li>
+          <li><strong>{t.data_payments_label}</strong>{t.data_payments_body}</li>
+          <li><strong>{t.data_tech_label}</strong>{t.data_tech_body}</li>
         </ul>
       </Section>
 
-      <Section title="Para que usamos">
+      <Section title={t.use_title}>
         <ul>
-          <li><strong>Operar o serviço</strong>: matching organizer↔truck, cobrança do lock-fee, notificações.</li>
-          <li><strong>Confiança</strong>: avaliações e dossiês de homologação públicas.</li>
-          <li><strong>Segurança</strong>: prevenção de fraude e rate-limiting.</li>
-          <li><strong>Comunicação</strong>: emails transacionais (candidatura aceite, pagamento, etc.); newsletter só se subscreveres.</li>
+          <li><strong>{t.use_op_label}</strong>{t.use_op_body}</li>
+          <li><strong>{t.use_trust_label}</strong>{t.use_trust_body}</li>
+          <li><strong>{t.use_sec_label}</strong>{t.use_sec_body}</li>
+          <li><strong>{t.use_comm_label}</strong>{t.use_comm_body}</li>
         </ul>
       </Section>
 
-      <Section title="Bases legais (Art. 6 RGPD)">
+      <Section title={t.legal_title}>
         <ul>
-          <li>Execução do contrato — para gerir candidaturas, bookings, pagamentos.</li>
-          <li>Interesse legítimo — para anti-spam, segurança e melhorias.</li>
-          <li>Consentimento — para a newsletter.</li>
-          <li>Obrigação legal — para faturação e retenção fiscal.</li>
+          <li>{t.legal_1}</li>
+          <li>{t.legal_2}</li>
+          <li>{t.legal_3}</li>
+          <li>{t.legal_4}</li>
         </ul>
       </Section>
 
-      <Section title="Partilha com terceiros">
+      <Section title={t.share_title}>
         <ul>
-          <li><strong>Stripe</strong> (pagamentos)</li>
-          <li><strong>Supabase</strong> (hosting da base de dados, na UE)</li>
-          <li><strong>Vercel</strong> (hosting da aplicação)</li>
-          <li>Não vendemos dados a terceiros.</li>
+          <li><strong>{t.share_stripe}</strong>{t.share_stripe_body}</li>
+          <li><strong>{t.share_supabase}</strong>{t.share_supabase_body}</li>
+          <li><strong>{t.share_vercel}</strong>{t.share_vercel_body}</li>
+          <li>{t.share_no_sell}</li>
         </ul>
       </Section>
 
-      <Section title="Retenção">
+      <Section title={t.retention_title}>
         <ul>
-          <li>Conta ativa — enquanto manténs a conta.</li>
-          <li>Faturação — 10 anos (obrigação fiscal portuguesa).</li>
-          <li>Logs técnicos — 90 dias.</li>
-          <li>Newsletter — até cancelares.</li>
+          <li>{t.retention_1}</li>
+          <li>{t.retention_2}</li>
+          <li>{t.retention_3}</li>
+          <li>{t.retention_4}</li>
         </ul>
       </Section>
 
-      <Section title="Os teus direitos (Art. 15-22 RGPD)">
+      <Section title={t.rights_title}>
         <ul>
-          <li><strong>Acesso</strong>: pedir uma cópia integral dos teus dados — basta usar o botão em <Link href="/dashboard/conta">A minha conta</Link>.</li>
-          <li><strong>Retificação</strong>: editar perfil / trucks no dashboard.</li>
-          <li><strong>Apagamento</strong>: apagar a conta e tudo o que está ligada a ela em <Link href="/dashboard/conta">A minha conta</Link> (excepto registos fiscais que somos obrigados a guardar).</li>
-          <li><strong>Portabilidade</strong>: o export está em JSON aberto.</li>
-          <li><strong>Reclamação</strong>: à CNPD em <a href="https://www.cnpd.pt" target="_blank" rel="noopener noreferrer">cnpd.pt</a>.</li>
+          <li><strong>{t.rights_access_label}</strong>{t.rights_access_pre}<Link href="/dashboard/conta">{t.rights_access_link}</Link>{t.rights_access_post}</li>
+          <li><strong>{t.rights_rect_label}</strong>{t.rights_rect_body}</li>
+          <li><strong>{t.rights_del_label}</strong>{t.rights_del_pre}<Link href="/dashboard/conta">{t.rights_del_link}</Link>{t.rights_del_post}</li>
+          <li><strong>{t.rights_port_label}</strong>{t.rights_port_body}</li>
+          <li><strong>{t.rights_comp_label}</strong>{t.rights_comp_pre}<a href="https://www.cnpd.pt" target="_blank" rel="noopener noreferrer">{t.rights_comp_link}</a>{t.rights_comp_post}</li>
         </ul>
       </Section>
 
-      <Section title="Cookies">
-        Usamos apenas cookies estritamente necessários (sessão Supabase). Sem cookies de tracking
-        de terceiros nem analytics na primeira release.
-      </Section>
+      <Section title={t.cookies_title}>{t.cookies_body}</Section>
 
-      <Section title="Alterações">
-        Atualizações materiais a esta política são comunicadas por email com 14 dias de antecedência.
-      </Section>
+      <Section title={t.changes_title}>{t.changes_body}</Section>
 
       <p style={{ marginTop: 40 }}>
-        <Link href="/" style={{ color: "var(--orange)" }}>← Voltar</Link>
-        &nbsp;·&nbsp;
-        <Link href="/termos" style={{ color: "var(--orange)" }}>Termos e Condições →</Link>
+        <Link href="/" style={{ color: "var(--orange)" }}>{t.back}</Link>
+        {t.sep}
+        <Link href="/termos" style={{ color: "var(--orange)" }}>{t.to_terms}</Link>
       </p>
     </div>
   );

@@ -5,7 +5,9 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
 import { truckCover, TRUCK_PLACEHOLDER } from "@/lib/img";
+import { getDictionary } from "@/lib/i18n";
 
+// TODO: i18n metadata via generateMetadata
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
@@ -46,6 +48,8 @@ export async function generateMetadata(
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const dict = await getDictionary();
+  const t = dict.truck_detail;
   const supa = await supabaseServer();
 
   const { data: truck } = await (supa as any)
@@ -114,8 +118,8 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     "@context": "https://schema.org",
     "@type":    "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Página inicial", item: "/" },
-      { "@type": "ListItem", position: 2, name: "Catálogo",       item: "/catalogo" },
+      { "@type": "ListItem", position: 1, name: t.breadcrumb_home, item: "/" },
+      { "@type": "ListItem", position: 2, name: t.breadcrumb_catalog, item: "/catalogo" },
       { "@type": "ListItem", position: 3, name: truck.name,        item: `/catalogo/${truck.slug}` },
     ],
   };
@@ -133,7 +137,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       <nav className="breadcrumb">
-        <Link href="/catalogo">Catálogo</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
+        <Link href="/catalogo">{t.breadcrumb_catalog}</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginBottom: 8 }}>{truck.name}</h1>
@@ -167,12 +171,12 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
             </div>
           )}
 
-          <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 24 }}>Sobre</h2>
-          <p style={{ lineHeight: 1.65 }}>{truck.description ?? "Sem descrição."}</p>
+          <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 24 }}>{t.about_title}</h2>
+          <p style={{ lineHeight: 1.65 }}>{truck.description ?? t.no_description}</p>
 
           {menu.length > 0 && (
             <>
-              <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 24 }}>Menu</h2>
+              <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 24 }}>{t.menu_title}</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {menu.map((m: any) => (
                   <div key={m.id} style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--line)", padding: "10px 0" }}>
@@ -190,14 +194,21 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
 
         <aside style={{ position: "sticky", top: 100, alignSelf: "flex-start", padding: 22, background: "#fff", borderRadius: 14, boxShadow: "var(--shadow-card)" }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: "var(--orange)" }}>
-            ★ {Number(truck.rating_avg).toFixed(1)} <span style={{ fontSize: 14, color: "var(--muted)" }}>({truck.rating_count} reviews)</span>
+            {truck.rating_count > 0 && Number.isFinite(Number(truck.rating_avg)) ? (
+              <>
+                ★ {Number(truck.rating_avg).toFixed(1)}{" "}
+                <span style={{ fontSize: 14, color: "var(--muted)" }}>({truck.rating_count} {t.reviews})</span>
+              </>
+            ) : (
+              <span style={{ fontSize: 14, color: "var(--muted)" }}>{t.unrated}</span>
+            )}
           </div>
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-            <div><strong>Cidade base:</strong> {truck.base_city ?? "—"}</div>
-            <div><strong>Capacidade:</strong> {truck.capacity} pax</div>
-            <div><strong>Raio:</strong> {truck.service_radius_km} km</div>
-            <div><strong>Preço base:</strong> {truck.base_price ? money(truck.base_price) : "—"}</div>
-            <div><strong>Por pax:</strong> {truck.price_per_pax ? money(truck.price_per_pax) : "—"}</div>
+            <div><strong>{t.label_city}</strong> {truck.base_city ?? t.em_dash}</div>
+            <div><strong>{t.label_capacity}</strong> {truck.capacity} {t.label_capacity_unit}</div>
+            <div><strong>{t.label_radius}</strong> {truck.service_radius_km} {t.label_radius_unit}</div>
+            <div><strong>{t.label_base_price}</strong> {truck.base_price ? money(truck.base_price) : t.em_dash}</div>
+            <div><strong>{t.label_per_pax}</strong> {truck.price_per_pax ? money(truck.price_per_pax) : t.em_dash}</div>
           </div>
 
           {cats.length > 0 && (
@@ -210,19 +221,19 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
 
           {!user ? (
             <Link href={`/login?next=/catalogo/${slug}`} className="btn-pill" style={{ marginTop: 18, width: "100%", justifyContent: "center", display: "inline-flex" }}>
-              Entrar para convidar
+              {t.login_to_invite}
             </Link>
           ) : myOpenRequests.length > 0 ? (
             <form action={invite} style={{ marginTop: 18 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Convidar para um pedido</label>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>{t.invite_label}</label>
               <select name="request_id" className="filters-btn" style={{ width: "100%", padding: "10px 14px" }} required>
                 {myOpenRequests.map((r) => (<option key={r.id} value={r.id}>{r.title}</option>))}
               </select>
-              <button className="btn-pill" type="submit" style={{ marginTop: 10, width: "100%", justifyContent: "center" }}>Enviar convite</button>
+              <button className="btn-pill" type="submit" style={{ marginTop: 10, width: "100%", justifyContent: "center" }}>{t.send_invite}</button>
             </form>
           ) : (
             <Link href="/publicar" className="btn-pill outline" style={{ marginTop: 18, width: "100%", justifyContent: "center", display: "inline-flex" }}>
-              Publica um pedido para convidar
+              {t.publish_to_invite}
             </Link>
           )}
         </aside>
