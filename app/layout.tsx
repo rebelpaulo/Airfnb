@@ -3,8 +3,9 @@ import { Bebas_Neue, Montserrat } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { DictProvider } from "@/components/DictProvider";
 import { supabaseServer } from "@/lib/supabase/server";
-import { getLocale } from "@/lib/i18n";
+import { getLocale, dictionaries } from "@/lib/i18n";
 
 const bebas = Bebas_Neue({
   subsets: ["latin"],
@@ -68,6 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const locale = await getLocale();
+  const dict = dictionaries[locale];
 
   return (
     <html lang={locale} className={`${bebas.variable} ${montserrat.variable}`}>
@@ -79,16 +81,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <Header
-          locale={locale}
-          user={
-            user
-              ? { id: user.id, email: user.email ?? "", role, avatarUrl, displayName }
-              : null
-          }
-        />
-        <main>{children}</main>
-        <Footer />
+        {/* DictProvider lets any client component in the tree read translations
+            via useDict() without prop-drilling. Server components keep calling
+            getDictionary() from lib/i18n directly. */}
+        <DictProvider dict={dict} locale={locale}>
+          <Header
+            locale={locale}
+            user={
+              user
+                ? { id: user.id, email: user.email ?? "", role, avatarUrl, displayName }
+                : null
+            }
+          />
+          <main>{children}</main>
+          <Footer />
+        </DictProvider>
       </body>
     </html>
   );
