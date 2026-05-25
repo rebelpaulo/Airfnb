@@ -64,10 +64,12 @@ declare
   v_organizer_share numeric;
 begin
   -- Read from settings table; fall back to the historical 25/25 split.
-  -- (p_application is still part of the signature so callers don't change,
-  --  but the calculation no longer depends on application data.)
-  v_platform_fee    := public.airfnb_setting_int('lock_fee.platform_fee',    25);
-  v_organizer_share := public.airfnb_setting_int('lock_fee.organizer_share', 25);
+  -- Clamp to >= 0 so an admin typo (negative number) can't produce a
+  -- negative lock-fee. (p_application is still part of the signature
+  -- so callers don't change, but the calculation no longer depends on
+  -- application data.)
+  v_platform_fee    := greatest(0, public.airfnb_setting_int('lock_fee.platform_fee',    25));
+  v_organizer_share := greatest(0, public.airfnb_setting_int('lock_fee.organizer_share', 25));
 
   return jsonb_build_object(
     'platform_fee',    v_platform_fee,
@@ -90,7 +92,8 @@ as $$
 declare
   v_max int;
 begin
-  v_max := public.airfnb_setting_int('rate_limit.event_requests_per_day', 10);
+  -- Clamp to >= 1 so an admin setting of 0 doesn't block every insert.
+  v_max := greatest(1, public.airfnb_setting_int('rate_limit.event_requests_per_day', 10));
   if not public.airfnb_check_rate_limit(
        'event_request_create',
        new.organizer_id::text,
@@ -111,7 +114,8 @@ as $$
 declare
   v_max int;
 begin
-  v_max := public.airfnb_setting_int('rate_limit.applications_per_day_per_truck', 50);
+  -- Clamp to >= 1 so an admin setting of 0 doesn't block every insert.
+  v_max := greatest(1, public.airfnb_setting_int('rate_limit.applications_per_day_per_truck', 50));
   if not public.airfnb_check_rate_limit(
        'application_submit',
        new.truck_id::text,
