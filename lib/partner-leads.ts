@@ -8,10 +8,21 @@
 "use server";
 
 import { supabaseServer } from "@/lib/supabase/server";
+import { getSetting } from "@/lib/settings";
 
 export type LeadKind = "venues" | "guest_mgmt" | "music" | "marketing";
 
-const ENV_TO_KIND: Record<LeadKind, string> = {
+// First place we look is `airfnb_platform_settings` (edited via
+// /admin/definicoes). Env vars are now the *fallback* — kept so a fresh
+// install without DB rows still works, and so the team can override per
+// preview environment without touching the DB.
+const SETTING_KEY_BY_KIND: Record<LeadKind, string> = {
+  venues:     "partner_email_venues",
+  guest_mgmt: "partner_email_guest_mgmt",
+  music:      "partner_email_music",
+  marketing:  "partner_email_marketing",
+};
+const ENV_FALLBACK_BY_KIND: Record<LeadKind, string> = {
   venues:     "PARTNER_EMAIL_VENUES",
   guest_mgmt: "PARTNER_EMAIL_GUEST_MGMT",
   music:      "PARTNER_EMAIL_MUSIC",
@@ -73,9 +84,13 @@ export async function submitPartnerLead(
     return { ok: false, error: `Não conseguimos guardar o pedido: ${error.message}` };
   }
 
-  // Fire-and-forget email notification. If env not configured we just
-  // skip — the lead is already saved and visible in /admin.
-  const to = process.env[ENV_TO_KIND[kind]];
+  // Fire-and-forget email notification. Look up the destination from
+  // /admin/definicoes first; if blank, fall back to the env var so a
+  // first-time deploy works before the team has touched the settings page.
+  const to = await getSetting(
+    SETTING_KEY_BY_KIND[kind],
+    process.env[ENV_FALLBACK_BY_KIND[kind]],
+  );
   if (to) {
     try {
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`;

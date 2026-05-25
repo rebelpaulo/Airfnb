@@ -769,6 +769,7 @@ export const dictionaries = {
       empty_pending:           "Sem trucks pendentes.",
       submitted_by:            "submetido por",
       review:                  "Rever",
+      settings_link:           "⚙️ Definições",
     },
     admin_trucks: {
       breadcrumb_current:      "Trucks pendentes",
@@ -2043,6 +2044,7 @@ export const dictionaries = {
       empty_pending:           "No pending trucks.",
       submitted_by:            "submitted by",
       review:                  "Review",
+      settings_link:           "⚙️ Settings",
     },
     admin_trucks: {
       breadcrumb_current:      "Pending trucks",
