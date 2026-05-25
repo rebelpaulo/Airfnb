@@ -22,7 +22,14 @@ export async function GET() {
     (supa as any).from("airfnb_applications").select("*, airfnb_trucks!inner(owner_id)").eq("airfnb_trucks.owner_id", user.id),
     (supa as any).from("airfnb_bookings").select("*").eq("organizer_id", user.id),
     (supa as any).from("airfnb_reviews").select("*").eq("organizer_id", user.id),
-    (supa as any).from("airfnb_organizer_reviews").select("*").eq("organizer_id", user.id),
+    // organizer_reviews is the truck-rates-organizer direction; authorship
+    // is via truck_id → airfnb_trucks.owner_id. Filtering on organizer_id
+    // would return reviews ABOUT the user (already covered for organizers
+    // by RLS on the underlying table) rather than the ones the user
+    // authored as truck owner.
+    (supa as any).from("airfnb_organizer_reviews")
+      .select("*, airfnb_trucks!inner(owner_id)")
+      .eq("airfnb_trucks.owner_id", user.id),
     (supa as any).from("airfnb_notifications").select("*").eq("user_id", user.id),
     (supa as any).from("airfnb_messages").select("*").eq("sender_id", user.id),
     (supa as any).from("airfnb_lock_fees").select("*"),  // RLS scopes to caller

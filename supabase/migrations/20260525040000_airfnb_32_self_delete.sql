@@ -28,6 +28,27 @@ begin
          vat_number = null, avatar_url = null
    where id = v_uid;
 
+  -- Several airfnb_profiles FKs aren't ON DELETE CASCADE. Some target columns
+  -- are NOT NULL (event_requests.organizer_id, events.organizer_id,
+  -- organizer_reviews.organizer_id) so we DELETE the dependent rows instead
+  -- of nulling. Others are nullable (bookings.organizer_id, messages.sender_id,
+  -- reviews.organizer_id) — we null those to preserve the counter-party's
+  -- view of the conversation / booking trail.
+  --
+  -- Tables intentionally untouched (legal retention):
+  --   airfnb_lock_fees, airfnb_payments — referenced indirectly via cascading
+  --   parents; the underlying rows survive because we don't touch them.
+  update public.airfnb_bookings    set organizer_id = null where organizer_id = v_uid;
+  update public.airfnb_messages    set sender_id    = null where sender_id    = v_uid;
+  update public.airfnb_reviews     set organizer_id = null where organizer_id = v_uid;
+
+  delete from public.airfnb_organizer_reviews          where organizer_id = v_uid;
+  delete from public.airfnb_event_requests             where organizer_id = v_uid;
+  delete from public.airfnb_events                     where organizer_id = v_uid;
+  delete from public.airfnb_conversation_participants  where user_id      = v_uid;
+  delete from public.airfnb_notifications              where user_id      = v_uid;
+  delete from public.airfnb_favorites                  where user_id      = v_uid;
+
   delete from public.airfnb_profiles where id = v_uid;
 end $$;
 revoke execute on function public.airfnb_self_delete() from public, anon;
