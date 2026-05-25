@@ -1,4 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Equipa",
+  description:
+    "Conhece a equipa Air F&B — pequena, baseada em Lisboa, com experiência em marketplaces, eventos e restauração.",
+  alternates: { canonical: "/equipa" },
+};
 
 export default function EquipaPage() {
   return (

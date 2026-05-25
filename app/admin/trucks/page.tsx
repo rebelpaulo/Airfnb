@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -56,8 +57,14 @@ export default async function AdminTrucksQueuePage() {
       <div style={{ display: "grid", gap: 16, marginTop: 22 }}>
         {trucks.map((t) => (
           <article id={t.id} key={t.id} style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 18, display: "grid", gridTemplateColumns: "180px 1fr", gap: 18, alignItems: "start" }}>
-            <div className="thumb" style={{ aspectRatio: "4/3", borderRadius: 10, overflow: "hidden" }}>
-              <img src={truckCover(t.cover_url)} alt={t.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <div className="thumb" style={{ aspectRatio: "4/3", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+              <Image
+                src={truckCover(t.cover_url)}
+                alt={t.name}
+                fill
+                sizes="180px"
+                style={{ objectFit: "cover" }}
+              />
             </div>
             <div style={{ display: "grid", gap: 10 }}>
               <div>

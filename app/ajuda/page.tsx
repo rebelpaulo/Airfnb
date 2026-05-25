@@ -1,4 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Ajuda",
+  description:
+    "Tira dúvidas sobre publicar eventos, registar trucks ou receber propostas — a equipa Air F&B responde em horas úteis.",
+  alternates: { canonical: "/ajuda" },
+};
 
 export default function AjudaPage() {
   return (

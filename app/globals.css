@@ -30,6 +30,18 @@
   --radius-lg: 22px;
   --radius-pill: 999px;
   --container: 1280px;
+
+  /* Status tokens — unify error / success / info across the app.
+     Previously each component picked its own #FFE5E0, #FFE6DF, #FFF6F2, etc. */
+  --error-bg:    #FFE5E0;
+  --error-text:  #8B1100;
+  --error-line:  #FFCBC0;
+  --success-bg:  #F1FBF5;
+  --success-text:#0F7B4F;
+  --success-line:#C5EBD3;
+  --info-bg:     #FFF6F2;
+  --info-text:   #B83A0F;
+  --info-line:   #FFE0D2;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +49,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: "Montserrat", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-montserrat, "Montserrat"), system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
@@ -54,7 +66,7 @@ img { display: block; max-width: 100%; height: auto; }
 }
 
 .h-display {
-  font-family: "Bebas Neue", "Oswald", Impact, sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), Oswald, Impact, sans-serif;
   font-weight: 400;
   letter-spacing: 0.5px;
   line-height: 1.05;
@@ -98,7 +110,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   gap: 14px;
 }
 .site-header .brand .logo {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 28px;
   color: #fff;
   letter-spacing: 0.5px;
@@ -127,7 +139,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   gap: 36px;
   margin: 0;
   padding: 0;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   letter-spacing: 0.6px;
 }
@@ -179,7 +191,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   transform: scaleX(1.25);
 }
 .hero .logo-mark {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: clamp(110px, 18vw, 230px);
   line-height: 0.85;
   letter-spacing: -2px;
@@ -262,7 +274,7 @@ body:has(.hero) .site-header:not(.scrolled) {
    ===================================================================== */
 .section { padding: 80px 0; }
 .section-title {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: clamp(36px, 5vw, 56px);
   line-height: 1.05;
@@ -348,7 +360,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 }
 .truck-card .info { padding: 14px 4px 6px; }
 .truck-card h3 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   margin: 0;
   letter-spacing: 0.4px;
@@ -397,7 +409,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 }
 .how-section .head .titles .eyebrow { color: rgba(255,255,255,0.85); }
 .how-section .head .titles h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: clamp(34px, 4vw, 48px);
   margin: 4px 0 0;
 }
@@ -416,7 +428,52 @@ body:has(.hero) .site-header:not(.scrolled) {
   transition: background 0.2s, transform 0.15s;
   font-family: inherit;
 }
-.btn-pill:hover { background: var(--orange-deep); transform: translateY(-1px); }
+.btn-pill:hover:not(:disabled) { background: var(--orange-deep); transform: translateY(-1px); }
+.btn-pill:disabled,
+.btn-pill[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+/* Spinner adornment shown inside any button that has `.busy` toggled */
+.btn-pill.busy {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+.btn-pill.busy::after {
+  content: "";
+  position: absolute;
+  width: 16px; height: 16px;
+  top: 50%; left: 50%;
+  margin: -8px 0 0 -8px;
+  border: 2px solid rgba(255,255,255,0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: airfnb-spin 0.7s linear infinite;
+}
+@keyframes airfnb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn-pill.busy::after { animation: none; }
+}
+
+/* Active-filter chips shown above the catalog grid. Informative chip with
+   a light hover so they read as "click to remove". */
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--info-bg);
+  color: var(--orange-deep);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--info-line);
+  transition: background 0.15s, border-color 0.15s;
+}
+.active-filter-chip:hover { background: #FFE9DC; border-color: #FFB89A; }
+
 .btn-pill.outline {
   background: transparent;
   border: 2px solid #fff;
@@ -429,12 +486,12 @@ body:has(.hero) .site-header:not(.scrolled) {
   gap: 50px;
 }
 .step .num {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 28px;
   color: rgba(255,255,255,0.6);
 }
 .step h3 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 24px;
   margin: 6px 0 14px;
 }
@@ -481,7 +538,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   left: 22px;
   bottom: 18px;
   color: #fff;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 26px;
   z-index: 2;
   letter-spacing: 0.5px;
@@ -504,7 +561,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   justify-content: center;
 }
 .alt-left h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: clamp(40px, 5.4vw, 64px);
   line-height: 1;
@@ -528,7 +585,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   max-width: 720px;
 }
 .feature-grid h4 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   margin: 0 0 8px;
   letter-spacing: 0.4px;
@@ -557,7 +614,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   align-items: center;
   justify-content: center;
   color: var(--teal);
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 28px;
   line-height: 1;
   text-align: center;
@@ -601,7 +658,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   left: 18px;
   bottom: 18px;
   color: #fff;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   z-index: 2;
   letter-spacing: 0.4px;
@@ -618,7 +675,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   align-items: center;
 }
 .blog-teaser h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: clamp(36px, 4.8vw, 56px);
   line-height: 1.05;
@@ -675,7 +732,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 }
 .community-right .eyebrow { color: rgba(255,255,255,0.85); }
 .community-right h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: clamp(40px, 5.5vw, 60px);
   line-height: 1;
   margin: 6px 0 22px;
@@ -687,7 +744,7 @@ body:has(.hero) .site-header:not(.scrolled) {
    ===================================================================== */
 .faq-section { padding: 80px 0; }
 .faq-section h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   text-align: center;
   color: var(--orange);
   font-size: clamp(38px, 5vw, 56px);
@@ -740,7 +797,7 @@ body:has(.hero) .site-header:not(.scrolled) {
    ===================================================================== */
 .contact-cta { padding: 60px 0 90px; text-align: center; }
 .contact-cta h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: clamp(40px, 5vw, 56px);
   margin: 0 0 12px;
@@ -757,7 +814,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   text-align: center;
 }
 .site-footer .newsletter h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   margin: 0 0 18px;
   font-weight: 400;
@@ -878,7 +935,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   color: #fff;
 }
 .page-hero h1 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: clamp(38px, 6vw, 64px);
   margin: 16px 0;
   line-height: 1.05;
@@ -912,13 +969,13 @@ body:has(.hero) .site-header:not(.scrolled) {
    ===================================================================== */
 .content-page { padding: 130px 0 80px; }
 .content-page h1 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: clamp(40px, 5vw, 58px);
   margin: 0 0 18px;
 }
 .content-page h2 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--teal);
   font-size: 28px;
   margin: 36px 0 12px;
@@ -951,12 +1008,12 @@ body:has(.hero) .site-header:not(.scrolled) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 64px;
   color: var(--orange-deep);
 }
 .team-card h3 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   margin: 14px 0 4px;
   letter-spacing: 0.4px;
@@ -988,7 +1045,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 }
 .blog-card .body { padding: 18px 20px 22px; }
 .blog-card h3 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 22px;
   margin: 0 0 8px;
 }
@@ -1031,7 +1088,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 }
 .drawer.open { transform: translateX(0); }
 .drawer h4 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: 16px;
   letter-spacing: 1.5px;
   margin: 18px 0 6px;
@@ -1104,7 +1161,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 .dual-hero__side--orange { background: var(--orange-hero); }
 .dual-hero__side--teal   { background: var(--teal); }
 .dual-hero__side h1 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   font-size: clamp(38px, 4.5vw, 58px);
   line-height: 1.02;
   margin: 10px 0 16px;
@@ -1147,7 +1204,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   border-left: 4px solid var(--orange);
 }
 .request-card:hover { transform: translateY(-2px); }
-.request-card h3 { font-family: "Bebas Neue", sans-serif; font-size: 24px; margin: 0; }
+.request-card h3 { font-family: var(--font-bebas, "Bebas Neue"), sans-serif; font-size: 24px; margin: 0; }
 .request-card .row { display: flex; gap: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
 .request-card .row span { display: inline-flex; gap: 4px; align-items: center; }
 .request-card .row .material-symbols-outlined { font-size: 16px; color: var(--orange); }
@@ -1165,7 +1222,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   padding: 0 24px;
 }
 .wizard h1 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: 42px;
   margin: 0 0 8px;
@@ -1282,7 +1339,7 @@ body:has(.hero) .site-header:not(.scrolled) {
   padding: 36px 32px;
 }
 .auth-card h1 {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), sans-serif;
   color: var(--orange);
   font-size: 34px;
   margin: 0 0 8px;
@@ -1303,7 +1360,15 @@ body:has(.hero) .site-header:not(.scrolled) {
   font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: var(--radius-pill);
 }
 .auth-card .role-toggle button.on { background: var(--orange); color: #fff; }
-.auth-card .error { background: #FFE5E0; color: #8B1100; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+.auth-card .error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-line);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
 .auth-card .switch-link { display: block; text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
 .auth-card .switch-link a { color: var(--orange); font-weight: 600; }
 
@@ -1328,7 +1393,7 @@ body:has(.hero) .site-header:not(.scrolled) {
 .dash {
   max-width: 1200px; margin: 110px auto 80px; padding: 0 24px;
 }
-.dash h1 { font-family: "Bebas Neue", sans-serif; color: var(--orange); font-size: 38px; margin: 0 0 22px; }
+.dash h1 { font-family: var(--font-bebas, "Bebas Neue"), sans-serif; color: var(--orange); font-size: 38px; margin: 0 0 22px; }
 .dash .stat-strip {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px;
 }
@@ -1338,9 +1403,9 @@ body:has(.hero) .site-header:not(.scrolled) {
   box-shadow: var(--shadow-card);
 }
 .dash .stat .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
-.dash .stat .value { font-family: "Bebas Neue", sans-serif; font-size: 32px; color: var(--orange); margin-top: 4px; }
+.dash .stat .value { font-family: var(--font-bebas, "Bebas Neue"), sans-serif; font-size: 32px; color: var(--orange); margin-top: 4px; }
 .dash .empty {
-  background: #FFF6F2; border: 1px dashed #FFB89A; border-radius: var(--radius-md);
+  background: var(--info-bg); border: 1px dashed var(--info-line); border-radius: var(--radius-md);
   padding: 36px; text-align: center; color: var(--muted);
 }
 

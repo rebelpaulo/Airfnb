@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
@@ -89,8 +90,13 @@ export default async function TruckDashboard() {
         {trucks.map((t) => (
           <Link key={t.id} href={`/dashboard/truck/${t.id}`} className="truck-card">
             <div className="thumb" style={{ position: "relative" }}>
-              <img src={truckCover(coverByTruck[t.id])} alt={t.name}
-                   style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Image
+                src={truckCover(coverByTruck[t.id])}
+                alt={t.name}
+                fill
+                sizes="(max-width: 600px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                style={{ objectFit: "cover" }}
+              />
               <span style={{
                 position: "absolute", top: 10, left: 10,
                 background: t.status === "active" ? "#10A37F"

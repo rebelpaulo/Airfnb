@@ -1,5 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description:
+    "Inspiração, dicas e histórias para organizadores de eventos e donos de food trucks em Portugal.",
+  alternates: { canonical: "/blog" },
+};
 
 export const revalidate = 120;
 

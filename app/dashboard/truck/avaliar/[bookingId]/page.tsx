@@ -124,8 +124,8 @@ export default async function AvaliarOrganizerPage({
             <section key={bt.truck_id} style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
               <h2 style={{ margin: 0, fontSize: 18 }}>Em nome de: {t?.name ?? "—"}</h2>
               {existing ? (
-                <div style={{ marginTop: 14, padding: 14, background: "#F1FBF5", border: "1px solid #C5EBD3", borderRadius: 10 }}>
-                  <strong style={{ color: "#0F7B4F" }}>★ {existing.rating_overall} — já avaliaste</strong>
+                <div style={{ marginTop: 14, padding: 14, background: "var(--success-bg)", border: "1px solid var(--success-line)", borderRadius: "var(--radius-sm)" }}>
+                  <strong style={{ color: "var(--success-text)" }}>★ {existing.rating_overall} — já avaliaste</strong>
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap", color: "var(--ink)" }}>{existing.body}</p>
                 </div>
               ) : (
