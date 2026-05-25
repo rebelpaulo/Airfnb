@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { StarRating } from "@/components/StarRating";
+import { getDictionary } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,10 @@ export default async function AvaliarTrucksPage({
   async function submitReview(formData: FormData) {
     "use server";
     const supa = await supabaseServer();
+    const dict = await getDictionary();
+    const e = dict.dashboard.organizer_review;
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(e.err_auth);
 
     const truckId = String(formData.get("truck_id") ?? "");
     const food    = Number(formData.get("rating_food") ?? 0);
@@ -60,9 +63,9 @@ export default async function AvaliarTrucksPage({
     const valueR  = Number(formData.get("rating_value") ?? 0);
     const body    = String(formData.get("body") ?? "").trim();
 
-    if (!truckId)                                                throw new Error("Truck inválido.");
-    if (![food, service, valueR].every((n) => n >= 1 && n <= 5)) throw new Error("Indica 1–5 estrelas em cada categoria.");
-    if (body.length < 20)                                        throw new Error("Comentário deve ter pelo menos 20 caracteres.");
+    if (!truckId)                                                throw new Error(e.err_invalid_truck);
+    if (![food, service, valueR].every((n) => n >= 1 && n <= 5)) throw new Error(e.err_rating_range);
+    if (body.length < 20)                                        throw new Error(e.err_comment_short);
 
     // Re-check booking ownership + status server-side (form fields are user-controlled)
     const { data: b } = await (supa as any)
@@ -70,9 +73,9 @@ export default async function AvaliarTrucksPage({
       .select("id, organizer_id, status")
       .eq("id", bookingId)
       .maybeSingle();
-    if (!b || b.organizer_id !== user.id) throw new Error("Sem permissão.");
+    if (!b || b.organizer_id !== user.id) throw new Error(e.err_no_perm);
     if (b.status !== "confirmed" && b.status !== "completed") {
-      throw new Error("Só podes avaliar bookings confirmados.");
+      throw new Error(e.err_booking_status);
     }
 
     // Verify the truck_id is actually part of this booking — otherwise a
@@ -84,7 +87,7 @@ export default async function AvaliarTrucksPage({
       .eq("booking_id", bookingId)
       .eq("truck_id", truckId)
       .maybeSingle();
-    if (!membership) throw new Error("Este truck não participou neste evento.");
+    if (!membership) throw new Error(e.err_truck_not_in_booking);
 
     const rating_overall = Math.round(((food + service + valueR) / 3) * 10) / 10;
 
@@ -100,51 +103,54 @@ export default async function AvaliarTrucksPage({
       is_verified:    true,
     });
     if (error) {
-      if (error.code === "23505") throw new Error("Já avaliaste este truck para este evento.");
+      if (error.code === "23505") throw new Error(e.err_duplicate_review);
       throw new Error(error.message);
     }
     revalidatePath(`/dashboard/organizer/avaliar/${bookingId}`);
   }
 
+  const dict = await getDictionary();
+  const t = dict.dashboard.organizer_review;
+
   return (
     <div className="dash" style={{ maxWidth: 820 }}>
       <nav className="breadcrumb">
-        <Link href="/dashboard/organizer">Dashboard</Link> &nbsp;/&nbsp; <span>Avaliar trucks</span>
+        <Link href="/dashboard/organizer">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_current}</span>
       </nav>
-      <h1 style={{ margin: 0 }}>Avaliar {(booking.airfnb_events as any)?.title ?? "evento"}</h1>
+      <h1 style={{ margin: 0 }}>{t.heading_prefix}{(booking.airfnb_events as any)?.title ?? t.heading_fallback_event}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        A tua opinião ajuda outros organizadores a escolher. Avalia cada truck que participou.
+        {t.subtitle}
       </p>
 
       <div style={{ display: "grid", gap: 18, marginTop: 22 }}>
         {truckRows.map((bt) => {
-          const t = bt.airfnb_trucks;
+          const truck = bt.airfnb_trucks;
           const existing = reviewByTruck.get(bt.truck_id);
           return (
             <section key={bt.truck_id} style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
-              <h2 style={{ margin: 0, fontSize: 20 }}>{t?.name ?? "—"}</h2>
+              <h2 style={{ margin: 0, fontSize: 20 }}>{truck?.name ?? t.truck_dash}</h2>
               <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>
-                {t?.base_city ?? "—"}
+                {truck?.base_city ?? t.truck_dash}
               </div>
 
               {existing ? (
                 <div style={{ marginTop: 14, padding: 14, background: "var(--success-bg)", border: "1px solid var(--success-line)", borderRadius: "var(--radius-sm)" }}>
-                  <strong style={{ color: "var(--success-text)" }}>★ {existing.rating_overall} — já avaliaste</strong>
+                  <strong style={{ color: "var(--success-text)" }}>{t.already_rated_prefix}{existing.rating_overall}{t.already_rated_suffix}</strong>
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap", color: "var(--ink)" }}>{existing.body}</p>
                 </div>
               ) : (
                 <form action={submitReview} style={{ marginTop: 14, display: "grid", gap: 14 }}>
                   <input type="hidden" name="truck_id" value={bt.truck_id} />
-                  <StarRating name="rating_food"    label="Comida"     required />
-                  <StarRating name="rating_service" label="Serviço"    required />
-                  <StarRating name="rating_value"   label="Relação preço/qualidade" required />
+                  <StarRating name="rating_food"    label={t.label_food}    required />
+                  <StarRating name="rating_service" label={t.label_service} required />
+                  <StarRating name="rating_value"   label={t.label_value}   required />
                   <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>Comentário</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{t.label_comment}</span>
                     <textarea name="body" required minLength={20} rows={4}
-                      placeholder="O que correu bem? Recomendarias?" />
+                      placeholder={t.comment_placeholder} />
                   </label>
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button type="submit" className="btn-pill">Publicar avaliação</button>
+                    <button type="submit" className="btn-pill">{t.submit_cta}</button>
                   </div>
                 </form>
               )}

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export default async function ManageRequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -68,25 +69,32 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
 
+  const dict = await getDictionary();
+  const locale = await getLocale();
+  const t = dict.dashboard.organizer_request_detail;
+  const requestStatusMap = dict.vocab.request_status as Record<string, string>;
+  const applicationStatusMap = dict.vocab.application_status as Record<string, string>;
+  const dateLocale = locale === "pt" ? "pt-PT" : "en-GB";
+
   return (
     <div className="dash">
       <nav className="breadcrumb">
-        <Link href="/dashboard/organizer">Dashboard</Link> &nbsp;/&nbsp; <span>{req.title}</span>
+        <Link href="/dashboard/organizer">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{req.title}</span>
       </nav>
       <h1>{req.title}</h1>
       <div className="stat-strip">
-        <div className="stat"><div className="label">Estado</div><div className="value" style={{ fontSize: 22 }}>{req.status}</div></div>
-        <div className="stat"><div className="label">Quando</div><div className="value" style={{ fontSize: 18 }}>
-          {new Date(req.start_at).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+        <div className="stat"><div className="label">{t.stat_status}</div><div className="value" style={{ fontSize: 22 }}>{requestStatusMap[req.status] ?? req.status}</div></div>
+        <div className="stat"><div className="label">{t.stat_when}</div><div className="value" style={{ fontSize: 18 }}>
+          {new Date(req.start_at).toLocaleString(dateLocale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
         </div></div>
-        <div className="stat"><div className="label">Slots</div><div className="value">{req.slots_needed}</div></div>
-        <div className="stat"><div className="label">Candidaturas</div><div className="value">{applications.length}</div></div>
+        <div className="stat"><div className="label">{t.stat_slots}</div><div className="value">{req.slots_needed}</div></div>
+        <div className="stat"><div className="label">{t.stat_applications}</div><div className="value">{applications.length}</div></div>
       </div>
 
-      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)" }}>Propostas recebidas</h2>
+      <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)" }}>{t.section_proposals}</h2>
 
       {applications.length === 0 ? (
-        <div className="empty">Ainda sem candidaturas. Os trucks vão receber o teu pedido em minutos.</div>
+        <div className="empty">{t.empty_applications}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {applications.map((a: any) => (
@@ -94,22 +102,22 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
               a.status === "accepted" ? "#10A37F" : a.status === "rejected" ? "#888" : a.status === "shortlisted" ? "#1F5B65" : "var(--orange)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <h3>{a.airfnb_trucks?.name ?? "—"}</h3>
+                  <h3>{a.airfnb_trucks?.name ?? t.truck_dash}</h3>
                   <div className="row">
                     <span><span className="material-symbols-outlined">location_on</span>{a.airfnb_trucks?.base_city}</span>
                     <span>★ {Number(a.airfnb_trucks?.rating_avg ?? 0).toFixed(1)} ({a.airfnb_trucks?.rating_count ?? 0})</span>
                   </div>
                 </div>
-                <span className="match-badge">{a.status}</span>
+                <span className="match-badge">{applicationStatusMap[a.status] ?? a.status}</span>
               </div>
 
               <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.55 }}>{a.cover_message}</p>
 
               <div className="row" style={{ gap: 14, fontSize: 13 }}>
-                <span><strong>Total esperado:</strong> {money(a.proposed_price)}</span>
-                <span><strong>Deal:</strong> {a.deal_type}</span>
-                {a.proposed_fixed_to_organizer > 0 && <span><strong>Fixo:</strong> {money(a.proposed_fixed_to_organizer)}</span>}
-                {a.proposed_revenue_share_pct > 0 && <span><strong>%:</strong> {a.proposed_revenue_share_pct}%</span>}
+                <span><strong>{t.label_total_expected}</strong> {money(a.proposed_price)}</span>
+                <span><strong>{t.label_deal}</strong> {a.deal_type}</span>
+                {a.proposed_fixed_to_organizer > 0 && <span><strong>{t.label_fixed}</strong> {money(a.proposed_fixed_to_organizer)}</span>}
+                {a.proposed_revenue_share_pct > 0 && <span><strong>{t.label_percent}</strong> {a.proposed_revenue_share_pct}%</span>}
               </div>
 
               {a.status === "accepted" && (
@@ -118,7 +126,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                     <Link href={`/dashboard/conversa/${convByApp.get(a.id)}`} className="btn-pill outline"
                           style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
-                      Abrir conversa
+                      {t.open_conversation}
                     </Link>
                   )}
                   {(() => {
@@ -135,13 +143,13 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                             rel="noopener noreferrer"
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>event</span>
-                            Adicionar ao calendário
+                            {t.add_to_calendar}
                           </a>
                         )}
                         <Link href={`/dashboard/organizer/avaliar/${b.id}`} className="btn-pill"
                               style={{ padding: "8px 18px", display: "inline-flex", alignItems: "center", gap: 6 }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span>
-                          Avaliar truck
+                          {t.rate_truck}
                         </Link>
                       </>
                     );
@@ -154,17 +162,17 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                   {a.status === "submitted" && (
                     <form action={shortlist}>
                       <input type="hidden" name="application_id" value={a.id} />
-                      <button className="btn-pill outline" type="submit" style={{ padding: "8px 18px" }}>Shortlist</button>
+                      <button className="btn-pill outline" type="submit" style={{ padding: "8px 18px" }}>{t.action_shortlist}</button>
                     </form>
                   )}
                   <form action={accept}>
                     <input type="hidden" name="application_id" value={a.id} />
-                    <button className="btn-pill" type="submit" style={{ padding: "8px 18px" }}>Aceitar</button>
+                    <button className="btn-pill" type="submit" style={{ padding: "8px 18px" }}>{t.action_accept}</button>
                   </form>
                   <form action={reject}>
                     <input type="hidden" name="application_id" value={a.id} />
                     <input type="hidden" name="reason" value="rejected_by_organizer" />
-                    <button className="btn-pill" type="submit" style={{ padding: "8px 18px", background: "#888" }}>Rejeitar</button>
+                    <button className="btn-pill" type="submit" style={{ padding: "8px 18px", background: "#888" }}>{t.action_reject}</button>
                   </form>
                 </div>
               )}
