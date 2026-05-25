@@ -159,7 +159,7 @@ export default async function OportunidadeDetailPage({
       <header style={{ marginTop: 14 }}>
         <h1 style={{ margin: 0 }}>{req.title}</h1>
         <div style={{ color: "var(--muted)", marginTop: 6 }}>
-          {fmtDate(req.start_at)} · {req.city ?? "—"} · {req.expected_pax} pax · {req.slots_needed ?? 1} truck(s)
+          {fmtDate(req.start_at)} · {req.city ?? req.locality ?? "—"} · {req.expected_pax} pax · {req.slots_needed ?? 1} truck(s)
           {req.budget_min || req.budget_max
             ? ` · orçamento ${money(req.budget_min ?? 0)} – ${money(req.budget_max ?? 0)}`
             : ""}
@@ -170,6 +170,56 @@ export default async function OportunidadeDetailPage({
           </p>
         )}
       </header>
+
+      {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes) && (
+        <section style={{ marginTop: 18, padding: 18, background: "#fff", border: "1px solid var(--line)", borderRadius: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 15, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 700 }}>
+            Briefing do organizador
+          </h2>
+          <dl style={{ marginTop: 12, display: "grid", gridTemplateColumns: "180px 1fr", rowGap: 8, columnGap: 14, fontSize: 14 }}>
+            {req.desired_cuisines?.length > 0 && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Cozinhas pretendidas</dt>
+                <dd style={{ margin: 0 }}>{req.desired_cuisines.join(", ")}</dd>
+              </>
+            )}
+            {req.dietary_requirements?.length > 0 && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Restrições alimentares</dt>
+                <dd style={{ margin: 0 }}>{req.dietary_requirements.join(", ")}</dd>
+              </>
+            )}
+            {req.energy_need && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Necessidade de energia</dt>
+                <dd style={{ margin: 0 }}>
+                  {labelEnergy(req.energy_need)}
+                  {req.power_available ? " · disponível no local" : ""}
+                  {req.energy_assistance ? " · assistência fornecida" : ""}
+                </dd>
+              </>
+            )}
+            {req.sanitation_level && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Sanitação</dt>
+                <dd style={{ margin: 0 }}>{labelSanitation(req.sanitation_level)}</dd>
+              </>
+            )}
+            {req.setup_minutes && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Tempo de setup</dt>
+                <dd style={{ margin: 0 }}>{req.setup_minutes} min</dd>
+              </>
+            )}
+            {req.address_line && (
+              <>
+                <dt style={{ color: "var(--muted)" }}>Morada</dt>
+                <dd style={{ margin: 0 }}>{req.address_line}</dd>
+              </>
+            )}
+          </dl>
+        </section>
+      )}
 
       {existingApp ? (
         <section style={{ marginTop: 26, padding: 20, border: "1px solid var(--line)", borderRadius: 14, background: "#F8FFF9" }}>
@@ -231,4 +281,22 @@ export default async function OportunidadeDetailPage({
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function labelEnergy(v: string): string {
+  switch (v) {
+    case "nao_preciso": return "Não preciso";
+    case "ate_3kw":     return "Até 3 kW";
+    case "3_a_10kw":    return "3 – 10 kW";
+    case "mais_10kw":   return "Mais de 10 kW";
+    default: return v;
+  }
+}
+function labelSanitation(v: string): string {
+  switch (v) {
+    case "none":        return "Sem necessidade";
+    case "wc_proximo":  return "WC próximo do local";
+    case "wc_dedicado": return "WC dedicado";
+    default: return v;
+  }
 }
