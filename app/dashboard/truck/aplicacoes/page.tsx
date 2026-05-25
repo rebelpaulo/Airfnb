@@ -33,12 +33,12 @@ export default async function MinhasCandidaturasPage() {
   const [convsRes, bookingsRes] = appIds.length
     ? await Promise.all([
         (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
-        (supa as any).from("airfnb_bookings").select("id, application_id, status").in("application_id", appIds),
+        (supa as any).from("airfnb_bookings").select("id, application_id, status, ics_token").in("application_id", appIds),
       ])
     : [{ data: [] }, { data: [] }];
   const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
-  const bookingByApp = new Map<string, { id: string; status: string }>(
-    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status }]),
+  const bookingByApp = new Map<string, { id: string; status: string; ics_token: string | null }>(
+    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status, ics_token: b.ics_token }]),
   );
 
   return (
@@ -76,9 +76,18 @@ export default async function MinhasCandidaturasPage() {
                       const b = bookingByApp.get(a.id);
                       if (b && (b.status === "confirmed" || b.status === "completed")) {
                         return (
-                          <Link href={`/dashboard/truck/avaliar/${b.id}`} style={{ color: "var(--orange-deep)", fontWeight: 600 }}>
-                            ★ Avaliar organizador →
-                          </Link>
+                          <>
+                            {b.ics_token && (
+                              <a href={`/api/calendar/${b.ics_token}.ics`}
+                                 target="_blank" rel="noopener noreferrer"
+                                 style={{ color: "var(--teal)", fontWeight: 600 }}>
+                                📅 Calendário
+                              </a>
+                            )}
+                            <Link href={`/dashboard/truck/avaliar/${b.id}`} style={{ color: "var(--orange-deep)", fontWeight: 600 }}>
+                              ★ Avaliar organizador →
+                            </Link>
+                          </>
                         );
                       }
                       // Lock fee still pending — show the pay link instead of the review one.

@@ -36,12 +36,12 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   const [convsRes, bookingsRes] = appIds.length
     ? await Promise.all([
         (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
-        (supa as any).from("airfnb_bookings").select("id, application_id, status").in("application_id", appIds),
+        (supa as any).from("airfnb_bookings").select("id, application_id, status, ics_token").in("application_id", appIds),
       ])
     : [{ data: [] }, { data: [] }];
   const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
-  const bookingByApp = new Map<string, { id: string; status: string }>(
-    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status }]),
+  const bookingByApp = new Map<string, { id: string; status: string; ics_token: string | null }>(
+    ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status, ics_token: b.ics_token }]),
   );
 
   async function shortlist(formData: FormData) {
@@ -125,11 +125,25 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                     const b = bookingByApp.get(a.id);
                     if (!b || (b.status !== "confirmed" && b.status !== "completed")) return null;
                     return (
-                      <Link href={`/dashboard/organizer/avaliar/${b.id}`} className="btn-pill"
-                            style={{ padding: "8px 18px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span>
-                        Avaliar truck
-                      </Link>
+                      <>
+                        {b.ics_token && (
+                          <a
+                            href={`/api/calendar/${b.ics_token}.ics`}
+                            className="btn-pill outline"
+                            style={{ padding: "8px 18px", borderColor: "var(--line)", color: "var(--ink)", display: "inline-flex", alignItems: "center", gap: 6 }}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>event</span>
+                            Adicionar ao calendário
+                          </a>
+                        )}
+                        <Link href={`/dashboard/organizer/avaliar/${b.id}`} className="btn-pill"
+                              style={{ padding: "8px 18px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span>
+                          Avaliar truck
+                        </Link>
+                      </>
                     );
                   })()}
                 </div>
