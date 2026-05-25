@@ -252,7 +252,7 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
         style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
       />
       <DotStepper step={step} total={5} />
-      {err && <div style={{ background: "#FFE6DF", color: "#8B1100", padding: "10px 14px", borderRadius: 10, margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
+      {err && <div style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-line)", padding: "10px 14px", borderRadius: "var(--radius-sm)", margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>

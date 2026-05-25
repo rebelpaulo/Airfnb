@@ -228,7 +228,7 @@ export function TruckWizard({ userId, categories }: Props) {
   return (
     <div className="wizard-shell" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 16, padding: 26 }}>
       <Stepper step={step} />
-      {err && <div style={{ background: "#FFE6DF", color: "#8B1100", padding: "10px 14px", borderRadius: 10, margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
+      {err && <div style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-line)", padding: "10px 14px", borderRadius: "var(--radius-sm)", margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>

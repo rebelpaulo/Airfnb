@@ -457,6 +457,23 @@ body:has(.hero) .site-header:not(.scrolled) {
   .btn-pill.busy::after { animation: none; }
 }
 
+/* Active-filter chips shown above the catalog grid. Informative chip with
+   a light hover so they read as "click to remove". */
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--info-bg);
+  color: var(--orange-deep);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--info-line);
+  transition: background 0.15s, border-color 0.15s;
+}
+.active-filter-chip:hover { background: #FFE9DC; border-color: #FFB89A; }
+
 .btn-pill.outline {
   background: transparent;
   border: 2px solid #fff;
