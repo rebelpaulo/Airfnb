@@ -21,6 +21,12 @@ type Props = {
   defaultEmail: string;
   defaultPhone: string;
   categories: Category[];
+  // Pre-populated from /procurar discovery page (or empty if reached directly).
+  defaultCity?: string;
+  defaultStartAt?: string;
+  defaultEndAt?: string;
+  defaultGuests?: number;
+  defaultCuisines?: string[];
 };
 
 // Labels for these chip arrays come from `dict.vocab.*` and `dict.wizard.organizer.*`
@@ -103,7 +109,11 @@ const SELECTION_MODES: Array<{ value: "open_to_offers" | "pick_myself" | "assist
   { value: "assisted",       labelKey: "mode_assisted_label", hintKey: "mode_assisted_hint" },
 ];
 
-export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhone, categories }: Props) {
+export function OrganizerWizard({
+  userId, defaultName, defaultEmail, defaultPhone, categories,
+  defaultCity = "", defaultStartAt = "", defaultEndAt = "",
+  defaultGuests, defaultCuisines = [],
+}: Props) {
   const dict = useDict();
   const t = dict.wizard.organizer;
   const router = useRouter();
@@ -117,18 +127,18 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   const [phone, setPhone] = useState(defaultPhone);
   const [eventTitle, setEventTitle] = useState("");
   const [address, setAddress] = useState("");
-  const [locality, setLocality] = useState("");
+  const [locality, setLocality] = useState(defaultCity);
   const [kind, setKind] = useState("wedding");
-  const [guests, setGuests] = useState(200);
+  const [guests, setGuests] = useState(defaultGuests ?? 200);
   const [trucksWanted, setTrucksWanted] = useState(1);
   const [cateringType, setCateringType] = useState<"food" | "drinks" | "food_and_drinks">("food_and_drinks");
-  const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
+  const [startAt, setStartAt] = useState(defaultStartAt);
+  const [endAt, setEndAt] = useState(defaultEndAt);
   const [budget, setBudget] = useState(500);
   const [budgetFlex, setBudgetFlex] = useState(false);
 
   // ---- Step 2: cuisine + specialties + dietary + notes ----
-  const [cuisines, setCuisines] = useState<string[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>(defaultCuisines);
   const [specialtyIds, setSpecialtyIds] = useState<number[]>([]);
   const [dietary, setDietary] = useState<string[]>([]);
   const [notes, setNotes] = useState("");

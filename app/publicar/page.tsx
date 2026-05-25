@@ -17,10 +17,56 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PublicarPage() {
+// URL params come in from the /procurar discovery page CTA so the wizard's
+// step 1 (location, dates, pax, cuisines) can be pre-populated. Each field
+// is best-effort — missing or malformed values just fall back to the
+// component defaults.
+type Raw = string | string[] | undefined;
+function first(v: Raw): string | undefined {
+  if (v == null) return undefined;
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" ? s.trim() || undefined : undefined;
+}
+function num(v: Raw): number | undefined {
+  const s = first(v);
+  if (!s) return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+function csv(v: Raw): string[] {
+  const s = first(v);
+  if (!s) return [];
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+
+export default async function PublicarPage({ searchParams }: {
+  searchParams: Promise<{ city?: Raw; start_at?: Raw; end_at?: Raw; expected_pax?: Raw; cuisines?: Raw }>;
+}) {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
-  if (!user) redirect("/login?next=/publicar&as=organizer");
+  if (!user) {
+    // Preserve the discovery context across the auth detour. The login page
+    // sends users back to the `next` URL with the same query string, so
+    // /procurar → /login → /publicar?city=... still works.
+    const sp = await searchParams;
+    const qs = new URLSearchParams();
+    const c = first(sp.city);          if (c) qs.set("city", c);
+    const s = first(sp.start_at);      if (s) qs.set("start_at", s);
+    const e = first(sp.end_at);        if (e) qs.set("end_at", e);
+    const p = first(sp.expected_pax);  if (p) qs.set("expected_pax", p);
+    const cu = first(sp.cuisines);     if (cu) qs.set("cuisines", cu);
+    const tail = qs.toString();
+    const next = tail ? `/publicar?${tail}` : "/publicar";
+    redirect(`/login?next=${encodeURIComponent(next)}&as=organizer`);
+  }
+  const sp = await searchParams;
+  const prefill = {
+    city:     first(sp.city) ?? "",
+    startAt:  first(sp.start_at) ?? "",
+    endAt:    first(sp.end_at) ?? "",
+    pax:      num(sp.expected_pax),
+    cuisines: csv(sp.cuisines),
+  };
 
   const dict = await getDictionary();
   const t = dict.gates.publicar;
@@ -54,6 +100,11 @@ export default async function PublicarPage() {
         defaultEmail={profile?.email ?? user.email ?? ""}
         defaultPhone={profile?.phone ?? ""}
         categories={categoriesData ?? []}
+        defaultCity={prefill.city}
+        defaultStartAt={prefill.startAt}
+        defaultEndAt={prefill.endAt}
+        defaultGuests={prefill.pax}
+        defaultCuisines={prefill.cuisines}
       />
     </div>
   );
