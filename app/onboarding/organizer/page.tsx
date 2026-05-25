@@ -2,11 +2,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { getDictionary } from "@/lib/i18n";
 
 export default async function OnboardingOrganizerPage() {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login?next=/onboarding/organizer");
+
+  const dict = await getDictionary();
+  const t = dict.onboarding.organizer;
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
@@ -18,9 +22,11 @@ export default async function OnboardingOrganizerPage() {
 
   async function save(formData: FormData) {
     "use server";
+    const dict = await getDictionary();
+    const t = dict.onboarding.organizer;
     const supa = await supabaseServer();
     const { data: { user } } = await supa.auth.getUser();
-    if (!user) throw new Error("auth required");
+    if (!user) throw new Error(t.err_auth_required);
 
     const full_name    = String(formData.get("full_name") ?? "").trim() || null;
     const phone        = String(formData.get("phone") ?? "").trim() || null;
@@ -48,29 +54,29 @@ export default async function OnboardingOrganizerPage() {
       <div className="steps-pills">
         <span className="on" /><span className="on" /><span className="on" /><span /><span />
       </div>
-      <h1>Bem-vindo 👋</h1>
+      <h1>{t.page_title}</h1>
       <p style={{ color: "var(--muted)", margin: 0 }}>
-        Conta-nos um pouco sobre ti para personalizarmos a experiência. Demora 30 segundos.
+        {t.intro}
       </p>
 
       <div style={{ margin: "26px 0 18px" }}>
         <AvatarUpload userId={user.id} initialUrl={profile?.avatar_url ?? null} />
       </div>
 
-      <label htmlFor="full_name">Nome completo</label>
+      <label htmlFor="full_name">{t.full_name_label}</label>
       <input id="full_name" name="full_name" required defaultValue={profile?.full_name ?? ""} />
 
-      <label htmlFor="phone">Telemóvel</label>
+      <label htmlFor="phone">{t.phone_label}</label>
       <input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ""}
              placeholder="+351 9XX XXX XXX" autoComplete="tel" />
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
         <div>
-          <label htmlFor="company_name">Empresa (opcional)</label>
+          <label htmlFor="company_name">{t.company_label}</label>
           <input id="company_name" name="company_name" defaultValue={profile?.company_name ?? ""} />
         </div>
         <div>
-          <label htmlFor="vat_number">NIF (opcional)</label>
+          <label htmlFor="vat_number">{t.vat_label}</label>
           <input id="vat_number" name="vat_number" defaultValue={profile?.vat_number ?? ""}
                  inputMode="numeric" pattern="[0-9]{9}" />
         </div>
@@ -79,12 +85,12 @@ export default async function OnboardingOrganizerPage() {
       <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, fontSize: 14 }}>
         {/* opt-in only — leave unchecked by default per GDPR consent rules */}
         <input type="checkbox" name="marketing" />
-        Quero receber novidades e dicas para organizar eventos.
+        {t.marketing_label}
       </label>
 
       <div className="actions">
         <span />
-        <button className="btn-pill" type="submit">Concluir</button>
+        <button className="btn-pill" type="submit">{t.button_finish}</button>
       </div>
     </form>
   );

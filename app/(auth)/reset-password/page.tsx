@@ -2,8 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict } from "@/components/DictProvider";
 
 export default function ResetPasswordPage() {
+  const dict = useDict();
+  const t = dict.auth.reset_password;
   const router = useRouter();
   const [pwd, setPwd]     = useState("");
   const [pwd2, setPwd2]   = useState("");
@@ -24,8 +27,8 @@ export default function ResetPasswordPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (pwd !== pwd2)    { setErr("As passwords não coincidem."); return; }
-    if (pwd.length < 8)  { setErr("A password deve ter pelo menos 8 caracteres."); return; }
+    if (pwd !== pwd2)    { setErr(t.err_mismatch); return; }
+    if (pwd.length < 8)  { setErr(t.err_too_short); return; }
     setBusy(true); setErr(null);
     const supa = supabaseBrowser();
     const { data: updRes, error } = await supa.auth.updateUser({ password: pwd });
@@ -49,31 +52,31 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="auth-card">
-      <h1>Nova password</h1>
-      <p className="muted">Escolhe a nova password para a tua conta.</p>
+      <h1>{t.page_title}</h1>
+      <p className="muted">{t.subtitle}</p>
 
       {!ready && (
         <div className="error" style={{ background: "#FFF6F2", color: "#8B1100" }}>
-          Link inválido ou expirado. <a href="/forgot-password" style={{ color: "var(--orange)" }}>Pedir novo link</a>.
+          {t.link_invalid} <a href="/forgot-password" style={{ color: "var(--orange)" }}>{t.request_new}</a>.
         </div>
       )}
 
       {err && <div className="error">{err}</div>}
       <form onSubmit={onSubmit}>
         <div className="field">
-          <label htmlFor="new-pwd">Nova password</label>
+          <label htmlFor="new-pwd">{t.pwd_label}</label>
           <input id="new-pwd" type="password" required minLength={8}
                  value={pwd} onChange={(e) => setPwd(e.target.value)}
                  autoComplete="new-password" />
         </div>
         <div className="field">
-          <label htmlFor="new-pwd2">Repete a nova password</label>
+          <label htmlFor="new-pwd2">{t.pwd2_label}</label>
           <input id="new-pwd2" type="password" required minLength={8}
                  value={pwd2} onChange={(e) => setPwd2(e.target.value)}
                  autoComplete="new-password" />
         </div>
         <button className="btn-pill" style={{ width: "100%" }} disabled={busy || !ready} type="submit">
-          {busy ? "A guardar…" : "Guardar nova password"}
+          {busy ? t.busy_submit : t.button_submit}
         </button>
       </form>
     </div>

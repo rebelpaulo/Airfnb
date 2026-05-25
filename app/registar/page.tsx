@@ -11,6 +11,9 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { WrongAccountType } from "@/components/WrongAccountType";
 
+// TODO(i18n): metadata is rendered before locale resolution; kept in PT for now.
+// Migrate to generateMetadata async + getDictionary() once we accept the
+// extra dynamic render.
 export const metadata: Metadata = {
   title: "Registar Food Truck",
   description:
