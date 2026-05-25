@@ -37,13 +37,16 @@ const CATEGORY_KEY_BY_SLUG = Object.fromEntries(
   CATEGORY_SLUGS.map((c) => [c.slug, c.key]),
 ) as Record<(typeof CATEGORY_SLUGS)[number]["slug"], (typeof CATEGORY_SLUGS)[number]["key"]>;
 
+// Each card deep-links into /catalogo?event_kind=<kind>; the catalog
+// filters via airfnb_trucks.compatible_event_kinds (truck owners pick
+// these in the wizard). Kind matches the airfnb_event_kind enum.
 const THEME_IMAGES = [
-  { key: "theme_weddings",    img: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80" },
-  { key: "theme_festivals",   img: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80" },
-  { key: "theme_conferences", img: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80" },
-  { key: "theme_private",     img: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80" },
-  { key: "theme_birthdays",   img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80" },
-  { key: "theme_corporate",   img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_weddings",    kind: "wedding",    img: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_festivals",   kind: "festival",   img: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_conferences", kind: "conference", img: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_private",     kind: "private",    img: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_birthdays",   kind: "birthday",   img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80" },
+  { key: "theme_corporate",   kind: "corporate",  img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1200&q=80" },
 ] as const;
 
 const SERVICE_LINKS = [
@@ -256,10 +259,10 @@ export default async function HomePage() {
           </h2>
           <div className="themed-grid">
             {THEME_IMAGES.map((th) => (
-              <div key={th.key} className="themed-card">
+              <Link key={th.key} href={`/catalogo?event_kind=${th.kind}`} className="themed-card">
                 <div className="bg" style={{ backgroundImage: `url(${th.img})` }} />
                 <span className="label">{t[th.key]}</span>
-              </div>
+              </Link>
             ))}
           </div>
           <div className="center-cta">
