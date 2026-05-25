@@ -1383,3 +1383,104 @@ img { display: block; max-width: 100%; height: auto; }
   .category-strip { grid-template-columns: repeat(2, 1fr); }
   .dash .stat-strip { grid-template-columns: 1fr; }
 }
+
+/* =====================================================================
+   BLOCO 16 — DESIGN POLISH (no redesign, only refinements)
+   ===================================================================== */
+
+/* 1. Smoother truck-card hover + focus-visible ring for keyboard nav */
+.truck-card {
+  transition: transform .22s cubic-bezier(.2,.7,.2,1), box-shadow .22s ease-out;
+}
+.truck-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 38px rgba(255, 73, 25, 0.12), 0 4px 12px rgba(0,0,0,0.06);
+}
+.truck-card:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+}
+.truck-card .thumb img {
+  transition: transform .35s cubic-bezier(.2,.7,.2,1);
+}
+.truck-card:hover .thumb img {
+  transform: scale(1.04);
+}
+
+/* 2. Global focus-visible rings on every interactive element */
+a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* 3. Loading skeleton — for any element with .skel */
+@keyframes airfnb-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg, #EFEFEF 25%, #F8F8F8 50%, #EFEFEF 75%);
+  background-size: 200% 100%;
+  animation: airfnb-shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+  color: transparent !important;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+  .truck-card { transition: none; }
+  .truck-card:hover .thumb img { transform: none; }
+}
+
+/* 4. Empty state — friendly soft background, centred CTA */
+.dash .empty {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.dash .empty::before {
+  content: ""; display: block; width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #FFD8C7, #FF6133);
+  opacity: 0.18; margin-bottom: 4px;
+}
+
+/* 5. Header link underline pulse on hover */
+.main-nav a {
+  position: relative;
+}
+.main-nav a::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -4px;
+  height: 2px; background: #fff; transform: scaleX(0); transform-origin: center;
+  transition: transform .2s ease-out;
+}
+.main-nav a:hover::after { transform: scaleX(0.7); }
+
+/* 6. Footer columns alignment + softer body type */
+.site-footer .footer-columns h3 {
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.site-footer .footer-columns ul {
+  display: grid;
+  gap: 6px;
+}
+.site-footer .footer-columns a {
+  transition: opacity .18s;
+}
+.site-footer .footer-columns a:hover { opacity: 0.78; }
+
+/* 7. Soft entrance for the hero search bar so it lands rather than pops */
+@keyframes airfnb-hero-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero .search-bar { animation: airfnb-hero-rise .42s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .hero .search-bar { animation: none; }
+}
+
+/* 8. Pill buttons get a subtle press effect */
+.btn-pill { transition: transform .12s ease-out, background .15s; }
+.btn-pill:active:not(:disabled) { transform: translateY(1px); }
