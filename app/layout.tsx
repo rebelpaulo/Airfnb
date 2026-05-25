@@ -3,6 +3,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getLocale } from "@/lib/i18n";
 
 const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
 
@@ -52,8 +53,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     displayName = prof?.display_name ?? prof?.full_name ?? null;
   }
 
+  const locale = await getLocale();
+
   return (
-    <html lang="pt">
+    <html lang={locale}>
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&display=swap"
@@ -65,11 +68,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <Header user={
-          user
-            ? { id: user.id, email: user.email ?? "", role, avatarUrl, displayName }
-            : null
-        } />
+        <Header
+          locale={locale}
+          user={
+            user
+              ? { id: user.id, email: user.email ?? "", role, avatarUrl, displayName }
+              : null
+          }
+        />
         <main>{children}</main>
         <Footer />
       </body>

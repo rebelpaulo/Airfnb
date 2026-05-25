@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { NotifBell } from "@/components/NotifBell";
+import { LangToggle } from "@/components/LangToggle";
+import type { Locale } from "@/lib/i18n";
 
 type Props = {
   user: {
@@ -13,9 +15,10 @@ type Props = {
     avatarUrl?: string | null;
     displayName?: string | null;
   } | null;
+  locale?: Locale;
 };
 
-export function Header({ user }: Props) {
+export function Header({ user, locale = "pt" }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -181,6 +184,7 @@ export function Header({ user }: Props) {
             </Link>
           </>
         )}
+        <LangToggle current={locale} />
       </div>
 
       {drawerOpen && (
