@@ -5,7 +5,8 @@ export function Footer() {
     <footer className="site-footer">
       <div className="newsletter">
         <h2>Receba todas as novidades do mercado</h2>
-        <form className="newsletter-form">
+        <form className="newsletter-form" method="POST" action="/api/newsletter">
+          <input type="hidden" name="source" value="footer" />
           <label htmlFor="newsletter-email" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>
             Email para subscrever a newsletter
           </label>

@@ -47,6 +47,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Capture ?ref=CODE referral attribution. The RPC ignores self-referrals,
+  // unknown codes, and re-attribution attempts (the user already has a
+  // referred_by). Failure is silent — we don't want to block the signup
+  // round-trip over a marketing nice-to-have.
+  const refCode = url.searchParams.get("ref");
+  if (refCode) {
+    await (supa as any).rpc("airfnb_apply_referral", { p_code: refCode });
+  }
+
   // Route based on onboarding state
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
