@@ -1418,12 +1418,12 @@ export const dictionaries = {
     },
     gates: {
       registar: {
-        meta_title:       "Registar Food Truck",
-        meta_description: "Regista o teu food truck em 2 minutos, mostra-o aos organizers e começa a receber pedidos de eventos.",
+        meta_title:       "Register Food Truck",
+        meta_description: "Register your food truck in 2 minutes, show it to organizers and start receiving event requests.",
       },
       publicar: {
-        meta_title:       "Publicar pedido",
-        meta_description: "Publica o teu evento grátis e recebe propostas dos melhores food trucks do país em poucas horas.",
+        meta_title:       "Publish request",
+        meta_description: "Publish your event for free and receive proposals from the best food trucks in the country within hours.",
         page_title:       "Organize Event",
         intro:            "5 quick steps. The info you share here helps us find the right trucks for your event — private by default.",
       },
