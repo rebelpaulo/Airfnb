@@ -73,15 +73,17 @@ export default async function PublicarPage({ searchParams }: {
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
-    .select("full_name, display_name, email, phone, role")
+    .select("full_name, display_name, phone, role")
     .eq("id", user.id)
     .maybeSingle();
 
   // Resolve a display-ready name: prefer the public-facing display_name
   // (set in /dashboard/perfil) and fall back to the legal full_name from
-  // signup. Either is fine for the wizard's "contact_name" field.
+  // signup. Either is fine for the wizard's "contact_name" field. Email
+  // is ALWAYS read from auth.users — airfnb_profiles intentionally does
+  // not mirror it (one source of truth).
   const resolvedName  = (profile?.display_name?.trim() || profile?.full_name?.trim() || "");
-  const resolvedEmail = (profile?.email?.trim() || user.email?.trim() || "");
+  const resolvedEmail = (user.email?.trim() || "");
   const resolvedPhone = (profile?.phone?.trim() || "");
 
   // If the user already has name + email + phone in their profile, the
