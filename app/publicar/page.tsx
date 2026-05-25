@@ -73,9 +73,23 @@ export default async function PublicarPage({ searchParams }: {
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
-    .select("display_name, email, phone, role")
+    .select("full_name, display_name, email, phone, role")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Resolve a display-ready name: prefer the public-facing display_name
+  // (set in /dashboard/perfil) and fall back to the legal full_name from
+  // signup. Either is fine for the wizard's "contact_name" field.
+  const resolvedName  = (profile?.display_name?.trim() || profile?.full_name?.trim() || "");
+  const resolvedEmail = (profile?.email?.trim() || user.email?.trim() || "");
+  const resolvedPhone = (profile?.phone?.trim() || "");
+
+  // If the user already has name + email + phone in their profile, the
+  // wizard hides the first 3 fields and shows a compact "publishing as X"
+  // header instead — the values still ride through as hidden inputs so
+  // the submit payload is unchanged. Without this gate, returning users
+  // see the same fields twice (profile + wizard) which feels broken.
+  const profileComplete = !!(resolvedName && resolvedEmail && resolvedPhone);
 
   // Roles are exclusive — a truck owner can't pivot into organizing events.
   // They have to use a different email.
@@ -96,9 +110,10 @@ export default async function PublicarPage({ searchParams }: {
       </p>
       <OrganizerWizard
         userId={user.id}
-        defaultName={profile?.display_name ?? ""}
-        defaultEmail={profile?.email ?? user.email ?? ""}
-        defaultPhone={profile?.phone ?? ""}
+        defaultName={resolvedName}
+        defaultEmail={resolvedEmail}
+        defaultPhone={resolvedPhone}
+        profileComplete={profileComplete}
         categories={categoriesData ?? []}
         defaultCity={prefill.city}
         defaultStartAt={prefill.startAt}

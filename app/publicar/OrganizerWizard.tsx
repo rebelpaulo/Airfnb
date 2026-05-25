@@ -21,6 +21,11 @@ type Props = {
   defaultEmail: string;
   defaultPhone: string;
   categories: Category[];
+  // True if profile already has name + email + phone. When set, the wizard's
+  // step 1 hides those 3 inputs (still submits them via hidden inputs) and
+  // shows a compact "publishing as X" banner instead. Removes a redundant
+  // data-entry burden for returning users without losing the values.
+  profileComplete?: boolean;
   // Pre-populated from /procurar discovery page (or empty if reached directly).
   defaultCity?: string;
   defaultStartAt?: string;
@@ -111,6 +116,7 @@ const SELECTION_MODES: Array<{ value: "open_to_offers" | "pick_myself" | "assist
 
 export function OrganizerWizard({
   userId, defaultName, defaultEmail, defaultPhone, categories,
+  profileComplete = false,
   defaultCity = "", defaultStartAt = "", defaultEndAt = "",
   defaultGuests, defaultCuisines = [],
 }: Props) {
@@ -139,6 +145,12 @@ export function OrganizerWizard({
   useEffect(() => {
     setTrucksWanted(Math.max(1, Math.ceil(guests / 150)));
   }, [guests]);
+
+  // Auto-clear a stale step-1 validation error once the user has actually
+  // filled in the offending fields. Without this the banner stays on screen
+  // even after the user types into the empty input, which looks broken
+  // (regression observed on returning users whose profile had no
+  // display_name → defaultName came through empty).
   const [cateringType, setCateringType] = useState<"food" | "drinks" | "food_and_drinks">("food_and_drinks");
   const [startAt, setStartAt] = useState(defaultStartAt);
   const [endAt, setEndAt] = useState(defaultEndAt);
@@ -163,6 +175,16 @@ export function OrganizerWizard({
 
   // ---- Step 5: selection mode ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
+
+  // Auto-clear stale step-1 banner once all the required fields are valid.
+  // Kept in step-1 scope only — we don't want to silently swallow errors
+  // from later steps (those use a per-step validator).
+  useEffect(() => {
+    if (step !== 1 || !err) return;
+    if (name.trim() && email.trim() && eventTitle.trim() && locality.trim() && startAt) {
+      setErr(null);
+    }
+  }, [step, err, name, email, eventTitle, locality, startAt]);
 
   // Honeypot: hidden field invisible to humans but eagerly filled by naive
   // form-scraping bots. We use a ref to read the LIVE DOM value at submit
@@ -290,15 +312,52 @@ export function OrganizerWizard({
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label={t.step1.name_label}>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.step1.name_placeholder} />
-          </Field>
-          <Field label={t.step1.email_label}>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.step1.email_placeholder} />
-          </Field>
-          <Field label={t.step1.phone_label}>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.step1.phone_placeholder} />
-          </Field>
+          {profileComplete ? (
+            // Returning user — show a compact "publishing as" banner and ride
+            // the contact values through as hidden inputs so the submit
+            // payload stays identical (server-side reads them from state,
+            // not the DOM, but the banner makes the values visible to the
+            // user without re-typing).
+            <div
+              style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                padding: "12px 14px",
+                background: "var(--soft-bg, #F6F7F9)",
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+                fontSize: 14,
+              }}
+            >
+              <div>
+                <div style={{ color: "var(--muted)", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                  {t.step1.publishing_as ?? "A publicar como"}
+                </div>
+                <div style={{ marginTop: 2 }}>
+                  <strong>{name}</strong> · {email}
+                </div>
+              </div>
+              <a
+                href="/dashboard/perfil"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--orange)", textDecoration: "underline", fontSize: 13 }}
+              >
+                {t.step1.publishing_as_edit ?? "Alterar perfil"}
+              </a>
+            </div>
+          ) : (
+            <>
+              <Field label={t.step1.name_label}>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.step1.name_placeholder} />
+              </Field>
+              <Field label={t.step1.email_label}>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.step1.email_placeholder} />
+              </Field>
+              <Field label={t.step1.phone_label}>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.step1.phone_placeholder} />
+              </Field>
+            </>
+          )}
           <Field label={t.step1.event_title_label}>
             <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} maxLength={120} placeholder={t.step1.event_title_placeholder} />
           </Field>
