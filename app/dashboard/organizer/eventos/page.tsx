@@ -23,14 +23,32 @@ export default async function OrganizerEventsPage() {
 
   const dict = await getDictionary();
   const t = (dict.dashboard as any).organizer_events as Record<string, string>;
-  const tStatus = dict.vocab.application_status as Record<string, string>; // reused for booking-status synonyms below
   const locale = await getLocale();
   const dateLocale = locale === "en" ? "en-US" : "pt-PT";
+
+  // Booking-status labels — distinct enum from application_status (which is
+  // for the request/application flow). We only render the user-relevant
+  // values; anything else falls through to the raw token via tStatus[...] ?? v.
+  const tStatus: Record<string, string> = locale === "en" ? {
+    confirmed:        "Confirmed",
+    paid:             "Paid",
+    in_progress:      "In progress",
+    completed:        "Completed",
+    cancelled:        "Cancelled",
+    pending_lock_fee: "Pending lock-fee",
+  } : {
+    confirmed:        "Confirmado",
+    paid:             "Pago",
+    in_progress:      "Em curso",
+    completed:        "Concluído",
+    cancelled:        "Cancelado",
+    pending_lock_fee: "Pendente lock-fee",
+  };
 
   // Bookings + the title of the originating event request + the truck rows.
   // booking.organizer_id is the gate (RLS enforces this too, redundant
   // server-side filter for clarity).
-  const { data: bookingsData } = await (supa as any)
+  const { data: bookingsData, error: bookingsError } = await (supa as any)
     .from("airfnb_bookings")
     .select(`
       id, status, starts_at, ends_at, pax_count, total_amount, currency, ics_token, application_id,
@@ -40,6 +58,13 @@ export default async function OrganizerEventsPage() {
     .eq("organizer_id", user.id)
     .order("starts_at", { ascending: true });
 
+  // Treat a failed query as a hard error rather than silently rendering
+  // the empty state — an RLS regression or DB outage would otherwise look
+  // like "no events", which would convince the user nothing is wrong.
+  if (bookingsError) {
+    console.error("organizer/eventos bookings query failed:", bookingsError.message);
+    throw new Error(bookingsError.message);
+  }
   const bookings: any[] = (bookingsData as any[]) ?? [];
 
   const now = Date.now();
