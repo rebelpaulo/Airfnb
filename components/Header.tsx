@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { NotifBell } from "@/components/NotifBell";
 import { LangToggle } from "@/components/LangToggle";
+import { useDict } from "@/components/DictProvider";
 import type { Locale } from "@/lib/i18n";
 
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
 };
 
 export function Header({ user, locale = "pt" }: Props) {
+  const dict = useDict();
+  const t = dict.header;
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -96,7 +99,7 @@ export function Header({ user, locale = "pt" }: Props) {
     const supa = supabaseBrowser();
     const { error } = await supa.auth.signOut();
     if (error) {
-      alert(`Erro ao terminar sessão: ${error.message}`);
+      alert(`${t.logout_error_prefix} ${error.message}`);
       return;
     }
     window.location.href = "/";
@@ -110,40 +113,40 @@ export function Header({ user, locale = "pt" }: Props) {
           ref={menuButtonRef}
           type="button"
           className="menu-btn"
-          aria-label="Abrir menu"
+          aria-label={t.menu_open_aria}
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(true)}
         >
           <span className="material-symbols-outlined">menu</span>
         </button>
-        <Link className="logo" href="/" aria-label="Air F&amp;B">
+        <Link className="logo" href="/" aria-label={t.brand_aria}>
           <Logo variant="white" height={36} />
         </Link>
       </div>
       <ul className="main-nav">
-        <li><Link href="/catalogo">Encontrar Trucks</Link></li>
+        <li><Link href="/catalogo">{t.nav_find_trucks}</Link></li>
         {/* Roles are exclusive — only show the CTA for the *other* side
             (or both when there's no logged-in user / no role yet). */}
         {(user?.role !== "owner") && (
-          <li><Link href="/publicar">Organizar evento</Link></li>
+          <li><Link href="/publicar">{t.nav_organize}</Link></li>
         )}
-        <li><Link href="/blog">Blog</Link></li>
+        <li><Link href="/blog">{t.nav_blog}</Link></li>
         {(user?.role !== "organizer") && (
-          <li><Link href="/registar">Adicionar Truck</Link></li>
+          <li><Link href="/registar">{t.nav_add_truck}</Link></li>
         )}
       </ul>
       <div className="header-actions">
         {user ? (
           <>
             <NotifBell userId={user.id} />
-            <Link className="icon-chip" href="/dashboard/conversas" aria-label="Conversas">
+            <Link className="icon-chip" href="/dashboard/conversas" aria-label={t.conv_aria}>
               <span className="material-symbols-outlined">chat_bubble</span>
             </Link>
             <Link
               className="icon-chip"
               href={dashboardHref}
               title={user.displayName ?? user.email}
-              aria-label={`Dashboard de ${user.displayName ?? user.email}`}
+              aria-label={`${t.dashboard_aria_prefix} ${user.displayName ?? user.email}`}
               style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
             >
               {user.avatarUrl ? (
@@ -168,11 +171,11 @@ export function Header({ user, locale = "pt" }: Props) {
                   {initial}
                 </span>
               )}
-              <span className="label-hide">Dashboard</span>
+              <span className="label-hide">{t.dashboard_label}</span>
             </Link>
             <button
               className="icon-chip"
-              aria-label="Terminar sessão"
+              aria-label={t.logout_aria}
               onClick={signOut}
             >
               <span className="material-symbols-outlined">logout</span>
@@ -182,11 +185,11 @@ export function Header({ user, locale = "pt" }: Props) {
           <>
             <Link className="icon-chip" href="/login">
               <span className="material-symbols-outlined">login</span>
-              <span className="label-hide">Entrar</span>
+              <span className="label-hide">{t.login_label}</span>
             </Link>
             <Link className="icon-chip" href="/signup">
               <span className="material-symbols-outlined">person_add</span>
-              <span className="label-hide">Registar</span>
+              <span className="label-hide">{t.signup_label}</span>
             </Link>
           </>
         )}
@@ -207,7 +210,7 @@ export function Header({ user, locale = "pt" }: Props) {
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Menu de navegação"
+            aria-label={t.drawer_aria}
             style={{
               position: "fixed", top: 0, left: 0, bottom: 0,
               width: "min(360px, 88vw)", background: "#fff", color: "var(--ink)",
@@ -221,18 +224,18 @@ export function Header({ user, locale = "pt" }: Props) {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                aria-label="Fechar menu"
+                aria-label={t.menu_close_aria}
                 style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 22, color: "var(--muted)", padding: 4 }}
               >×</button>
             </div>
 
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 4 }}>
               {user && (
-                <DrawerLink href={dashboardHref} onClose={() => setDrawerOpen(false)}>Perfil</DrawerLink>
+                <DrawerLink href={dashboardHref} onClose={() => setDrawerOpen(false)}>{t.drawer_profile}</DrawerLink>
               )}
-              <DrawerLink href="/publicar"  onClose={() => setDrawerOpen(false)}>Organizar Evento</DrawerLink>
-              <DrawerLink href="/catalogo"  onClose={() => setDrawerOpen(false)}>Encontrar Trucks</DrawerLink>
-              <DrawerLink href="/registar"  onClose={() => setDrawerOpen(false)}>Adicionar Truck</DrawerLink>
+              <DrawerLink href="/publicar"  onClose={() => setDrawerOpen(false)}>{t.drawer_organize}</DrawerLink>
+              <DrawerLink href="/catalogo"  onClose={() => setDrawerOpen(false)}>{t.drawer_find}</DrawerLink>
+              <DrawerLink href="/registar"  onClose={() => setDrawerOpen(false)}>{t.drawer_add_truck}</DrawerLink>
 
               <li>
                 <button
@@ -245,24 +248,24 @@ export function Header({ user, locale = "pt" }: Props) {
                     fontFamily: "inherit", fontSize: 16, fontWeight: 600, color: "var(--ink)",
                   }}
                 >
-                  Serviços
+                  {t.drawer_services}
                   <span aria-hidden="true" style={{ color: "var(--muted)", fontSize: 18 }}>
                     {servicesOpen ? "−" : "+"}
                   </span>
                 </button>
                 {servicesOpen && (
                   <ul style={{ listStyle: "none", padding: 0, margin: "0 0 0 14px", display: "grid", gap: 2, color: "var(--muted)" }}>
-                    <DrawerLink href="/encontrar-espaco"  onClose={() => setDrawerOpen(false)} small>Espaços p/ Eventos</DrawerLink>
-                    <DrawerLink href="/gestao-convidados" onClose={() => setDrawerOpen(false)} small>Gestão de Convidados</DrawerLink>
-                    <DrawerLink href="/musica-animacao"   onClose={() => setDrawerOpen(false)} small>Música & Animação</DrawerLink>
-                    <DrawerLink href="/marketing"         onClose={() => setDrawerOpen(false)} small>Marketing & Publicidade</DrawerLink>
+                    <DrawerLink href="/encontrar-espaco"  onClose={() => setDrawerOpen(false)} small>{t.drawer_svc_venues}</DrawerLink>
+                    <DrawerLink href="/gestao-convidados" onClose={() => setDrawerOpen(false)} small>{t.drawer_svc_guest}</DrawerLink>
+                    <DrawerLink href="/musica-animacao"   onClose={() => setDrawerOpen(false)} small>{t.drawer_svc_music}</DrawerLink>
+                    <DrawerLink href="/marketing"         onClose={() => setDrawerOpen(false)} small>{t.drawer_svc_marketing}</DrawerLink>
                   </ul>
                 )}
               </li>
 
-              <DrawerLink href="/blog"        onClose={() => setDrawerOpen(false)}>Blog</DrawerLink>
-              <DrawerLink href="/privacidade" onClose={() => setDrawerOpen(false)}>Termos e Condições</DrawerLink>
-              <DrawerLink href="/ajuda"       onClose={() => setDrawerOpen(false)}>Precisa de Ajuda?</DrawerLink>
+              <DrawerLink href="/blog"        onClose={() => setDrawerOpen(false)}>{t.drawer_blog}</DrawerLink>
+              <DrawerLink href="/privacidade" onClose={() => setDrawerOpen(false)}>{t.drawer_terms}</DrawerLink>
+              <DrawerLink href="/ajuda"       onClose={() => setDrawerOpen(false)}>{t.drawer_help}</DrawerLink>
             </ul>
 
             {user && (
@@ -275,7 +278,7 @@ export function Header({ user, locale = "pt" }: Props) {
                     fontFamily: "inherit", fontSize: 15, fontWeight: 600, color: "var(--orange)",
                   }}
                 >
-                  Terminar sessão
+                  {t.drawer_logout}
                 </button>
               </div>
             )}

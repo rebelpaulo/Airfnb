@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { submitPartnerLead, type LeadKind } from "@/lib/partner-leads";
+import { useDict } from "@/components/DictProvider";
 
 export type FieldConfig =
   | { type: "text" | "tel" | "email" | "date" | "number"; name: string; label: string; required?: boolean; placeholder?: string; help?: string }
@@ -21,6 +22,8 @@ type Props = {
 };
 
 export function PartnerLeadForm({ kind, intro, fields, cta }: Props) {
+  const dict = useDict();
+  const t = dict.forms.partner_lead;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -50,8 +53,7 @@ export function PartnerLeadForm({ kind, intro, fields, cta }: Props) {
         marginTop: 18, padding: 20, background: "#F1FBF5",
         border: "1px solid #C5EBD3", borderRadius: 12, color: "#0F7B4F",
       }}>
-        <strong>✓ Pedido enviado.</strong> Vamos voltar a contactar-te dentro de
-        24h úteis com a proposta do parceiro mais adequado.
+        <strong>{t.sent_ok}</strong> {t.sent_body}
       </div>
     );
   }
@@ -72,22 +74,22 @@ export function PartnerLeadForm({ kind, intro, fields, cta }: Props) {
       />
 
       {/* Service-specific fields */}
-      {fields.map((f) => <Field key={f.name} f={f} />)}
+      {fields.map((f) => <Field key={f.name} f={f} selectPlaceholder={t.select_option} />)}
 
       {/* Always-shown contact block */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>O teu nome</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t.name_label}</span>
           <input name="name" type="text" required autoComplete="name" />
         </label>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Email</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t.email_label}</span>
           <input name="email" type="email" required autoComplete="email" />
         </label>
       </div>
       <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Telemóvel (opcional)</span>
-        <input name="phone" type="tel" autoComplete="tel" placeholder="+351 9XX XXX XXX" />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{t.phone_label}</span>
+        <input name="phone" type="tel" autoComplete="tel" placeholder={t.phone_placeholder} />
       </label>
 
       {err && (
@@ -102,14 +104,14 @@ export function PartnerLeadForm({ kind, intro, fields, cta }: Props) {
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button type="submit" className="btn-pill" disabled={busy}
                 style={{ opacity: busy ? 0.65 : 1 }}>
-          {busy ? "A enviar…" : cta}
+          {busy ? t.sending : cta}
         </button>
       </div>
     </form>
   );
 }
 
-function Field({ f }: { f: FieldConfig }) {
+function Field({ f, selectPlaceholder }: { f: FieldConfig; selectPlaceholder: string }) {
   if (f.type === "textarea") {
     return (
       <label style={{ display: "grid", gap: 6 }}>
@@ -128,7 +130,7 @@ function Field({ f }: { f: FieldConfig }) {
           {f.label}{f.required ? " *" : ""}
         </span>
         <select name={f.name} required={f.required} defaultValue="">
-          <option value="" disabled>— escolhe uma opção —</option>
+          <option value="" disabled>{selectPlaceholder}</option>
           {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {f.help && <small style={{ color: "var(--muted)", fontSize: 12 }}>{f.help}</small>}

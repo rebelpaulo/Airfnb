@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
 import { FilterModal } from "./FilterModal";
+import { getDictionary } from "@/lib/i18n";
 
+// TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Catálogo de Food Trucks",
   description: "Explora food trucks certificados em Portugal. Filtra por localização, capacidade, cozinha e dietas.",
@@ -50,6 +52,8 @@ const POWER_MAX_KW: Record<string, number> = {
 };
 
 export default async function CatalogoPage({ searchParams }: { searchParams: SearchParams }) {
+  const dict = await getDictionary();
+  const t = dict.catalog;
   const sp = await searchParams;
   const city       = first(sp.city);
   // `cat` (legacy single) and `cats` (modal multi) both supported; merged
@@ -110,25 +114,25 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   const categories = categoriesData ?? [];
 
   const activeFilters: Array<{ key: string; label: string }> = [];
-  if (city)             activeFilters.push({ key: "city",      label: `Cidade: ${city}` });
-  if (cats?.length)     activeFilters.push({ key: "cats",      label: `Especialidades: ${cats.join(", ")}` });
-  if (pax)              activeFilters.push({ key: "pax",       label: `≥ ${pax} pax` });
-  if (priceMin)         activeFilters.push({ key: "price_min", label: `Min € ${priceMin}` });
-  if (priceMax)         activeFilters.push({ key: "price_max", label: `Max € ${priceMax}` });
-  if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `Cozinhas: ${cuisines.join(", ")}` });
-  if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `Dietas: ${dietary.join(", ")}` });
-  if (setupMax)         activeFilters.push({ key: "setup_max", label: `Montagem ≤ ${setupMax}min` });
-  if (power)            activeFilters.push({ key: "power",     label: `Energia: ${power}` });
-  if (sanitation)       activeFilters.push({ key: "sanitation",label: `WC: ${sanitation}` });
-  if (serves)           activeFilters.push({ key: "catering",  label: `Catering: ${serves.replace("_and_", " & ")}` });
+  if (city)             activeFilters.push({ key: "city",      label: `${t.filter_city}: ${city}` });
+  if (cats?.length)     activeFilters.push({ key: "cats",      label: `${t.filter_specialties}: ${cats.join(", ")}` });
+  if (pax)              activeFilters.push({ key: "pax",       label: `≥ ${pax} ${t.filter_pax}` });
+  if (priceMin)         activeFilters.push({ key: "price_min", label: `${t.filter_min} ${priceMin}` });
+  if (priceMax)         activeFilters.push({ key: "price_max", label: `${t.filter_max} ${priceMax}` });
+  if (cuisines?.length) activeFilters.push({ key: "cuisines",  label: `${t.filter_cuisines}: ${cuisines.join(", ")}` });
+  if (dietary?.length)  activeFilters.push({ key: "dietary",   label: `${t.filter_dietary}: ${dietary.join(", ")}` });
+  if (setupMax)         activeFilters.push({ key: "setup_max", label: `${t.filter_setup} ≤ ${setupMax}${t.filter_setup_unit}` });
+  if (power)            activeFilters.push({ key: "power",     label: `${t.filter_power}: ${power}` });
+  if (sanitation)       activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${sanitation}` });
+  if (serves)           activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${serves.replace("_and_", " & ")}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>
       <nav className="breadcrumb">
-        <Link href="/">Página Inicial</Link> &nbsp;/&nbsp; <span>Catálogo</span>
+        <Link href="/">{t.breadcrumb_home}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_self}</span>
       </nav>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
-        <h1 className="section-title" style={{ margin: 0 }}>Catálogo de Food Trucks</h1>
+        <h1 className="section-title" style={{ margin: 0 }}>{t.page_title}</h1>
         <FilterModal
           initial={{
             city, pax,
@@ -141,7 +145,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
         />
       </div>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        Inspira-te ou convida directamente para o teu evento.
+        {t.subtitle}
       </p>
 
       {activeFilters.length > 0 && (
@@ -150,7 +154,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
             <span key={f.key} className="active-filter-chip">{f.label}</span>
           ))}
           <Link href="/catalogo" style={{ color: "var(--muted)", fontSize: 13, alignSelf: "center" }}>
-            limpar filtros
+            {dict.common.clear_filters}
           </Link>
         </div>
       )}
@@ -158,34 +162,34 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
       {trucks.length === 0 ? (
         <div className="dash empty" style={{ marginTop: 30 }}>
           {activeFilters.length > 0
-            ? "Nenhum truck activo encontrado para estes filtros."
-            : "Sem trucks activos para mostrar."}
+            ? t.empty_filtered
+            : t.empty_no_trucks}
         </div>
       ) : (
         <div className="truck-grid cols-4" style={{ marginTop: 26 }}>
-          {trucks.map((t: any) => (
-            <Link key={t.id} href={`/catalogo/${t.slug}`} className="truck-card">
+          {trucks.map((tr: any) => (
+            <Link key={tr.id} href={`/catalogo/${tr.slug}`} className="truck-card">
               <div className="thumb" style={{ position: "relative" }}>
                 <Image
-                  src={truckCover(t.cover_url)}
-                  alt={t.name}
+                  src={truckCover(tr.cover_url)}
+                  alt={tr.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
                   style={{ objectFit: "cover" }}
                 />
               </div>
               <div className="info">
-                <h3>{t.name}</h3>
-                <div className="subtitle">{(t.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
+                <h3>{tr.name}</h3>
+                <div className="subtitle">{(tr.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
                 <div className="meta">
                   <span className="loc">
                     <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
-                    {t.base_city ?? "—"}
+                    {tr.base_city ?? "—"}
                   </span>
                   <span className="cap">
-                    {Number(t.rating_count) > 0
-                      ? `★ ${Number(t.rating_avg).toFixed(1)} (${t.rating_count})`
-                      : "Novo"}
+                    {Number(tr.rating_count) > 0
+                      ? `★ ${Number(tr.rating_avg).toFixed(1)} (${tr.rating_count})`
+                      : t.truck_new}
                   </span>
                 </div>
               </div>
