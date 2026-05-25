@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { WrongAccountType } from "@/components/WrongAccountType";
+import { getDictionary, getLocale } from "@/lib/i18n";
 
 export default async function OrganizerDashboard() {
   const supa = await supabaseServer();
@@ -32,21 +33,27 @@ export default async function OrganizerDashboard() {
   const awarded = requests.filter((r: any) => r.status === "awarded").length;
   const total = requests.length;
 
+  const dict = await getDictionary();
+  const locale = await getLocale();
+  const t = dict.dashboard.organizer;
+  const statusMap = dict.vocab.request_status as Record<string, string>;
+  const dateLocale = locale === "pt" ? "pt-PT" : "en-GB";
+
   return (
     <div className="dash">
-      <h1>Olá 👋 Os teus pedidos</h1>
+      <h1>{t.heading}</h1>
       <div className="stat-strip">
-        <div className="stat"><div className="label">Total publicados</div><div className="value">{total}</div></div>
-        <div className="stat"><div className="label">Abertos / em revisão</div><div className="value">{open}</div></div>
-        <div className="stat"><div className="label">Awarded</div><div className="value">{awarded}</div></div>
-        <div className="stat"><div className="label">Próxima ação</div><div className="value" style={{ fontSize: 18 }}>
-          <Link href="/publicar" style={{ color: "var(--orange)" }}>Publicar novo</Link>
+        <div className="stat"><div className="label">{t.stat_total}</div><div className="value">{total}</div></div>
+        <div className="stat"><div className="label">{t.stat_open}</div><div className="value">{open}</div></div>
+        <div className="stat"><div className="label">{t.stat_awarded}</div><div className="value">{awarded}</div></div>
+        <div className="stat"><div className="label">{t.stat_next_action}</div><div className="value" style={{ fontSize: 18 }}>
+          <Link href="/publicar" style={{ color: "var(--orange)" }}>{t.publish_new}</Link>
         </div></div>
       </div>
 
       {requests.length === 0 ? (
         <div className="empty">
-          Ainda não tens nenhum pedido publicado. <Link href="/publicar" style={{ color: "var(--orange)" }}>Publica o primeiro</Link>.
+          {t.empty_pre}<Link href="/publicar" style={{ color: "var(--orange)" }}>{t.empty_link}</Link>{t.empty_post}
         </div>
       ) : (
         <div className="request-grid">
@@ -55,14 +62,14 @@ export default async function OrganizerDashboard() {
               <h3>{r.title}</h3>
               <div className="row">
                 <span><span className="material-symbols-outlined">event</span>
-                  {new Date(r.start_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                  {new Date(r.start_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}
                 </span>
-                <span><span className="material-symbols-outlined">location_on</span>{r.city ?? "—"}</span>
+                <span><span className="material-symbols-outlined">location_on</span>{r.city ?? t.city_dash}</span>
                 <span><span className="material-symbols-outlined">group</span>{r.expected_pax}</span>
               </div>
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="match-badge">{r.status}</span>
-                <span style={{ color: "var(--orange)", fontWeight: 600 }}>Gerir →</span>
+                <span className="match-badge">{statusMap[r.status] ?? r.status}</span>
+                <span style={{ color: "var(--orange)", fontWeight: 600 }}>{t.manage_cta}</span>
               </div>
             </Link>
           ))}
