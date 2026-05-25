@@ -1,6 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict } from "@/components/DictProvider";
+
+// Inline placeholder formatter (kept local because lib/i18n imports
+// next/headers, which can't be bundled into client components).
+// Substitutes `{key}` tokens in `template` with stringified values.
+function format(template: string, vars: Record<string, string | number>): string {
+  return Object.entries(vars).reduce(
+    (out, [k, v]) => out.replace(`{${k}}`, String(v)),
+    template,
+  );
+}
 
 const BUCKET = "airfnb-truck-images";
 
@@ -22,6 +33,8 @@ type Props = {
  * automatically marked as the cover.
  */
 export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: Props) {
+  const dict = useDict();
+  const t = dict.forms.truck_photo_upload;
   const inputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<Photo[]>(initial);
   const [busy, setBusy] = useState(false);
@@ -36,7 +49,7 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
       for (const file of Array.from(files)) {
         if (next.length >= max) break;
         if (!file.type.startsWith("image/")) continue;
-        const blob = await compressTo(file, 2);
+        const blob = await compressTo(file, 2, t.err_too_large);
         const ext = mimeToExt(blob.type) || "jpg";
         const path = `${truckId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: upErr } = await supa.storage.from(BUCKET).upload(path, blob, {
@@ -108,9 +121,9 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
           add_photo_alternate
         </span>
         <div style={{ marginTop: 6, fontWeight: 600, color: "var(--ink)" }}>
-          {busy ? "A carregar…" : "Adicionar fotografias"}
+          {busy ? t.loading : t.add_photos}
         </div>
-        <div style={{ fontSize: 13 }}>Arrasta para aqui ou clica. PNG, JPG ou WebP. Máx {max} fotos.</div>
+        <div style={{ fontSize: 13 }}>{format(t.hint, { max })}</div>
       </div>
       <input
         ref={inputRef}
@@ -134,17 +147,17 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
                 <span style={{
                   position: "absolute", top: 6, left: 6, background: "var(--orange)", color: "#fff",
                   fontSize: 11, padding: "2px 8px", borderRadius: 999, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-                }}>Capa</span>
+                }}>{t.cover_badge}</span>
               )}
               {p.id && (
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", background: "linear-gradient(transparent,rgba(0,0,0,0.6))", padding: 6 }}>
                   {!p.isCover && (
                     <button type="button" onClick={() => setCover(p.id!)} style={{ background: "rgba(255,255,255,0.9)", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>
-                      Capa
+                      {t.set_cover}
                     </button>
                   )}
                   <button type="button" onClick={() => remove(p.id!)} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.9)", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer", color: "#8B1100" }}>
-                    Apagar
+                    {t.delete}
                   </button>
                 </div>
               )}
@@ -167,7 +180,7 @@ function mimeToExt(mime: string): string {
   }
 }
 
-async function compressTo(file: File, maxMb: number): Promise<Blob> {
+async function compressTo(file: File, maxMb: number, tooLargeTemplate: string): Promise<Blob> {
   const cap = maxMb * 1024 * 1024;
   let blob = await reencode(file, 1600, 0.85);
   if (blob.size <= cap) return blob;
@@ -178,7 +191,10 @@ async function compressTo(file: File, maxMb: number): Promise<Blob> {
   // silently uploading an oversize image — RLS/storage limits would fail later
   // anyway, but the owner deserves an immediate, actionable error.
   if (blob.size > cap) {
-    throw new Error(`Imagem demasiado grande mesmo após compressão (${(blob.size / 1024 / 1024).toFixed(1)}MB > ${maxMb}MB). Reduz a resolução antes de carregar.`);
+    throw new Error(format(tooLargeTemplate, {
+      size: (blob.size / 1024 / 1024).toFixed(1),
+      maxMb,
+    }));
   }
   return blob;
 }

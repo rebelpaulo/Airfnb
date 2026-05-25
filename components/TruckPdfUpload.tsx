@@ -1,6 +1,16 @@
 "use client";
 import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useDict } from "@/components/DictProvider";
+
+// Inline placeholder formatter (kept local because lib/i18n imports
+// next/headers, which can't be bundled into client components).
+function format(template: string, vars: Record<string, string | number>): string {
+  return Object.entries(vars).reduce(
+    (out, [k, v]) => out.replace(`{${k}}`, String(v)),
+    template,
+  );
+}
 
 const BUCKET = "airfnb-documents";
 
@@ -27,6 +37,8 @@ type Props = {
 export function TruckPdfUpload({
   truckId, kind, label, initialUrl, initialExpires, onChange, maxMb = 8,
 }: Props) {
+  const dict = useDict();
+  const t = dict.forms.truck_pdf_upload;
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState<string | null>(initialUrl ?? null);
   const [expires, setExpires] = useState<string>(initialExpires ?? "");
@@ -36,11 +48,11 @@ export function TruckPdfUpload({
   async function pickFile(file: File) {
     setErr(null);
     if (file.type !== "application/pdf") {
-      setErr("Tem de ser um PDF.");
+      setErr(t.err_not_pdf);
       return;
     }
     if (file.size > maxMb * 1024 * 1024) {
-      setErr(`Ficheiro muito grande (>${maxMb}MB).`);
+      setErr(format(t.err_too_large, { maxMb }));
       return;
     }
     setBusy(true);
@@ -119,19 +131,19 @@ export function TruckPdfUpload({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: "var(--ink)" }}>{label}</div>
           <div style={{ fontSize: 12, color: "var(--muted)" }}>
-            {busy ? "A carregar…" : url ? "Carregado." : `PDF, máx ${maxMb}MB`}
+            {busy ? t.loading : url ? t.uploaded : format(t.size_hint, { maxMb })}
           </div>
         </div>
         {url && (
           <button type="button" onClick={remove}
             style={{ background: "transparent", border: "1px solid var(--line)", padding: "4px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
-            Substituir
+            {t.replace}
           </button>
         )}
       </div>
       {url && (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-          <label style={{ fontSize: 12, color: "var(--muted)" }}>Validade</label>
+          <label style={{ fontSize: 12, color: "var(--muted)" }}>{t.expires_label}</label>
           <input
             type="date"
             value={expires}
