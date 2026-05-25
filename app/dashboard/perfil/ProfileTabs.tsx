@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDict } from "@/components/DictProvider";
 
 type TabKey = "personal" | "billing";
@@ -26,14 +26,21 @@ type Props = {
  *   - non-active panels are hidden via the hidden attribute
  */
 const TABS: TabKey[] = ["personal", "billing"];
-const PANEL_IDS: Record<TabKey, string> = { personal: "perfil-panel-personal", billing: "perfil-panel-billing" };
-const TAB_IDS:   Record<TabKey, string> = { personal: "perfil-tab-personal",   billing: "perfil-tab-billing"   };
 
 export function ProfileTabs({ personal, billing, initial = "personal" }: Props) {
   const dict = useDict();
   const t = (dict.dashboard_profile as Record<string, string>);
   const [tab, setTab] = useState<TabKey>(initial);
   const tablistRef = useRef<HTMLDivElement | null>(null);
+
+  // Instance-scoped IDs — avoids duplicate DOM IDs if <ProfileTabs/> is
+  // ever rendered more than once on the same page, which would otherwise
+  // break the aria-controls ↔ id and aria-labelledby ↔ id relationships.
+  const uid = useId();
+  const { TAB_IDS, PANEL_IDS } = useMemo(() => ({
+    TAB_IDS: { personal: `${uid}-tab-personal`,   billing: `${uid}-tab-billing`   } as Record<TabKey, string>,
+    PANEL_IDS: { personal: `${uid}-panel-personal`, billing: `${uid}-panel-billing` } as Record<TabKey, string>,
+  }), [uid]);
 
   function onKeyDown(e: React.KeyboardEvent) {
     const idx = TABS.indexOf(tab);
@@ -65,14 +72,16 @@ export function ProfileTabs({ personal, billing, initial = "personal" }: Props) 
         }}
       >
         <TabButton
-          tabKey="personal"
+          id={TAB_IDS.personal}
+          controls={PANEL_IDS.personal}
           active={tab === "personal"}
           onActivate={() => setTab("personal")}
         >
           {t.section_personal}
         </TabButton>
         <TabButton
-          tabKey="billing"
+          id={TAB_IDS.billing}
+          controls={PANEL_IDS.billing}
           active={tab === "billing"}
           onActivate={() => setTab("billing")}
         >
@@ -101,16 +110,16 @@ export function ProfileTabs({ personal, billing, initial = "personal" }: Props) 
   );
 }
 
-function TabButton({ tabKey, active, onActivate, children }: {
-  tabKey: TabKey; active: boolean; onActivate: () => void; children: ReactNode;
+function TabButton({ id, controls, active, onActivate, children }: {
+  id: string; controls: string; active: boolean; onActivate: () => void; children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      id={TAB_IDS[tabKey]}
+      id={id}
       role="tab"
       aria-selected={active}
-      aria-controls={PANEL_IDS[tabKey]}
+      aria-controls={controls}
       tabIndex={active ? 0 : -1}
       onClick={onActivate}
       style={{
