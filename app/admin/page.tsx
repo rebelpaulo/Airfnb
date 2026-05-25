@@ -35,7 +35,7 @@ export default async function AdminDashboardPage() {
         </div>
         <Link href="/admin/definicoes" className="btn-pill outline"
               style={{ padding: "8px 18px", borderColor: "var(--teal)", color: "var(--teal)", fontSize: 14 }}>
-          ⚙️ Definições
+          {t.settings_link}
         </Link>
       </div>
 

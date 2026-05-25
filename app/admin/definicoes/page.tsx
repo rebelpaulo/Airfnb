@@ -89,13 +89,15 @@ export default async function AdminSettingsPage() {
 
 function SettingRow({ s, save }: { s: Setting; save: (fd: FormData) => Promise<void> }) {
   const updated = s.updated_at ? new Date(s.updated_at).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" }) : null;
+  // Stable input id so the <label htmlFor> + screen readers tie them together.
+  const inputId = `setting-${s.key}`;
   return (
     <form action={save} style={{
       display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "start",
       padding: 14, background: "#FAFAFA", border: "1px solid var(--line)", borderRadius: 10,
     }}>
       <div style={{ display: "grid", gap: 6 }}>
-        <label style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>
+        <label htmlFor={inputId} style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>
           {s.key}
         </label>
         {s.description && (
@@ -104,6 +106,7 @@ function SettingRow({ s, save }: { s: Setting; save: (fd: FormData) => Promise<v
           </small>
         )}
         <input
+          id={inputId}
           type={s.secret ? "password" : "text"}
           name="value"
           defaultValue={s.value ?? ""}
