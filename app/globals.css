@@ -66,7 +66,7 @@ img { display: block; max-width: 100%; height: auto; }
 }
 
 .h-display {
-  font-family: var(--font-bebas, "Bebas Neue"), "Oswald", Impact, sans-serif;
+  font-family: var(--font-bebas, "Bebas Neue"), Oswald, Impact, sans-serif;
   font-weight: 400;
   letter-spacing: 0.5px;
   line-height: 1.05;
