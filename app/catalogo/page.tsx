@@ -24,7 +24,10 @@ type SearchParams = Promise<{
   cuisines?: Raw; dietary?: Raw;
   setup_max?: Raw; power?: Raw; sanitation?: Raw;
   from?: Raw; to?: Raw;
+  event_kind?: Raw;
 }>;
+
+const EVENT_KINDS = ["wedding","birthday","corporate","festival","conference","private","other"] as const;
 
 function first(v: Raw): string | undefined {
   if (v == null) return undefined;
@@ -70,6 +73,11 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   // FilterModal persists this as `catering` (food/drinks/food_and_drinks);
   // backed by airfnb_trucks.serves.
   const serves     = first(sp.catering);
+  // Deep-linked from the themed cards on the landing
+  // (/catalogo?event_kind=wedding). Validate against the airfnb_event_kind enum.
+  const eventKindRaw = first(sp.event_kind);
+  const validEventKind = eventKindRaw && (EVENT_KINDS as readonly string[]).includes(eventKindRaw)
+    ? eventKindRaw : undefined;
 
   // Validate enum-style params once so chip rendering below can use the same
   // accept/reject decision as the query — avoids showing chips for malformed
@@ -92,6 +100,10 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (city)             q = q.ilike("base_city", `%${city}%`);
   if (cats?.length)     q = q.overlaps("category_slugs", cats);
   if (pax)              q = q.gte("capacity", pax);
+  // Themed landing cards filter on `compatible_event_kinds` (truck owner
+  // opted-in via the wizard). `contains` translates to the PG `@>` operator
+  // which the GIN index on this column makes cheap.
+  if (validEventKind)   q = q.contains("compatible_event_kinds", [validEventKind]);
   if (priceMin)         q = q.gte("base_price", priceMin);
   if (priceMax)         q = q.lte("base_price", priceMax);
   if (cuisines?.length) q = q.overlaps("cuisine_types", cuisines);
@@ -144,6 +156,9 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   const CATERING_KEY: Record<string, string> = {
     food: "catering_food", drinks: "catering_drinks", food_and_drinks: "catering_both",
   };
+  // Event kind labels live in vocab.event_kinds (added by PR #33 wizards
+  // so both wizards share the same chip vocab). Reuse here.
+  const tEventKinds = (dict as any).vocab?.event_kinds ?? {};
   const lookup = (map: Record<string, string>, v: string) => tFilter[map[v] ?? ""] ?? v;
 
   const activeFilters: Array<{ key: string; label: string }> = [];
@@ -158,6 +173,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   if (validPower)       activeFilters.push({ key: "power",     label: `${t.filter_power}: ${lookup(POWER_KEY, validPower)}` });
   if (validSanitation)  activeFilters.push({ key: "sanitation",label: `${t.filter_wc}: ${lookup(SANI_KEY, validSanitation)}` });
   if (validServes)      activeFilters.push({ key: "catering",  label: `${t.filter_catering}: ${lookup(CATERING_KEY, validServes)}` });
+  if (validEventKind)   activeFilters.push({ key: "event_kind",label: `${t.filter_event_kind ?? "Evento"}: ${tEventKinds[validEventKind] ?? validEventKind}` });
 
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>

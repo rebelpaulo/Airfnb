@@ -82,6 +82,9 @@ export function TruckWizard({ userId, categories }: Props) {
   const [cuisineOther, setCuisineOther] = useState("");
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
   const [dietary, setDietary] = useState<string[]>([]);
+  // Which event kinds this truck declares itself a fit for. Used by the
+  // /catalogo?event_kind= deep links from the landing's themed cards.
+  const [eventKinds, setEventKinds] = useState<string[]>([]);
 
   // step 3
   const [setupMin, setSetupMin] = useState(60);
@@ -174,8 +177,9 @@ export function TruckWizard({ userId, categories }: Props) {
         ? Array.from(new Set([...cuisines, cuisineOther.trim().toLowerCase()]))
         : cuisines;
       const { error } = await (supa as any).from("airfnb_trucks").update({
-        cuisine_types:   cuisinesFinal,
-        dietary_options: dietary,
+        cuisine_types:         cuisinesFinal,
+        dietary_options:       dietary,
+        compatible_event_kinds: eventKinds,
       }).eq("id", truckId);
       if (error) throw new Error(error.message);
 
@@ -341,6 +345,26 @@ export function TruckWizard({ userId, categories }: Props) {
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{d.icon}</span>
                   {dict.vocab.dietary[d.dictKey]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle>{t.step2.event_kinds_title}</SectionTitle>
+            <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 10px" }}>
+              {t.step2.event_kinds_hint}
+            </p>
+            <div className="chips">
+              {(["wedding","birthday","corporate","festival","conference","private","other"] as const).map((k) => (
+                <button
+                  type="button"
+                  key={k}
+                  className="chip"
+                  data-active={eventKinds.includes(k)}
+                  onClick={() => setEventKinds((s) => toggle(s, k))}
+                >
+                  {(dict.vocab.event_kinds as Record<string, string>)[k] ?? k}
                 </button>
               ))}
             </div>

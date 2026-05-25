@@ -196,6 +196,7 @@ export const dictionaries = {
       filter_power:       "Energia",
       filter_wc:          "WC",
       filter_catering:    "Catering",
+      filter_event_kind:  "Tipo de evento",
       filter_modal: {
         button_label:    "Filtros",
         title:           "Filtros",
@@ -940,6 +941,8 @@ export const dictionaries = {
           cuisine_other_placeholder: "Outra (ex: Fusão indo-portuguesa)",
           specialties_title: "Especialidades",
           dietary_title:     "Dietas Especiais",
+          event_kinds_title: "Tipos de evento que servimos",
+          event_kinds_hint:  "Os organizadores filtram trucks por tipo de evento — escolhe pelo menos os que conseguem servir bem.",
         },
         step3: {
           setup_label:    "Tempo de Montagem (min)",
@@ -1519,6 +1522,7 @@ export const dictionaries = {
       filter_power:       "Power",
       filter_wc:          "Toilet",
       filter_catering:    "Catering",
+      filter_event_kind:  "Event type",
       filter_modal: {
         button_label:    "Filters",
         title:           "Filters",
@@ -2263,6 +2267,8 @@ export const dictionaries = {
           cuisine_other_placeholder: "Other (e.g. Indo-Portuguese fusion)",
           specialties_title: "Specialties",
           dietary_title:     "Special diets",
+          event_kinds_title: "Event types we serve",
+          event_kinds_hint:  "Organizers filter trucks by event type — pick at least the ones you can serve well.",
         },
         step3: {
           setup_label:    "Setup time (min)",
