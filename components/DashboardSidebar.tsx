@@ -18,6 +18,7 @@ const LABEL_KEYS = {
   invite:        "nav_invite",
   // organizer
   org_dashboard: "nav_organizer_dashboard",
+  org_events:    "nav_organizer_events",
   org_publish:   "nav_organizer_publish",
   // owner
   owner_dashboard:    "nav_owner_dashboard",
@@ -56,8 +57,9 @@ function itemsForRole(role: Role): { section: string; items: Item[] }[] {
   if (role === "organizer") {
     return [
       { section: "events", items: [
-        { href: "/dashboard/organizer", icon: "event",       key: "org_dashboard" },
-        { href: "/publicar",            icon: "add_circle",  key: "org_publish" },
+        { href: "/dashboard/organizer",         icon: "list_alt",    key: "org_dashboard" },
+        { href: "/dashboard/organizer/eventos", icon: "event",       key: "org_events" },
+        { href: "/publicar",                    icon: "add_circle",  key: "org_publish" },
       ]},
       { section: "shared", items: shared },
     ];
