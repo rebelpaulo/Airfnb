@@ -48,12 +48,24 @@ export default async function OnboardingTruckPage() {
       throw new Error("NIF tem de ter 9 dígitos.");
     }
 
-    // Re-check role at action time — exclusive roles. Don't trust that the
-    // gate above blocked them; a direct POST would bypass it.
-    const { data: cur } = await (supa as any)
-      .from("airfnb_profiles").select("role").eq("id", user.id).maybeSingle();
-    if (cur?.role === "organizer") {
-      throw new Error("Esta conta é de organizador. Não pode adicionar trucks.");
+    // Atomic role claim — exclusive roles. Setting role=owner only when it
+    // is still NULL closes the read-then-write race (a concurrent request
+    // setting role=organizer between read and write would otherwise be
+    // overwritten). Then re-check that the row ended up as owner.
+    const claim = await (supa as any)
+      .from("airfnb_profiles")
+      .update({ role: "owner" })
+      .eq("id", user.id)
+      .is("role", null)
+      .select("role");
+    if (claim.error) throw new Error(claim.error.message);
+
+    if (!claim.data?.length) {
+      const { data: cur } = await (supa as any)
+        .from("airfnb_profiles").select("role").eq("id", user.id).maybeSingle();
+      if (cur?.role !== "owner") {
+        throw new Error("Esta conta é de organizador. Não pode adicionar trucks.");
+      }
     }
 
     const { error: profErr } = await (supa as any)
@@ -62,8 +74,6 @@ export default async function OnboardingTruckPage() {
         full_name, phone,
         company_name,
         vat_number,
-        // Only set role if currently null. Never overwrite an existing role.
-        ...(cur?.role ? {} : { role: "owner" }),
         marketing_opt_in: marketing,
         onboarding_completed: true,
       })

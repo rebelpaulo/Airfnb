@@ -101,17 +101,25 @@ export function TruckWizard({ userId, categories }: Props) {
     setBusy(true);
     try {
       const supa = supabaseBrowser();
-      // ensure profile.role is owner — but never overwrite an existing role.
-      // Roles are exclusive; an organizer must create a separate account.
-      const { data: cur } = await (supa as any)
-        .from("airfnb_profiles").select("role").eq("id", userId).maybeSingle();
-      if (cur?.role === "organizer") {
-        setErr("Esta conta é de organizador. Para adicionar trucks usa uma conta diferente.");
-        setBusy(false);
-        return;
-      }
-      if (!cur?.role) {
-        await (supa as any).from("airfnb_profiles").update({ role: "owner" }).eq("id", userId);
+      // Atomic role claim: only set role=owner when it's still null. Using
+      // .is("role", null) in the WHERE clause closes the read-then-write race
+      // window. If the row already had a role, the update affects 0 rows and
+      // we then re-read to decide whether to advance or block.
+      const claim = await (supa as any)
+        .from("airfnb_profiles")
+        .update({ role: "owner" })
+        .eq("id", userId)
+        .is("role", null)
+        .select("role");
+      if (claim.error) throw new Error(claim.error.message);
+      if (!claim.data?.length) {
+        const { data: cur } = await (supa as any)
+          .from("airfnb_profiles").select("role").eq("id", userId).maybeSingle();
+        if (cur?.role !== "owner") {
+          setErr("Esta conta é de organizador. Para adicionar trucks usa uma conta diferente.");
+          setBusy(false);
+          return;
+        }
       }
 
       if (truckId) {
