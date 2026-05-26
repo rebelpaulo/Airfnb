@@ -1393,6 +1393,8 @@ export const dictionaries = {
         notif_application_rejected:  "Candidatura não selecionada.",
         notif_booking_confirmed:     "Reserva confirmada.",
         notif_booking_cancelled:     "Reserva cancelada.",
+        notif_request_invited:       "Foste convidado para um evento.",
+        notif_request_assistance:    "Organizador pediu curadoria da equipa.",
         err_auth:                    "auth required",
       },
       shared_account: {
@@ -2810,6 +2812,8 @@ export const dictionaries = {
         notif_application_rejected:  "Application not selected.",
         notif_booking_confirmed:     "Booking confirmed.",
         notif_booking_cancelled:     "Booking cancelled.",
+        notif_request_invited:       "You've been invited to an event.",
+        notif_request_assistance:    "An organiser asked for team curation.",
         err_auth:                    "auth required",
       },
       shared_account: {

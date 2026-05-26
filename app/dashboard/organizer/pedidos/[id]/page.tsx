@@ -18,7 +18,12 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     .maybeSingle();
 
   if (!req) notFound();
-  if (req.organizer_id !== user.id) redirect("/dashboard/organizer");
+  // Admins/staff need read access from the /admin curation queue. The
+  // metrics RPC is gated server-side by airfnb_is_admin(), so an empty
+  // result is the canonical "not an admin" signal.
+  const { data: adminGate } = await (supa as any).rpc("airfnb_admin_metrics");
+  const isAdmin = (adminGate as any[] | null)?.length ? true : false;
+  if (req.organizer_id !== user.id && !isAdmin) redirect("/dashboard/organizer");
 
   const { data: applicationsData } = await (supa as any)
     .from("airfnb_applications")

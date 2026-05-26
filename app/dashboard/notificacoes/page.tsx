@@ -122,6 +122,8 @@ function labelFor(kind: string, dict: Dictionary) {
     case "application.rejected":     return t.notif_application_rejected;
     case "booking.confirmed":        return t.notif_booking_confirmed;
     case "booking.cancelled":        return t.notif_booking_cancelled;
+    case "request.invited":          return t.notif_request_invited;
+    case "request.assistance_requested": return t.notif_request_assistance;
     default: return kind;
   }
 }
