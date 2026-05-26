@@ -194,7 +194,7 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
         <div style={{
           display: "grid",
           // Tile min-width must be < smallest mobile viewport content area
-          // (320 - 28*2 container - 24*2 card = 212px) to avoid forcing
+          // (320 - 28*2 container - 24*2 card = 216px) to avoid forcing
           // horizontal scroll on small phones. 180px gives breathing room.
           gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: 16,
