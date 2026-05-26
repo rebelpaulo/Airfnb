@@ -106,25 +106,9 @@ select
 from public.airfnb_trucks t
 where t.status = 'active';
 
--- Reseed demo: add a truck-exterior cover photo per existing demo truck,
--- and demote existing photos to kind='food' (already done above). The
--- existing food image becomes the second photo in the carousel.
--- Source: Unsplash search for "food truck" exterior shots.
-insert into public.airfnb_truck_images (truck_id, url, alt, is_cover, sort_order, kind)
-select t.id, v.url, t.name || ' (truck)', false, -1, 'truck'
-  from public.airfnb_trucks t
-  join (values
-    ('divine-burguers',      'https://images.unsplash.com/photo-1565123409695-7b5ef63a2efb?w=900&q=80'),
-    ('gypsy-kitchen',        'https://images.unsplash.com/photo-1542684964-eedfeac80a96?w=900&q=80'),
-    ('el-mexicano',          'https://images.unsplash.com/photo-1601758174039-7b50305a6f0d?w=900&q=80'),
-    ('la-dolce-vita',        'https://images.unsplash.com/photo-1623661321398-9b0c4f6e9c79?w=900&q=80'),
-    ('bbq-kings',            'https://images.unsplash.com/photo-1601925240970-98447f56e7f0?w=900&q=80'),
-    ('sushi-zen',            'https://images.unsplash.com/photo-1565123409695-7b5ef63a2efb?w=900&q=80'),
-    ('taco-fiesta',          'https://images.unsplash.com/photo-1601758174614-c4070ba1cb5d?w=900&q=80'),
-    ('turkish-delights',     'https://images.unsplash.com/photo-1565123409695-7b5ef63a2efb?w=900&q=80'),
-    ('portuguese-tradition', 'https://images.unsplash.com/photo-1601758125946-6ec2ef64daf8?w=900&q=80'),
-    ('wok-and-roll',         'https://images.unsplash.com/photo-1542684964-eedfeac80a96?w=900&q=80'),
-    ('pizza-vesuvio',        'https://images.unsplash.com/photo-1601925240970-98447f56e7f0?w=900&q=80'),
-    ('creperia-pt',          'https://images.unsplash.com/photo-1623661321398-9b0c4f6e9c79?w=900&q=80')
-  ) as v(truck_slug, url) on v.truck_slug = t.slug
-on conflict do nothing;
+-- NOTE: an earlier version of this migration seeded a hand-picked set of
+-- Unsplash URLs for kind='truck' cover photos. Five of seven were 404 in
+-- production and the two that resolved were unrelated content (one a dog
+-- photo). Removed in migration airfnb_47 — fresh clones never get the
+-- broken seed. Owners upload real exterior shots via the wizard's kind
+-- picker (PR #47); demo trucks fall back to their food photos until then.
