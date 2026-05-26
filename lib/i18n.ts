@@ -1057,6 +1057,7 @@ export const dictionaries = {
         anon_tos_link:        "Termos",
         anon_tos_middle:      " e a ",
         anon_privacy_link:    "Política de Privacidade",
+        draft_restored:       "Continuámos de onde tinhas parado — clica em Finalizar para publicar.",
         step1: {
           name_label:         "Seu Nome",
           name_placeholder:   "Insira seu nome",
@@ -2501,6 +2502,7 @@ export const dictionaries = {
         anon_tos_link:        "Terms",
         anon_tos_middle:      " and the ",
         anon_privacy_link:    "Privacy Policy",
+        draft_restored:       "We picked up where you left off — click Finish to publish.",
         step1: {
           name_label:         "Your name",
           name_placeholder:   "Enter your name",

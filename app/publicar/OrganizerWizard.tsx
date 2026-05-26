@@ -241,6 +241,67 @@ export function OrganizerWizard({
   const isAnonymous = userId === null;
   const [password, setPassword]   = useState("");
   const [tosAccepted, setTos]     = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Rehydrate the localStorage draft on mount when the visitor returns
+  // authenticated (e.g. after clicking the email-confirmation link).
+  // The draft is keyed only by presence in storage: if the now-authed
+  // user's email matches the stored email, we restore every wizard
+  // field, hop to step 5, and clear the draft so subsequent visits
+  // start clean. Best-effort — wrapped in try/catch so a malformed
+  // payload from a previous build doesn't poison the wizard.
+  useEffect(() => {
+    if (isAnonymous || draftRestored) return;
+    try {
+      const raw = localStorage.getItem("airfnb-publish-draft");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { ts?: number; email?: string; draft?: Record<string, unknown> };
+      if (!parsed?.draft) return;
+      // Drop drafts older than 7 days — old enough that the user has
+      // probably forgotten about them and we'd surprise more than help.
+      if (parsed.ts && Date.now() - parsed.ts > 7 * 24 * 3600 * 1000) {
+        localStorage.removeItem("airfnb-publish-draft");
+        return;
+      }
+      // Only restore if the email lines up with the now-signed-in user.
+      if (parsed.email && defaultEmail && parsed.email.toLowerCase() !== defaultEmail.toLowerCase()) {
+        return;
+      }
+      const d = parsed.draft as Record<string, any>;
+      if (typeof d.eventTitle === "string")  setEventTitle(d.eventTitle);
+      if (typeof d.address === "string")     setAddress(d.address);
+      if (typeof d.locality === "string")    setLocality(d.locality);
+      if (typeof d.kind === "string")        setKind(d.kind);
+      if (typeof d.guests === "number")      setGuests(d.guests);
+      if (typeof d.trucksWanted === "number") setTrucksWanted(d.trucksWanted);
+      if (typeof d.cateringType === "string") setCateringType(d.cateringType as any);
+      if (typeof d.startAt === "string")     setStartAt(d.startAt);
+      if (typeof d.endAt === "string")       setEndAt(d.endAt);
+      if (typeof d.budget === "number")      setBudget(d.budget);
+      if (typeof d.budgetFlex === "boolean") setBudgetFlex(d.budgetFlex);
+      if (Array.isArray(d.cuisines))         setCuisines(d.cuisines);
+      if (Array.isArray(d.specialtyIds))     setSpecialtyIds(d.specialtyIds);
+      if (Array.isArray(d.dietary))          setDietary(d.dietary);
+      if (typeof d.notes === "string")       setNotes(d.notes);
+      if (typeof d.setupMin === "number")    setSetupMin(d.setupMin);
+      if (typeof d.teardownMin === "number") setTeardownMin(d.teardownMin);
+      if (typeof d.energy === "string")      setEnergy(d.energy as any);
+      if (typeof d.energyHelp === "boolean") setEnergyHelp(d.energyHelp);
+      if (Array.isArray(d.waterProvided))    setWaterProvided(d.waterProvided as WaterOption[]);
+      if (Array.isArray(d.wcProvided))       setWcProvided(d.wcProvided as WcOption[]);
+      if (Array.isArray(d.extras))           setExtras(d.extras);
+      if (typeof d.selectionMode === "string") setSelectionMode(d.selectionMode as any);
+      // Land them on the last step so they can publish in one click.
+      setStep(5);
+      setDraftRestored(true);
+      localStorage.removeItem("airfnb-publish-draft");
+    } catch {
+      // Corrupted payload — drop it silently and let the user start over.
+      try { localStorage.removeItem("airfnb-publish-draft"); } catch { /* ignore */ }
+    }
+    // Run once on mount; deps deliberately empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-clear stale step-1 banner once the step actually validates again.
   // Re-runs the same validator instead of just checking "all required
@@ -446,6 +507,18 @@ export function OrganizerWizard({
         style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
       />
       <DotStepper step={step} total={5} />
+      {draftRestored && (
+        <div style={{
+          background: "linear-gradient(180deg, #FFF6F2 0%, #FFFFFF 100%)",
+          border: "1px solid var(--orange)",
+          padding: "10px 14px", borderRadius: "var(--radius-sm)",
+          margin: "0 0 14px", fontSize: 14,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ color: "var(--orange)" }}>history</span>
+          <span>{(t as any).draft_restored ?? "Continuámos de onde tinhas parado — clica em Finalizar para publicar."}</span>
+        </div>
+      )}
       {err && <div style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-line)", padding: "10px 14px", borderRadius: "var(--radius-sm)", margin: "0 0 16px", fontSize: 14 }}>{err}</div>}
 
       {step === 1 && (
