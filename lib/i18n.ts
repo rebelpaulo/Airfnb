@@ -851,6 +851,20 @@ export const dictionaries = {
       remove:            "Remover dos favoritos",
       sign_in_required:  "Entra para guardar",
     },
+    invite_trucks: {
+      breadcrumb_dash:             "Dashboard",
+      breadcrumb_request_fallback: "Pedido",
+      breadcrumb_self:              "Convidar trucks",
+      page_title:                  "Convidar food trucks",
+      intro:                       "Escolheste curar a tua shortlist. Selecciona os trucks compatíveis e envia-lhes o convite — só estes verão o teu pedido.",
+      already_invited:             "Já convidaste {n} truck(s). Podes adicionar mais abaixo.",
+      empty_no_matches:            "Nenhum truck compatível para os critérios do pedido. Tenta abrir o pedido em broadcast.",
+      empty_all_invited:           "Já convidaste todos os trucks compatíveis. Aguarda as respostas no dashboard.",
+      cta_hint:                    "Selecciona um ou mais trucks na grelha acima.",
+      cta_button:                  "Enviar convites →",
+      skip_link:                   "← Voltar ao pedido sem convidar agora",
+      new_truck_label:             "Novo",
+    },
     dashboard_profile: {
       page_title:                "O meu perfil",
       subtitle:                  "Estes dados são partilhados com os parceiros quando confirmas um evento.",
@@ -1309,6 +1323,9 @@ export const dictionaries = {
         stat_when:                   "Quando",
         stat_slots:                  "Slots",
         stat_applications:           "Candidaturas",
+        stat_invited:                "Convidados",
+        curated_hint:                "Este pedido é privado — só trucks convidados podem candidatar-se.",
+        curated_invite_cta:          "Convidar trucks →",
         section_proposals:           "Propostas recebidas",
         empty_applications:          "Ainda sem candidaturas. Os trucks vão receber o teu pedido em minutos.",
         label_total_expected:        "Total esperado:",
@@ -2247,6 +2264,20 @@ export const dictionaries = {
       remove:            "Remove from favorites",
       sign_in_required:  "Sign in to save",
     },
+    invite_trucks: {
+      breadcrumb_dash:             "Dashboard",
+      breadcrumb_request_fallback: "Request",
+      breadcrumb_self:              "Invite trucks",
+      page_title:                  "Invite food trucks",
+      intro:                       "You chose to curate your shortlist. Pick the matching trucks and send the invite — only those will see your request.",
+      already_invited:             "You already invited {n} truck(s). You can add more below.",
+      empty_no_matches:            "No trucks match this request. Try switching to broadcast mode.",
+      empty_all_invited:           "You've invited every matching truck. Wait for responses in the dashboard.",
+      cta_hint:                    "Tick one or more trucks above.",
+      cta_button:                  "Send invitations →",
+      skip_link:                   "← Back to request without inviting now",
+      new_truck_label:             "New",
+    },
     dashboard_profile: {
       page_title:                "My profile",
       subtitle:                  "This information is shared with partners when you confirm an event.",
@@ -2705,6 +2736,9 @@ export const dictionaries = {
         stat_when:                   "When",
         stat_slots:                  "Slots",
         stat_applications:           "Applications",
+        stat_invited:                "Invited",
+        curated_hint:                "This request is private — only invited trucks can apply.",
+        curated_invite_cta:          "Invite trucks →",
         section_proposals:           "Proposals received",
         empty_applications:          "No applications yet. Trucks will receive your request within minutes.",
         label_total_expected:        "Expected total:",
@@ -2841,6 +2875,7 @@ export const dictionaries = {
   dashboard_sidebar: Record<string, string>;
   dashboard_favorites: Record<string, string>;
   favorites_button: Record<string, string>;
+  invite_trucks: Record<string, string>;
   dashboard_profile: Record<string, string>;
   vocab: Record<string, Record<string, string>>;
   wizard: Record<string, Record<string, string | Record<string, string>>>;

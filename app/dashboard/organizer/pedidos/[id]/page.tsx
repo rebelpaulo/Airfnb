@@ -34,12 +34,27 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   // Map applications → conversations + bookings so accepted apps deep-link
   // straight into chat or the review form once the booking is confirmed.
   const appIds = applications.map((a: any) => a.id);
-  const [convsRes, bookingsRes] = appIds.length
+  // Invitations are queried unconditionally — curated requests start
+  // life with zero applications, and we still need the invite count
+  // to render the funnel stat + private-mode banner. Conversations /
+  // bookings ride on application ids, so they're only worth a round-
+  // trip when there's at least one application to join against.
+  const invitesPromise = (supa as any)
+    .from("airfnb_request_invitations")
+    .select("truck_id, responded")
+    .eq("request_id", id);
+  const [convsRes, bookingsRes, invitesRes] = appIds.length
     ? await Promise.all([
         (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
         (supa as any).from("airfnb_bookings").select("id, application_id, status, ics_token").in("application_id", appIds),
+        invitesPromise,
       ])
-    : [{ data: [] }, { data: [] }];
+    : await Promise.all([
+        Promise.resolve({ data: [] } as any),
+        Promise.resolve({ data: [] } as any),
+        invitesPromise,
+      ]);
+  const invitations: any[] = (invitesRes as any).data ?? [];
   const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
   const bookingByApp = new Map<string, { id: string; status: string; ics_token: string | null }>(
     ((bookingsRes.data as any[]) ?? []).map((b) => [b.application_id, { id: b.id, status: b.status, ics_token: b.ics_token }]),
@@ -89,7 +104,29 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
         </div></div>
         <div className="stat"><div className="label">{t.stat_slots}</div><div className="value">{req.slots_needed}</div></div>
         <div className="stat"><div className="label">{t.stat_applications}</div><div className="value">{applications.length}</div></div>
+        {req.discovery_mode === "curated" && (
+          <div className="stat">
+            <div className="label">{t.stat_invited ?? "Convidados"}</div>
+            <div className="value">{invitations.length}</div>
+          </div>
+        )}
       </div>
+
+      {req.discovery_mode === "curated" && (
+        <div style={{
+          marginTop: 14, padding: 12,
+          background: "var(--soft-bg, #F6F7F9)",
+          border: "1px solid var(--line)", borderRadius: 8,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          gap: 12, flexWrap: "wrap", fontSize: 14,
+        }}>
+          <span>{t.curated_hint ?? "Este pedido é privado — só trucks convidados podem candidatar-se."}</span>
+          <Link href={`/dashboard/organizer/pedidos/${id}/convidar`} className="btn-pill"
+                style={{ background: "var(--orange)", color: "#fff", fontSize: 13, padding: "8px 16px" }}>
+            {t.curated_invite_cta ?? "Convidar trucks →"}
+          </Link>
+        </div>
+      )}
 
       <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)" }}>{t.section_proposals}</h2>
 
