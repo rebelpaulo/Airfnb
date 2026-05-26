@@ -1,12 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
-import { truckCover } from "@/lib/img";
 import { FilterModal } from "./FilterModal";
 import { getDictionary } from "@/lib/i18n";
 import { getFavoritedTruckIds } from "@/lib/favorites";
-import { HeartButton } from "@/components/HeartButton";
+import { TruckCard } from "@/components/TruckCard";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
@@ -225,33 +223,13 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
       ) : (
         <div className="truck-grid cols-4" style={{ marginTop: 26 }}>
           {trucks.map((tr: any) => (
-            <Link key={tr.id} href={`/catalogo/${tr.slug}`} className="truck-card">
-              <div className="thumb" style={{ position: "relative" }}>
-                <Image
-                  src={truckCover(tr.cover_url)}
-                  alt={tr.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-                  style={{ objectFit: "cover" }}
-                />
-                <HeartButton truckId={tr.id} initialFavorited={favoritedIds.has(tr.id)} authed={authed} />
-              </div>
-              <div className="info">
-                <h3>{tr.name}</h3>
-                <div className="subtitle">{(tr.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
-                <div className="meta">
-                  <span className="loc">
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
-                    {tr.base_city ?? "—"}
-                  </span>
-                  <span className="cap">
-                    {Number(tr.rating_count) > 0
-                      ? `★ ${Number(tr.rating_avg).toFixed(1)} (${tr.rating_count})`
-                      : t.truck_new}
-                  </span>
-                </div>
-              </div>
-            </Link>
+            <TruckCard
+              key={tr.id}
+              truck={tr}
+              initialFavorited={favoritedIds.has(tr.id)}
+              authed={authed}
+              newLabel={t.truck_new}
+            />
           ))}
         </div>
       )}
