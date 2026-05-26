@@ -2383,7 +2383,7 @@ export const dictionaries = {
       },
       water_provided: {
         agua_rede:         "Mains water tap",
-        agua_deposito:     "Water tank / depósito",
+        agua_deposito:     "Water tank",
         agua_truck:        "Trucks bring their own water",
         agua_indisponivel: "No water on site",
       },

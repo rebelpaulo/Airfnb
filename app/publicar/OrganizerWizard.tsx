@@ -117,9 +117,34 @@ type WcOption = typeof WC_OPTIONS[number];
  * old wording: dedicated staff WC > public/nearby WC > none.
  */
 function deriveLegacySanitation(wc: WcOption[]): "nao_necessario" | "wc_proximo" | "wc_dedicado" {
-  if (wc.includes("wc_staff"))    return "wc_dedicado";
-  if (wc.includes("wc_publicos")) return "wc_proximo";
+  // wc_inexistente is the explicit "no WC" — wins over any other chip
+  // because the toggle handler clears positives when the user picks it,
+  // but a stale or replayed payload could still ship both. Treat it as
+  // truth.
+  if (wc.includes("wc_inexistente")) return "nao_necessario";
+  if (wc.includes("wc_staff"))       return "wc_dedicado";
+  if (wc.includes("wc_publicos"))    return "wc_proximo";
   return "nao_necessario";
+}
+
+/**
+ * Toggle helper that enforces mutual exclusion between the explicit
+ * "none" chip and any positive option in the same group. Picking the
+ * "none" chip clears everything else; picking a positive chip clears
+ * the "none" chip. Without this the wizard accepts impossible
+ * combinations like ["agua_rede", "agua_indisponivel"].
+ */
+function toggleWithNone<T extends string>(list: T[], value: T, noneValue: T): T[] {
+  const present = list.includes(value);
+  if (value === noneValue) {
+    // Picking the none chip: clear everything else, leaving only it
+    // (or remove it if already present).
+    return present ? [] : [noneValue];
+  }
+  // Picking a positive chip: drop the none chip if it was set, then
+  // toggle the positive normally.
+  const without = list.filter((v) => v !== noneValue && v !== value);
+  return present ? without : [...without, value];
 }
 
 const EXTRA_SERVICES: Array<{ value: string; dictKey: "ticketing" | "security" | "photo_video" | "planning" | "entertainment" | "venue" | "cleaning" | "promotion" }> = [
@@ -567,7 +592,7 @@ export function OrganizerWizard({
               {WATER_OPTIONS.map((opt) => (
                 <button type="button" key={opt} className="chip"
                   data-active={waterProvided.includes(opt)}
-                  onClick={() => setWaterProvided((s) => toggle(s, opt))}>
+                  onClick={() => setWaterProvided((s) => toggleWithNone(s, opt, "agua_indisponivel"))}>
                   {((dict.vocab as any).water_provided ?? {})[opt] ?? opt}
                 </button>
               ))}
@@ -580,7 +605,7 @@ export function OrganizerWizard({
               {WC_OPTIONS.map((opt) => (
                 <button type="button" key={opt} className="chip"
                   data-active={wcProvided.includes(opt)}
-                  onClick={() => setWcProvided((s) => toggle(s, opt))}>
+                  onClick={() => setWcProvided((s) => toggleWithNone(s, opt, "wc_inexistente"))}>
                   {((dict.vocab as any).wc_provided ?? {})[opt] ?? opt}
                 </button>
               ))}
