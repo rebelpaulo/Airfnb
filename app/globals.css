@@ -54,6 +54,13 @@ html, body {
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  /* Defensive horizontal-overflow clamp. Without this, any rogue child
+     (e.g. a grid tile with min-width > viewport, a wide table, a long
+     unbreakable URL) drags the whole document sideways, which exposes a
+     white strip and pushes the fixed header's right-aligned LangToggle
+     off-screen. We use html+body together so the clamp survives whatever
+     the document/viewport pairing computes the scroll axis on. */
+  overflow-x: hidden;
 }
 
 a { color: inherit; text-decoration: none; }
