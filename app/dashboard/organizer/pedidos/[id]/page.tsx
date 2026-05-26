@@ -128,6 +128,21 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
         </div>
       )}
 
+      {req.assistance_requested === true && (
+        <div style={{
+          marginTop: 14, padding: 12,
+          background: "linear-gradient(180deg, #FFF6F2 0%, #FFFFFF 100%)",
+          border: "1px solid var(--orange)", borderRadius: 8,
+          fontSize: 14,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span className="material-symbols-outlined" style={{ color: "var(--orange)", fontSize: 22 }} aria-hidden="true">
+            support_agent
+          </span>
+          <span>{t.assisted_banner ?? "A equipa Air F&B está a curar a tua shortlist. Vamos contactar-te em breve com sugestões."}</span>
+        </div>
+      )}
+
       <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)" }}>{t.section_proposals}</h2>
 
       {applications.length === 0 ? (

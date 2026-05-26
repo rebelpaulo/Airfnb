@@ -21,6 +21,20 @@ export default async function AdminDashboardPage() {
     .rpc("airfnb_admin_pending_trucks", { p_limit: 5 });
   const pending: any[] = (pendingTrucks as any[]) ?? [];
 
+  // Assisted requests are the "Preciso de ajuda especializada" branch:
+  // organizer wants the Air F&B team to curate the shortlist. Surface
+  // them prominently so the team can pick them up alongside trucks
+  // pending moderation. We pull live requests only (status open) so
+  // historical assisted requests don't clutter the queue.
+  const { data: assistedRaw } = await (supa as any)
+    .from("airfnb_event_requests")
+    .select("id, title, city, locality, expected_pax, start_at, created_at, organizer_id")
+    .eq("assistance_requested", true)
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(8);
+  const assisted: any[] = (assistedRaw as any[]) ?? [];
+
   const dict = await getDictionary();
   const t = dict.admin;
   const locale = await getLocale();
@@ -48,6 +62,30 @@ export default async function AdminDashboardPage() {
         <Stat label={t.stat_revenue}            value={money(m.revenue_platform ?? 0)} accent="#10A37F" />
         <Stat label={t.stat_users}              value={m.organizers_total} />
       </div>
+
+      {assisted.length > 0 && (
+        <section style={{ marginTop: 32 }}>
+          <h2 style={{ margin: 0 }}>{t.assisted_title ?? "Pedidos a aguardar curadoria"}</h2>
+          <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
+            {t.assisted_subtitle ?? "Organizadores que pediram a ajuda da equipa Air F&B para curar a shortlist."}
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, marginTop: 14, display: "grid", gap: 10 }}>
+            {assisted.map((r) => (
+              <li key={r.id} style={{ border: "1px solid var(--line)", borderLeft: "4px solid var(--orange)", borderRadius: 12, padding: 14, background: "#fff", display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+                <div>
+                  <strong>{r.title}</strong>
+                  <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                    {(r.city ?? r.locality ?? "—")} · {r.expected_pax} pax · {new Date(r.start_at).toLocaleDateString(dateLocale)}
+                  </div>
+                </div>
+                <Link href={`/dashboard/organizer/pedidos/${r.id}`} className="btn-pill outline" style={{ padding: "8px 16px", borderColor: "var(--teal)", color: "var(--teal)" }}>
+                  {t.assisted_open ?? "Abrir pedido"}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section style={{ marginTop: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
