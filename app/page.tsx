@@ -103,14 +103,12 @@ export default async function HomePage() {
         <p className="tagline">{dict.common.tagline}</p>
 
         {/*
-          Search bar is the entry-point for organizers publishing an event.
-          We submit to /publicar so the wizard can prefill location + date +
-          pax. TODO: replace the city input with a Google Places Autocomplete
-          so the captured value is the same structured location we already
-          collect during truck registration — this is what the matching
-          algorithm joins on.
+          Search bar is the entry-point for organizers exploring an event.
+          We submit to /procurar — the discovery page shows an operations
+          plan + filtered truck grid, and forwards the same params into
+          /publicar via its CTA so the wizard can prefill step 1.
         */}
-        <form action="/publicar" className="search-bar" autoComplete="off">
+        <form action="/procurar" className="search-bar" autoComplete="off">
           <div className="field">
             <label htmlFor="where">{t.hero_question}</label>
             <CityAutocomplete name="city" placeholder={dict.common.city_placeholder} />

@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { useDict } from "@/components/DictProvider";
@@ -21,6 +21,17 @@ type Props = {
   defaultEmail: string;
   defaultPhone: string;
   categories: Category[];
+  // True if profile already has name + email + phone. When set, the wizard's
+  // step 1 hides those 3 inputs (still submits them via hidden inputs) and
+  // shows a compact "publishing as X" banner instead. Removes a redundant
+  // data-entry burden for returning users without losing the values.
+  profileComplete?: boolean;
+  // Pre-populated from /procurar discovery page (or empty if reached directly).
+  defaultCity?: string;
+  defaultStartAt?: string;
+  defaultEndAt?: string;
+  defaultGuests?: number;
+  defaultCuisines?: string[];
 };
 
 // Labels for these chip arrays come from `dict.vocab.*` and `dict.wizard.organizer.*`
@@ -103,7 +114,12 @@ const SELECTION_MODES: Array<{ value: "open_to_offers" | "pick_myself" | "assist
   { value: "assisted",       labelKey: "mode_assisted_label", hintKey: "mode_assisted_hint" },
 ];
 
-export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhone, categories }: Props) {
+export function OrganizerWizard({
+  userId, defaultName, defaultEmail, defaultPhone, categories,
+  profileComplete = false,
+  defaultCity = "", defaultStartAt = "", defaultEndAt = "",
+  defaultGuests, defaultCuisines = [],
+}: Props) {
   const dict = useDict();
   const t = dict.wizard.organizer;
   const router = useRouter();
@@ -117,18 +133,35 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
   const [phone, setPhone] = useState(defaultPhone);
   const [eventTitle, setEventTitle] = useState("");
   const [address, setAddress] = useState("");
-  const [locality, setLocality] = useState("");
+  const [locality, setLocality] = useState(defaultCity);
   const [kind, setKind] = useState("wedding");
-  const [guests, setGuests] = useState(200);
-  const [trucksWanted, setTrucksWanted] = useState(1);
+  const [guests, setGuests] = useState(defaultGuests ?? 200);
+  // Recommended truck count tracks the guest slider at ~1 truck / 150 pax
+  // (mid-point of the conservative 120-200 range used in the planning copy).
+  // Recompute every time `guests` changes; the field remains editable, so
+  // the user can override the recommendation manually — their value sticks
+  // until they touch the guest slider again.
+  // Clamp to 1..10 because airfnb_event_requests.slots_needed has a
+  // CHECK constraint in that range — a 1500-guest event would otherwise
+  // try 10 → 11+ and the insert would 400 at submit time.
+  const [trucksWanted, setTrucksWanted] = useState(() => Math.min(10, Math.max(1, Math.ceil((defaultGuests ?? 200) / 150))));
+  useEffect(() => {
+    setTrucksWanted(Math.min(10, Math.max(1, Math.ceil(guests / 150))));
+  }, [guests]);
+
+  // Auto-clear a stale step-1 validation error once the user has actually
+  // filled in the offending fields. Without this the banner stays on screen
+  // even after the user types into the empty input, which looks broken
+  // (regression observed on returning users whose profile had no
+  // display_name → defaultName came through empty).
   const [cateringType, setCateringType] = useState<"food" | "drinks" | "food_and_drinks">("food_and_drinks");
-  const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
+  const [startAt, setStartAt] = useState(defaultStartAt);
+  const [endAt, setEndAt] = useState(defaultEndAt);
   const [budget, setBudget] = useState(500);
   const [budgetFlex, setBudgetFlex] = useState(false);
 
   // ---- Step 2: cuisine + specialties + dietary + notes ----
-  const [cuisines, setCuisines] = useState<string[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>(defaultCuisines);
   const [specialtyIds, setSpecialtyIds] = useState<number[]>([]);
   const [dietary, setDietary] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
@@ -145,6 +178,18 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
   // ---- Step 5: selection mode ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
+
+  // Auto-clear stale step-1 banner once the step actually validates again.
+  // Re-runs the same validator instead of just checking "all required
+  // fields non-empty" — otherwise an `end_before_start` error would be
+  // silently dismissed the moment any required text field is filled,
+  // even though the bad date range is still there.
+  useEffect(() => {
+    if (step !== 1 || !err) return;
+    if (validateStep1() === null) setErr(null);
+    // validateStep1 reads from the same state slice the deps list watches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, err, name, email, eventTitle, locality, startAt, endAt]);
 
   // Honeypot: hidden field invisible to humans but eagerly filled by naive
   // form-scraping bots. We use a ref to read the LIVE DOM value at submit
@@ -272,15 +317,52 @@ export function OrganizerWizard({ userId, defaultName, defaultEmail, defaultPhon
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label={t.step1.name_label}>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.step1.name_placeholder} />
-          </Field>
-          <Field label={t.step1.email_label}>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.step1.email_placeholder} />
-          </Field>
-          <Field label={t.step1.phone_label}>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.step1.phone_placeholder} />
-          </Field>
+          {profileComplete ? (
+            // Returning user — show a compact "publishing as" banner and ride
+            // the contact values through as hidden inputs so the submit
+            // payload stays identical (server-side reads them from state,
+            // not the DOM, but the banner makes the values visible to the
+            // user without re-typing).
+            <div
+              style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                padding: "12px 14px",
+                background: "var(--soft-bg, #F6F7F9)",
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+                fontSize: 14,
+              }}
+            >
+              <div>
+                <div style={{ color: "var(--muted)", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                  {t.step1.publishing_as ?? "A publicar como"}
+                </div>
+                <div style={{ marginTop: 2 }}>
+                  <strong>{name}</strong> · {email}
+                </div>
+              </div>
+              <a
+                href="/dashboard/perfil"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--orange)", textDecoration: "underline", fontSize: 13 }}
+              >
+                {t.step1.publishing_as_edit ?? "Alterar perfil"}
+              </a>
+            </div>
+          ) : (
+            <>
+              <Field label={t.step1.name_label}>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.step1.name_placeholder} />
+              </Field>
+              <Field label={t.step1.email_label}>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.step1.email_placeholder} />
+              </Field>
+              <Field label={t.step1.phone_label}>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.step1.phone_placeholder} />
+              </Field>
+            </>
+          )}
           <Field label={t.step1.event_title_label}>
             <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} maxLength={120} placeholder={t.step1.event_title_placeholder} />
           </Field>

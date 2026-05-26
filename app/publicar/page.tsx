@@ -17,19 +17,91 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PublicarPage() {
+// URL params come in from the /procurar discovery page CTA so the wizard's
+// step 1 (location, dates, pax, cuisines) can be pre-populated. Each field
+// is best-effort — missing or malformed values just fall back to the
+// component defaults.
+type Raw = string | string[] | undefined;
+function first(v: Raw): string | undefined {
+  if (v == null) return undefined;
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" ? s.trim() || undefined : undefined;
+}
+function num(v: Raw): number | undefined {
+  const s = first(v);
+  if (!s) return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+function csv(v: Raw): string[] {
+  const s = first(v);
+  if (!s) return [];
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+// Validate a `YYYY-MM-DD` string against Date parsing so a malformed
+// URL param doesn't slip through step-1 validation (which only checks
+// non-empty) and then crash at `new Date(startAt).toISOString()` in
+// submitAll. Returns "" for anything that's not a real calendar date.
+function isoDate(v: Raw): string {
+  const s = first(v) ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : s;
+}
+
+export default async function PublicarPage({ searchParams }: {
+  searchParams: Promise<{ city?: Raw; start_at?: Raw; end_at?: Raw; expected_pax?: Raw; cuisines?: Raw }>;
+}) {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
-  if (!user) redirect("/login?next=/publicar&as=organizer");
+  if (!user) {
+    // Preserve the discovery context across the auth detour. The login page
+    // sends users back to the `next` URL with the same query string, so
+    // /procurar → /login → /publicar?city=... still works.
+    const sp = await searchParams;
+    const qs = new URLSearchParams();
+    const c = first(sp.city);          if (c) qs.set("city", c);
+    const s = first(sp.start_at);      if (s) qs.set("start_at", s);
+    const e = first(sp.end_at);        if (e) qs.set("end_at", e);
+    const p = first(sp.expected_pax);  if (p) qs.set("expected_pax", p);
+    const cu = first(sp.cuisines);     if (cu) qs.set("cuisines", cu);
+    const tail = qs.toString();
+    const next = tail ? `/publicar?${tail}` : "/publicar";
+    redirect(`/login?next=${encodeURIComponent(next)}&as=organizer`);
+  }
+  const sp = await searchParams;
+  const prefill = {
+    city:     first(sp.city) ?? "",
+    startAt:  isoDate(sp.start_at),
+    endAt:    isoDate(sp.end_at),
+    pax:      num(sp.expected_pax),
+    cuisines: csv(sp.cuisines),
+  };
 
   const dict = await getDictionary();
   const t = dict.gates.publicar;
 
   const { data: profile } = await (supa as any)
     .from("airfnb_profiles")
-    .select("display_name, email, phone, role")
+    .select("full_name, display_name, phone, role")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Resolve a display-ready name: prefer the public-facing display_name
+  // (set in /dashboard/perfil) and fall back to the legal full_name from
+  // signup. Either is fine for the wizard's "contact_name" field. Email
+  // is ALWAYS read from auth.users — airfnb_profiles intentionally does
+  // not mirror it (one source of truth).
+  const resolvedName  = (profile?.display_name?.trim() || profile?.full_name?.trim() || "");
+  const resolvedEmail = (user.email?.trim() || "");
+  const resolvedPhone = (profile?.phone?.trim() || "");
+
+  // If the user already has name + email + phone in their profile, the
+  // wizard hides the first 3 fields and shows a compact "publishing as X"
+  // header instead — the values still ride through as hidden inputs so
+  // the submit payload is unchanged. Without this gate, returning users
+  // see the same fields twice (profile + wizard) which feels broken.
+  const profileComplete = !!(resolvedName && resolvedEmail && resolvedPhone);
 
   // Roles are exclusive — a truck owner can't pivot into organizing events.
   // They have to use a different email.
@@ -50,10 +122,16 @@ export default async function PublicarPage() {
       </p>
       <OrganizerWizard
         userId={user.id}
-        defaultName={profile?.display_name ?? ""}
-        defaultEmail={profile?.email ?? user.email ?? ""}
-        defaultPhone={profile?.phone ?? ""}
+        defaultName={resolvedName}
+        defaultEmail={resolvedEmail}
+        defaultPhone={resolvedPhone}
+        profileComplete={profileComplete}
         categories={categoriesData ?? []}
+        defaultCity={prefill.city}
+        defaultStartAt={prefill.startAt}
+        defaultEndAt={prefill.endAt}
+        defaultGuests={prefill.pax}
+        defaultCuisines={prefill.cuisines}
       />
     </div>
   );
