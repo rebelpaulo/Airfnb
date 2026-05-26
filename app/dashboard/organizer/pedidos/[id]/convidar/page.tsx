@@ -72,41 +72,75 @@ export default async function InvitePage({ params }: { params: Promise<{ id: str
     const checked = formData.getAll("truck_id").map(String).filter(Boolean);
     if (checked.length === 0) return;
 
-    // Re-fetch the request to verify ownership server-side (don't trust
-    // the page render — server actions can be replayed independently).
+    // Re-fetch the request to verify ownership server-side AND to
+    // re-derive the filter set the page used. Don't trust the page
+    // render — server actions can be replayed independently with
+    // forged payloads.
     const { data: reqRow } = await (supa as any)
       .from("airfnb_event_requests")
-      .select("id, organizer_id, title")
+      .select("id, organizer_id, title, city, locality, expected_pax, desired_cuisines, discovery_mode")
       .eq("id", id)
       .maybeSingle();
     if (!reqRow || reqRow.organizer_id !== user.id) {
       throw new Error("not authorized");
     }
 
-    // Resolve the owners of the chosen trucks so we can notify them.
-    // Joining via in() keeps the round-trips at two regardless of N.
+    // Re-run the same eligibility query the page used so a forged
+    // truck_id that doesn't match the request filters can't slip
+    // through. Whitelist the resulting ids before any DB write.
+    let elig = (supa as any)
+      .from("airfnb_v_truck_card")
+      .select("id")
+      .in("id", checked);
+    const city = (reqRow.city ?? reqRow.locality ?? "").trim();
+    if (city) elig = elig.ilike("base_city", `%${city}%`);
+    if (reqRow.expected_pax) elig = elig.gte("capacity", reqRow.expected_pax);
+    if (Array.isArray(reqRow.desired_cuisines) && reqRow.desired_cuisines.length > 0) {
+      elig = elig.overlaps("cuisine_types", reqRow.desired_cuisines);
+    }
+    const { data: eligible = [] } = await elig;
+    const eligibleIds = new Set<string>((eligible as Array<{ id: string }>).map((r) => r.id));
+    const safeChecked = checked.filter((tid) => eligibleIds.has(tid));
+    if (safeChecked.length === 0) return;
+
+    // Snapshot the trucks already invited so we can fan out
+    // notifications ONLY to the ones we're actually going to insert.
+    // Otherwise replays / accidental double-submits spam owners with
+    // duplicate "you were invited" pings even though the PK upsert
+    // is a no-op.
+    const { data: existing = [] } = await (supa as any)
+      .from("airfnb_request_invitations")
+      .select("truck_id")
+      .eq("request_id", id)
+      .in("truck_id", safeChecked);
+    const alreadyInvited = new Set<string>((existing as Array<{ truck_id: string }>).map((r) => r.truck_id));
+    const newlyInvitedIds = safeChecked.filter((tid) => !alreadyInvited.has(tid));
+    if (newlyInvitedIds.length === 0) {
+      // Nothing new to insert — just bounce back without notifying.
+      redirect(`/dashboard/organizer/pedidos/${id}`);
+    }
+
+    // Resolve owners of the trucks we're about to invite (one round-trip
+    // for N, regardless of N) so we can fan out notifications.
     const { data: trucksData } = await (supa as any)
       .from("airfnb_trucks")
       .select("id, owner_id, name")
-      .in("id", checked);
+      .in("id", newlyInvitedIds);
     const trucksList = (trucksData ?? []) as Array<{ id: string; owner_id: string; name: string }>;
 
-    // Batch insert invitations. on conflict do nothing so re-inviting
-    // an already-invited truck is a no-op (the PK is (request_id, truck_id)).
+    // Insert invitations (PK is request_id+truck_id; on-conflict-ignore
+    // belt-and-braces in case of a race between two concurrent inserts).
     const inviteRows = trucksList.map((tr) => ({
       request_id: id,
       truck_id:   tr.id,
       invited_by: user.id,
     }));
-    if (inviteRows.length > 0) {
-      const { error: invErr } = await (supa as any)
-        .from("airfnb_request_invitations")
-        .upsert(inviteRows, { onConflict: "request_id,truck_id", ignoreDuplicates: true });
-      if (invErr) throw new Error(invErr.message);
-    }
+    const { error: invErr } = await (supa as any)
+      .from("airfnb_request_invitations")
+      .upsert(inviteRows, { onConflict: "request_id,truck_id", ignoreDuplicates: true });
+    if (invErr) throw new Error(invErr.message);
 
-    // Notifications: one per truck owner. Payload includes everything the
-    // bell + the truck-side oportunidades page need to deep-link back.
+    // Notifications — only for trucks we just newly invited.
     const notifRows = trucksList.map((tr) => ({
       user_id: tr.owner_id,
       kind:    "request.invited",

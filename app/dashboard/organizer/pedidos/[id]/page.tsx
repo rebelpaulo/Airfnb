@@ -34,15 +34,26 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   // Map applications → conversations + bookings so accepted apps deep-link
   // straight into chat or the review form once the booking is confirmed.
   const appIds = applications.map((a: any) => a.id);
+  // Invitations are queried unconditionally — curated requests start
+  // life with zero applications, and we still need the invite count
+  // to render the funnel stat + private-mode banner. Conversations /
+  // bookings ride on application ids, so they're only worth a round-
+  // trip when there's at least one application to join against.
+  const invitesPromise = (supa as any)
+    .from("airfnb_request_invitations")
+    .select("truck_id, responded")
+    .eq("request_id", id);
   const [convsRes, bookingsRes, invitesRes] = appIds.length
     ? await Promise.all([
         (supa as any).from("airfnb_conversations").select("id, application_id").in("application_id", appIds),
         (supa as any).from("airfnb_bookings").select("id, application_id, status, ics_token").in("application_id", appIds),
-        // Invitations count is curated-mode's "applications" — show it
-        // alongside so the organizer sees the funnel (invited → applied).
-        (supa as any).from("airfnb_request_invitations").select("truck_id, responded").eq("request_id", id),
+        invitesPromise,
       ])
-    : [{ data: [] }, { data: [] }, (supa as any).from("airfnb_request_invitations").select("truck_id, responded").eq("request_id", id)];
+    : await Promise.all([
+        Promise.resolve({ data: [] } as any),
+        Promise.resolve({ data: [] } as any),
+        invitesPromise,
+      ]);
   const invitations: any[] = (invitesRes as any).data ?? [];
   const convByApp    = new Map<string, string>(((convsRes.data as any[]) ?? []).map((c) => [c.application_id, c.id]));
   const bookingByApp = new Map<string, { id: string; status: string; ics_token: string | null }>(
