@@ -11,8 +11,17 @@
 --
 -- Idempotent via the (-1) sort_order marker we use for seed rows.
 
+-- Only seed for trucks that have ZERO kind='truck' images. Skips any
+-- truck where an owner has already uploaded a real exterior shot — we
+-- don't want the placeholder competing with (and beating, since its
+-- sort_order=-1 sorts earlier) a real photo. The NOT EXISTS predicate
+-- also makes the migration idempotent on its own without leaning on a
+-- unique constraint the table doesn't have.
 insert into public.airfnb_truck_images (truck_id, url, alt, is_cover, sort_order, kind)
 select t.id, '/truck-placeholder.svg', t.name || ' (truck)', false, -1, 'truck'
   from public.airfnb_trucks t
-  where t.status = 'active'
-on conflict do nothing;
+ where t.status = 'active'
+   and not exists (
+     select 1 from public.airfnb_truck_images i
+      where i.truck_id = t.id and i.kind = 'truck'
+   );
