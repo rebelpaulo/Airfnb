@@ -263,11 +263,20 @@ export function OrganizerWizard({
         localStorage.removeItem("airfnb-publish-draft");
         return;
       }
-      // Only restore if the email lines up with the now-signed-in user.
-      if (parsed.email && defaultEmail && parsed.email.toLowerCase() !== defaultEmail.toLowerCase()) {
-        return;
-      }
+      // Strict email check: the draft MUST carry a non-empty email and
+      // it MUST match the now-signed-in user's email (case-insensitive).
+      // Without this, a shared browser could let a malformed or tampered
+      // draft (one with no email field) restore someone else's saved
+      // organizer data into a different user's wizard.
+      if (typeof parsed.email !== "string" || parsed.email.trim() === "") return;
+      if (!defaultEmail || parsed.email.toLowerCase() !== defaultEmail.toLowerCase()) return;
       const d = parsed.draft as Record<string, any>;
+      // Contact name + phone need restoring too — on the email-confirm
+      // flow the user has no profile yet, so defaults from /publicar/page
+      // come through empty. The signUp metadata covers full_name on the
+      // server side but the local form state still has to be populated.
+      if (typeof d.name === "string")        setName(d.name);
+      if (typeof d.phone === "string")       setPhone(d.phone);
       if (typeof d.eventTitle === "string")  setEventTitle(d.eventTitle);
       if (typeof d.address === "string")     setAddress(d.address);
       if (typeof d.locality === "string")    setLocality(d.locality);
