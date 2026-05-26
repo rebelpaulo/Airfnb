@@ -111,10 +111,16 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
 
   async function setKind(photoId: string, kind: Kind) {
     const supa = supabaseBrowser();
+    // Belt-and-braces: scope the update to (id, truck_id). RLS already
+    // gates owners to their own trucks, but a narrowed predicate makes
+    // the intent explicit and stops a stale id from ever touching a
+    // sibling truck's row (e.g. if the parent component recycles photo
+    // objects across truck switches).
     const { error } = await (supa as any)
       .from("airfnb_truck_images")
       .update({ kind })
-      .eq("id", photoId);
+      .eq("id", photoId)
+      .eq("truck_id", truckId);
     if (error) {
       setErr(error.message);
       return;
@@ -224,9 +230,14 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
                   fontSize: 11, padding: "2px 8px", borderRadius: 999, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
                 }}>{t.cover_badge}</span>
               )}
-              {p.id && p.kind && (
+              {p.id && (
+                // Render the editor for every persisted photo, even if the
+                // initial fetch came back without a kind (legacy rows that
+                // predate migration airfnb_43). Fallback to 'other' so the
+                // <select> has a defined value and the owner can pick the
+                // correct kind.
                 <select
-                  value={p.kind}
+                  value={p.kind ?? "other"}
                   onChange={(e) => setKind(p.id!, e.target.value as Kind)}
                   aria-label={(t as Record<string, string>).kind_label ?? "Tipo de foto"}
                   style={{
