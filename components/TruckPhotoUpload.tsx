@@ -15,7 +15,13 @@ function format(template: string, vars: Record<string, string | number>): string
 
 const BUCKET = "airfnb-truck-images";
 
-type Photo = { id?: string; url: string; isCover?: boolean };
+// Matches public.airfnb_truck_image_kind in migration airfnb_43. Kept in
+// the order we surface to the user (truck first because that's the photo
+// we WANT them to upload first — the gallery_urls view orders by this).
+const KINDS = ["truck", "food", "venue", "team", "other"] as const;
+type Kind = typeof KINDS[number];
+
+type Photo = { id?: string; url: string; isCover?: boolean; kind?: Kind };
 
 type Props = {
   truckId: string;
@@ -39,6 +45,12 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
   const [photos, setPhotos] = useState<Photo[]>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Kind chosen for the NEXT upload. Defaults to "truck" when the gallery
+  // is empty (so the first photo organizers see is the truck itself) and
+  // flips to "food" once at least one truck-kind photo exists. Owner can
+  // override before dropping files.
+  const initialKind: Kind = initial.some((p) => p.kind === "truck") ? "food" : "truck";
+  const [pendingKind, setPendingKind] = useState<Kind>(initialKind);
 
   async function handleFiles(files: FileList) {
     setErr(null);
@@ -60,12 +72,24 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
         const isFirst = next.length === 0;
         const { data: row, error: insErr } = await (supa as any)
           .from("airfnb_truck_images")
-          .insert({ truck_id: truckId, url: publicUrl, is_cover: isFirst, sort_order: next.length })
-          .select("id, url, is_cover")
+          .insert({
+            truck_id: truckId,
+            url: publicUrl,
+            is_cover: isFirst,
+            sort_order: next.length,
+            kind: pendingKind,
+          })
+          .select("id, url, is_cover, kind")
           .single();
         if (insErr) throw new Error(insErr.message);
-        next.push({ id: row.id, url: row.url, isCover: row.is_cover });
+        next.push({ id: row.id, url: row.url, isCover: row.is_cover, kind: row.kind });
         setPhotos([...next]);
+      }
+      // Auto-flip the kind picker after the first truck photo lands —
+      // subsequent uploads default to food, which matches the gallery
+      // ordering convention. Owner can flip back manually.
+      if (pendingKind === "truck" && next.some((p) => p.kind === "truck")) {
+        setPendingKind("food");
       }
       onChange?.(next);
     } catch (e) {
@@ -81,6 +105,21 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
     await (supa as any).from("airfnb_truck_images").update({ is_cover: false }).eq("truck_id", truckId);
     await (supa as any).from("airfnb_truck_images").update({ is_cover: true }).eq("id", photoId);
     const next = photos.map((p) => ({ ...p, isCover: p.id === photoId }));
+    setPhotos(next);
+    onChange?.(next);
+  }
+
+  async function setKind(photoId: string, kind: Kind) {
+    const supa = supabaseBrowser();
+    const { error } = await (supa as any)
+      .from("airfnb_truck_images")
+      .update({ kind })
+      .eq("id", photoId);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
+    const next = photos.map((p) => (p.id === photoId ? { ...p, kind } : p));
     setPhotos(next);
     onChange?.(next);
   }
@@ -102,8 +141,44 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
     onChange?.(next);
   }
 
+  const kindLabel = (k: Kind): string =>
+    ((t as Record<string, string>)[`kind_${k}`] ?? k);
+
   return (
     <div>
+      {/* Kind chips control the type tagged onto the NEXT upload(s). They
+          live above the dropzone so the choice is unambiguous in the
+          moment of dragging files in. */}
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>
+          {(t as Record<string, string>).kind_label ?? "Próximas fotos:"}
+        </span>
+        {KINDS.map((k) => {
+          const active = pendingKind === k;
+          return (
+            <button
+              type="button"
+              key={k}
+              onClick={() => setPendingKind(k)}
+              aria-pressed={active}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 999,
+                border: "1px solid",
+                borderColor: active ? "var(--orange)" : "var(--line)",
+                background: active ? "var(--orange)" : "#fff",
+                color: active ? "#fff" : "var(--ink)",
+                fontSize: 12,
+                fontWeight: active ? 700 : 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {kindLabel(k)}
+            </button>
+          );
+        })}
+      </div>
       <div
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); }}
@@ -148,6 +223,26 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
                   position: "absolute", top: 6, left: 6, background: "var(--orange)", color: "#fff",
                   fontSize: 11, padding: "2px 8px", borderRadius: 999, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
                 }}>{t.cover_badge}</span>
+              )}
+              {p.id && p.kind && (
+                <select
+                  value={p.kind}
+                  onChange={(e) => setKind(p.id!, e.target.value as Kind)}
+                  aria-label={(t as Record<string, string>).kind_label ?? "Tipo de foto"}
+                  style={{
+                    position: "absolute", top: 6, right: 6,
+                    background: "rgba(0,0,0,0.65)", color: "#fff",
+                    border: 0, borderRadius: 999,
+                    fontSize: 11, padding: "2px 8px", fontFamily: "inherit",
+                    cursor: "pointer", appearance: "none",
+                  }}
+                >
+                  {KINDS.map((k) => (
+                    <option key={k} value={k} style={{ color: "#000" }}>
+                      {kindLabel(k)}
+                    </option>
+                  ))}
+                </select>
               )}
               {p.id && (
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", background: "linear-gradient(transparent,rgba(0,0,0,0.6))", padding: 6 }}>
