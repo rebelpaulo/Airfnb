@@ -91,11 +91,36 @@ const ENERGY: Array<{ value: "nao_preciso" | "ate_3kw" | "3_a_10kw" | "mais_10kw
   { value: "mais_10kw"   },
 ];
 
-const SANITATION: Array<{ value: "nao_necessario" | "wc_proximo" | "wc_dedicado"; dictKey: "nao_necessario" | "wc_proximo" | "wc_dedicado_staff" }> = [
-  { value: "nao_necessario", dictKey: "nao_necessario" },
-  { value: "wc_proximo",     dictKey: "wc_proximo" },
-  { value: "wc_dedicado",    dictKey: "wc_dedicado_staff" },
-];
+// Replaced by the WATER/WC multi-select chips below — keeping the legacy
+// enum mapping is only useful for deriving sanitation_level on submit so
+// existing /catalogo filters and truck-side matching keep working until
+// PR 7 migrates them to the new arrays.
+
+// Water sources the venue offers. Multi-select (a venue can have both a
+// mains tap AND a backup depósito). 'agua_truck' means trucks need to
+// rely on their internal tank, 'agua_indisponivel' is the explicit "no"
+// signal so trucks can self-exclude without guessing.
+const WATER_OPTIONS = ["agua_rede", "agua_deposito", "agua_truck", "agua_indisponivel"] as const;
+type WaterOption = typeof WATER_OPTIONS[number];
+
+// WC available on-site. Multi-select because real venues frequently
+// offer both convidados WCs and a separate staff WC. 'wc_inexistente'
+// is the explicit "no WC" — important: many trucks won't take a gig
+// without WC access for the crew.
+const WC_OPTIONS = ["wc_publicos", "wc_staff", "wc_inexistente"] as const;
+type WcOption = typeof WC_OPTIONS[number];
+
+/**
+ * Derive the legacy sanitation_level enum value (nao_necessario /
+ * wc_proximo / wc_dedicado) from the new multi-select WC chips so the
+ * /catalogo filter and matching keep working. Heuristic mirrors the
+ * old wording: dedicated staff WC > public/nearby WC > none.
+ */
+function deriveLegacySanitation(wc: WcOption[]): "nao_necessario" | "wc_proximo" | "wc_dedicado" {
+  if (wc.includes("wc_staff"))    return "wc_dedicado";
+  if (wc.includes("wc_publicos")) return "wc_proximo";
+  return "nao_necessario";
+}
 
 const EXTRA_SERVICES: Array<{ value: string; dictKey: "ticketing" | "security" | "photo_video" | "planning" | "entertainment" | "venue" | "cleaning" | "promotion" }> = [
   { value: "Ticketing e Gestão de Convidados", dictKey: "ticketing" },
@@ -171,7 +196,11 @@ export function OrganizerWizard({
   const [teardownMin, setTeardownMin] = useState(60);
   const [energy, setEnergy] = useState<typeof ENERGY[number]["value"]>("ate_3kw");
   const [energyHelp, setEnergyHelp] = useState(false);
-  const [sanitation, setSanitation] = useState<typeof SANITATION[number]["value"]>("nao_necessario");
+  // Multi-select infrastructure chips. Water and WC are independent
+  // axes; the legacy single-value sanitation_level is computed on
+  // submit from `wcProvided` for back-compat with /catalogo filters.
+  const [waterProvided, setWaterProvided] = useState<WaterOption[]>([]);
+  const [wcProvided,    setWcProvided]    = useState<WcOption[]>([]);
 
   // ---- Step 4: extra services ----
   const [extras, setExtras] = useState<string[]>([]);
@@ -264,7 +293,9 @@ export function OrganizerWizard({
         teardown_minutes:      teardownMin,
         energy_need:           energy,
         energy_assistance:     energyHelp,
-        sanitation_level:      sanitation,
+        sanitation_level:      deriveLegacySanitation(wcProvided),
+        water_provided:        waterProvided,
+        wc_provided:           wcProvided,
         extra_services:        extras,
         selection_mode:        selectionMode,
         assistance_requested:  selectionMode === "assisted",
@@ -524,13 +555,36 @@ export function OrganizerWizard({
             </label>
           </section>
           <section>
-            <SectionTitle>{t.step3.sanitation_section_title}</SectionTitle>
-            <p style={{ color: "var(--muted)", margin: "0 0 8px", fontSize: 13 }}>
-              {t.step3.sanitation_intro}
+            <SectionTitle>{(t.step3 as any).infrastructure_section_title ?? t.step3.sanitation_section_title}</SectionTitle>
+            <p style={{ color: "var(--muted)", margin: "0 0 12px", fontSize: 13 }}>
+              {(t.step3 as any).infrastructure_intro ?? t.step3.sanitation_intro}
             </p>
-            <select value={sanitation} onChange={(e) => setSanitation(e.target.value as typeof SANITATION[number]["value"])}>
-              {SANITATION.map((o) => <option key={o.value} value={o.value}>{dict.vocab.sanitation[o.dictKey]}</option>)}
-            </select>
+
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, marginBottom: 6 }}>
+              {(t.step3 as any).water_label ?? "Água disponível"}
+            </div>
+            <div className="chips" style={{ marginBottom: 14 }}>
+              {WATER_OPTIONS.map((opt) => (
+                <button type="button" key={opt} className="chip"
+                  data-active={waterProvided.includes(opt)}
+                  onClick={() => setWaterProvided((s) => toggle(s, opt))}>
+                  {((dict.vocab as any).water_provided ?? {})[opt] ?? opt}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, marginBottom: 6 }}>
+              {(t.step3 as any).wc_label ?? "WC disponível"}
+            </div>
+            <div className="chips">
+              {WC_OPTIONS.map((opt) => (
+                <button type="button" key={opt} className="chip"
+                  data-active={wcProvided.includes(opt)}
+                  onClick={() => setWcProvided((s) => toggle(s, opt))}>
+                  {((dict.vocab as any).wc_provided ?? {})[opt] ?? opt}
+                </button>
+              ))}
+            </div>
           </section>
         </div>
       )}
