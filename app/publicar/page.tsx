@@ -38,6 +38,16 @@ function csv(v: Raw): string[] {
   if (!s) return [];
   return s.split(",").map((x) => x.trim()).filter(Boolean);
 }
+// Validate a `YYYY-MM-DD` string against Date parsing so a malformed
+// URL param doesn't slip through step-1 validation (which only checks
+// non-empty) and then crash at `new Date(startAt).toISOString()` in
+// submitAll. Returns "" for anything that's not a real calendar date.
+function isoDate(v: Raw): string {
+  const s = first(v) ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : s;
+}
 
 export default async function PublicarPage({ searchParams }: {
   searchParams: Promise<{ city?: Raw; start_at?: Raw; end_at?: Raw; expected_pax?: Raw; cuisines?: Raw }>;
@@ -62,8 +72,8 @@ export default async function PublicarPage({ searchParams }: {
   const sp = await searchParams;
   const prefill = {
     city:     first(sp.city) ?? "",
-    startAt:  first(sp.start_at) ?? "",
-    endAt:    first(sp.end_at) ?? "",
+    startAt:  isoDate(sp.start_at),
+    endAt:    isoDate(sp.end_at),
     pax:      num(sp.expected_pax),
     cuisines: csv(sp.cuisines),
   };

@@ -35,8 +35,14 @@ as $$
        and t.owner_id    = auth.uid()
   )
 $$;
-revoke execute on function public.airfnb_user_owns_invited_truck(uuid) from public, anon;
-grant  execute on function public.airfnb_user_owns_invited_truck(uuid) to authenticated, service_role;
+-- Anon needs EXECUTE too: airfnb_event_requests has a public-read path
+-- (visibility='public' + status in [...]) that anon users can hit, and
+-- Postgres evaluates the WHOLE policy expression — including any function
+-- calls in OR branches — so the role must be allowed to call them even
+-- if the short-circuit never reaches the helper. SECURITY DEFINER keeps
+-- the inner SELECT safe regardless of caller.
+revoke execute on function public.airfnb_user_owns_invited_truck(uuid) from public;
+grant  execute on function public.airfnb_user_owns_invited_truck(uuid) to anon, authenticated, service_role;
 
 -- =========================================================================
 -- 2. Helper: is the current user the organizer of request X?
@@ -57,8 +63,8 @@ as $$
        and r.organizer_id = auth.uid()
   )
 $$;
-revoke execute on function public.airfnb_user_organizes_request(uuid) from public, anon;
-grant  execute on function public.airfnb_user_organizes_request(uuid) to authenticated, service_role;
+revoke execute on function public.airfnb_user_organizes_request(uuid) from public;
+grant  execute on function public.airfnb_user_organizes_request(uuid) to anon, authenticated, service_role;
 
 -- =========================================================================
 -- 3. Rewrite airfnb_event_requests SELECT policy

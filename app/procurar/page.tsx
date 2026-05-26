@@ -3,7 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
 import { truckCover } from "@/lib/img";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, getLocale } from "@/lib/i18n";
 import { getFavoritedTruckIds } from "@/lib/favorites";
 import { HeartButton } from "@/components/HeartButton";
 import { recommendForEvent } from "@/lib/event-planning";
@@ -148,9 +148,13 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
 
   const ctaHref = buildHref("/publicar", baseParams, cuisines);
 
-  // Format header summary: "250 convidados em 20/07/2026"
+  // Format header summary in the active locale ("250 convidados em 20 de
+  // julho de 2026" vs. "250 guests on July 20, 2026"). Hardcoding pt-PT
+  // here was leaking PT month names into EN sessions.
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "pt-PT";
   const formattedDate = startAt
-    ? new Date(startAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })
+    ? new Date(startAt).toLocaleDateString(dateLocale, { day: "2-digit", month: "long", year: "numeric" })
     : null;
   const summaryParts = [
     fmt(t.summary_pax, { pax }),

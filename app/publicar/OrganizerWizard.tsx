@@ -141,9 +141,12 @@ export function OrganizerWizard({
   // Recompute every time `guests` changes; the field remains editable, so
   // the user can override the recommendation manually — their value sticks
   // until they touch the guest slider again.
-  const [trucksWanted, setTrucksWanted] = useState(() => Math.max(1, Math.ceil((defaultGuests ?? 200) / 150)));
+  // Clamp to 1..10 because airfnb_event_requests.slots_needed has a
+  // CHECK constraint in that range — a 1500-guest event would otherwise
+  // try 10 → 11+ and the insert would 400 at submit time.
+  const [trucksWanted, setTrucksWanted] = useState(() => Math.min(10, Math.max(1, Math.ceil((defaultGuests ?? 200) / 150))));
   useEffect(() => {
-    setTrucksWanted(Math.max(1, Math.ceil(guests / 150)));
+    setTrucksWanted(Math.min(10, Math.max(1, Math.ceil(guests / 150))));
   }, [guests]);
 
   // Auto-clear a stale step-1 validation error once the user has actually
@@ -176,15 +179,17 @@ export function OrganizerWizard({
   // ---- Step 5: selection mode ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
 
-  // Auto-clear stale step-1 banner once all the required fields are valid.
-  // Kept in step-1 scope only — we don't want to silently swallow errors
-  // from later steps (those use a per-step validator).
+  // Auto-clear stale step-1 banner once the step actually validates again.
+  // Re-runs the same validator instead of just checking "all required
+  // fields non-empty" — otherwise an `end_before_start` error would be
+  // silently dismissed the moment any required text field is filled,
+  // even though the bad date range is still there.
   useEffect(() => {
     if (step !== 1 || !err) return;
-    if (name.trim() && email.trim() && eventTitle.trim() && locality.trim() && startAt) {
-      setErr(null);
-    }
-  }, [step, err, name, email, eventTitle, locality, startAt]);
+    if (validateStep1() === null) setErr(null);
+    // validateStep1 reads from the same state slice the deps list watches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, err, name, email, eventTitle, locality, startAt, endAt]);
 
   // Honeypot: hidden field invisible to humans but eagerly filled by naive
   // form-scraping bots. We use a ref to read the LIVE DOM value at submit
