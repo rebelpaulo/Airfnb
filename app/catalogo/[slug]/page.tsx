@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -8,6 +7,7 @@ import { truckCover, TRUCK_PLACEHOLDER } from "@/lib/img";
 import { getDictionary } from "@/lib/i18n";
 import { getFavoritedTruckIds } from "@/lib/favorites";
 import { HeartButton } from "@/components/HeartButton";
+import { TruckGallery } from "@/components/TruckGallery";
 
 // TODO: i18n metadata via generateMetadata
 export async function generateMetadata(
@@ -58,7 +58,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     .from("airfnb_trucks")
     .select(`
       *,
-      airfnb_truck_images ( id, url, alt, is_cover, sort_order ),
+      airfnb_truck_images ( id, url, alt, is_cover, sort_order, kind ),
       airfnb_menu_items   ( id, name, description, price, category ),
       airfnb_truck_categories ( airfnb_categories ( slug, name_pt, icon ) )
     `)
@@ -66,7 +66,17 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     .maybeSingle();
   if (!truck) notFound();
 
-  const images = (truck.airfnb_truck_images ?? []).sort((a:any,b:any)=> (b.is_cover?1:0)-(a.is_cover?1:0) || a.sort_order-b.sort_order);
+  // Order matches the airfnb_v_truck_card view: truck → food → venue →
+  // team → other, then is_cover, then sort_order. Keeps the carousel
+  // semantically grouped so organisers see the truck first.
+  const KIND_RANK: Record<string, number> = { truck: 1, food: 2, venue: 3, team: 4, other: 5 };
+  const images = (truck.airfnb_truck_images ?? [])
+    .slice()
+    .sort((a: any, b: any) =>
+      (KIND_RANK[a.kind ?? "other"] - KIND_RANK[b.kind ?? "other"]) ||
+      ((b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0)) ||
+      (a.sort_order - b.sort_order)
+    );
   const menu = (truck.airfnb_menu_items ?? []);
   const cats = (truck.airfnb_truck_categories ?? []).map((tc:any)=> tc.airfnb_categories?.name_pt).filter(Boolean);
 
@@ -152,31 +162,13 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginTop: 24 }}>
         <div>
-          <div className="thumb" style={{ aspectRatio: "16/10", position: "relative" }}>
-            <Image
-              src={truckCover(images[0]?.url)}
-              alt={truck.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 66vw"
-              priority
-              style={{ objectFit: "cover" }}
-            />
-          </div>
-          {images.length > 1 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
-              {images.slice(1, 5).map((i: any) => (
-                <div key={i.id} className="thumb" style={{ aspectRatio: "1/1", position: "relative" }}>
-                  <Image
-                    src={i.url}
-                    alt={i.alt ?? ""}
-                    fill
-                    sizes="(max-width: 768px) 25vw, 165px"
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <TruckGallery
+            images={images.length > 0
+              ? images.map((i: any) => ({ id: i.id, url: i.url, alt: i.alt }))
+              : [{ id: "placeholder", url: truckCover(null), alt: truck.name }]
+            }
+            fallbackAlt={truck.name}
+          />
 
           <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 24 }}>{t.about_title}</h2>
           <p style={{ lineHeight: 1.65 }}>{truck.description ?? t.no_description}</p>
