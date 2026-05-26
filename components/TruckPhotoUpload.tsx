@@ -239,7 +239,7 @@ export function TruckPhotoUpload({ truckId, initial = [], max = 12, onChange }: 
                 <select
                   value={p.kind ?? "other"}
                   onChange={(e) => setKind(p.id!, e.target.value as Kind)}
-                  aria-label={(t as Record<string, string>).kind_label ?? "Tipo de foto"}
+                  aria-label={(t as Record<string, string>).kind_change ?? "Alterar tipo desta foto"}
                   style={{
                     position: "absolute", top: 6, right: 6,
                     background: "rgba(0,0,0,0.65)", color: "#fff",
