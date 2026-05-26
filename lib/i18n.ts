@@ -947,6 +947,17 @@ export const dictionaries = {
         wc_dedicado:     "WC dedicado",
         wc_dedicado_staff: "WC dedicado para staff",
       },
+      water_provided: {
+        agua_rede:         "Ponto de água da rede",
+        agua_deposito:     "Depósito / caixa de água",
+        agua_truck:        "Truck traz a sua água",
+        agua_indisponivel: "Sem ponto de água",
+      },
+      wc_provided: {
+        wc_publicos:    "WC públicos / edifício próximo",
+        wc_staff:       "WC dedicado para staff",
+        wc_inexistente: "Sem WC no local",
+      },
       setup_hours: {
         h0: "0h",
         h1: "1h",
@@ -1084,6 +1095,10 @@ export const dictionaries = {
           energy_help:           "Existe assistência para instalação elétrica",
           sanitation_section_title: "Saneamento Básico",
           sanitation_intro:      "Informe qual o acesso a saneamento que estará acessível.",
+          infrastructure_section_title: "Água & Saneamento",
+          infrastructure_intro:  "Selecciona tudo o que estará disponível no local. Os trucks usam esta info para decidir se conseguem dar resposta.",
+          water_label:           "Água disponível",
+          wc_label:              "WC disponível",
         },
         step4: {
           title:    "Outros Serviços",
@@ -2366,6 +2381,17 @@ export const dictionaries = {
         wc_dedicado:       "Dedicated toilet",
         wc_dedicado_staff: "Dedicated toilet for staff",
       },
+      water_provided: {
+        agua_rede:         "Mains water tap",
+        agua_deposito:     "Water tank",
+        agua_truck:        "Trucks bring their own water",
+        agua_indisponivel: "No water on site",
+      },
+      wc_provided: {
+        wc_publicos:    "Public WC / nearby building",
+        wc_staff:       "Dedicated staff WC",
+        wc_inexistente: "No WC on site",
+      },
       setup_hours: {
         h0: "0h",
         h1: "1h",
@@ -2501,6 +2527,10 @@ export const dictionaries = {
           energy_section_title:  "Power supply",
           energy_intro:          "Tell us what kind of electrical installations will be available on site.",
           energy_help:           "On-site assistance for the electrical setup is available",
+          infrastructure_section_title: "Water & sanitation",
+          infrastructure_intro:  "Select everything that will be available on site. Trucks use this to decide whether they can serve your event.",
+          water_label:           "Water available",
+          wc_label:              "WC available",
           sanitation_section_title: "Basic sanitation",
           sanitation_intro:      "Tell us what sanitation access will be available.",
         },
