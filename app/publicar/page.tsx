@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { OrganizerWizard } from "./OrganizerWizard";
 import { WrongAccountType } from "@/components/WrongAccountType";
@@ -54,21 +53,11 @@ export default async function PublicarPage({ searchParams }: {
 }) {
   const supa = await supabaseServer();
   const { data: { user } } = await supa.auth.getUser();
-  if (!user) {
-    // Preserve the discovery context across the auth detour. The login page
-    // sends users back to the `next` URL with the same query string, so
-    // /procurar → /login → /publicar?city=... still works.
-    const sp = await searchParams;
-    const qs = new URLSearchParams();
-    const c = first(sp.city);          if (c) qs.set("city", c);
-    const s = first(sp.start_at);      if (s) qs.set("start_at", s);
-    const e = first(sp.end_at);        if (e) qs.set("end_at", e);
-    const p = first(sp.expected_pax);  if (p) qs.set("expected_pax", p);
-    const cu = first(sp.cuisines);     if (cu) qs.set("cuisines", cu);
-    const tail = qs.toString();
-    const next = tail ? `/publicar?${tail}` : "/publicar";
-    redirect(`/login?next=${encodeURIComponent(next)}&as=organizer`);
-  }
+  // Anonymous publish: organizers can fill the wizard without an account.
+  // signUp + insert run together at the final step (the wizard collects
+  // password + ToS consent in step 5 when isAuthenticated=false). The
+  // previous behaviour — redirect to /login first — added friction at the
+  // top of the funnel where we have the most to lose.
   const sp = await searchParams;
   const prefill = {
     city:     first(sp.city) ?? "",
@@ -81,32 +70,25 @@ export default async function PublicarPage({ searchParams }: {
   const dict = await getDictionary();
   const t = dict.gates.publicar;
 
-  const { data: profile } = await (supa as any)
-    .from("airfnb_profiles")
-    .select("full_name, display_name, phone, role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  // Resolve a display-ready name: prefer the public-facing display_name
-  // (set in /dashboard/perfil) and fall back to the legal full_name from
-  // signup. Either is fine for the wizard's "contact_name" field. Email
-  // is ALWAYS read from auth.users — airfnb_profiles intentionally does
-  // not mirror it (one source of truth).
-  const resolvedName  = (profile?.display_name?.trim() || profile?.full_name?.trim() || "");
-  const resolvedEmail = (user.email?.trim() || "");
-  const resolvedPhone = (profile?.phone?.trim() || "");
-
-  // If the user already has name + email + phone in their profile, the
-  // wizard hides the first 3 fields and shows a compact "publishing as X"
-  // header instead — the values still ride through as hidden inputs so
-  // the submit payload is unchanged. Without this gate, returning users
-  // see the same fields twice (profile + wizard) which feels broken.
-  const profileComplete = !!(resolvedName && resolvedEmail && resolvedPhone);
-
-  // Roles are exclusive — a truck owner can't pivot into organizing events.
-  // They have to use a different email.
-  if (profile?.role === "owner") {
-    return <WrongAccountType intent="organize_event" currentRole="owner" />;
+  // Authenticated branch: pull the profile so we can pre-populate
+  // contact fields and gate truck-owners out (roles are exclusive).
+  let resolvedName  = "";
+  let resolvedEmail = "";
+  let resolvedPhone = "";
+  let profileComplete = false;
+  if (user) {
+    const { data: profile } = await (supa as any)
+      .from("airfnb_profiles")
+      .select("full_name, display_name, phone, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role === "owner") {
+      return <WrongAccountType intent="organize_event" currentRole="owner" />;
+    }
+    resolvedName  = (profile?.display_name?.trim() || profile?.full_name?.trim() || "");
+    resolvedEmail = (user.email?.trim() || "");
+    resolvedPhone = (profile?.phone?.trim() || "");
+    profileComplete = !!(resolvedName && resolvedEmail && resolvedPhone);
   }
 
   const { data: categoriesData } = await (supa as any)
@@ -121,7 +103,7 @@ export default async function PublicarPage({ searchParams }: {
         {t.intro}
       </p>
       <OrganizerWizard
-        userId={user.id}
+        userId={user?.id ?? null}
         defaultName={resolvedName}
         defaultEmail={resolvedEmail}
         defaultPhone={resolvedPhone}
