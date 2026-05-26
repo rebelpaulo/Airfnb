@@ -276,7 +276,15 @@ export function OrganizerWizard({
         applications_deadline: subtractDaysISO(startAt, 3),
       }).select("id").single();
       if (error) throw new Error(error.message);
-      router.push(`/dashboard/organizer/pedidos/${data.id}`);
+      // pick_myself organizers land on the dedicated invite picker so
+      // they can shortlist trucks immediately — the detail page would
+      // otherwise show an empty "0 applications" state and look broken
+      // for a request that's curated-only by design.
+      if (selectionMode === "pick_myself") {
+        router.push(`/dashboard/organizer/pedidos/${data.id}/convidar`);
+      } else {
+        router.push(`/dashboard/organizer/pedidos/${data.id}`);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
