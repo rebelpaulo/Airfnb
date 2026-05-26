@@ -80,13 +80,16 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
         {total > 1 && (
           <>
             {/* Click halves — bigger than chevrons, work on touch without
-                needing hover. Transparent so they don't intrude visually. */}
+                needing hover. Transparent so they don't intrude visually.
+                `top: 56px` leaves the HeartButton's top-right hit area
+                free; without that clearance the right pager half stole
+                taps on the favourite icon. */}
             <button
               type="button"
               aria-label="Foto anterior"
               onClick={go(-1)}
               style={{
-                position: "absolute", left: 0, top: 0, bottom: 0, width: "30%",
+                position: "absolute", left: 0, top: 56, bottom: 0, width: "30%",
                 background: "transparent", border: 0, cursor: "pointer", zIndex: 1,
               }}
             />
@@ -95,28 +98,32 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
               aria-label="Foto seguinte"
               onClick={go(1)}
               style={{
-                position: "absolute", right: 0, top: 0, bottom: 0, width: "30%",
+                position: "absolute", right: 0, top: 56, bottom: 0, width: "30%",
                 background: "transparent", border: 0, cursor: "pointer", zIndex: 1,
               }}
             />
 
-            {/* Dots indicator (always visible — needed on touch where there's
-                no hover signal). */}
+            {/* Dots indicator (always visible — needed on touch where
+                there's no hover signal). The container is presentational
+                (no aria-hidden — the dots are focusable buttons, hiding
+                them would orphan them from assistive tech). */}
             <div
+              role="group"
+              aria-label="Galeria de fotos"
               style={{
                 position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
                 display: "flex", gap: 6, padding: "4px 8px",
                 background: "rgba(0,0,0,0.35)", borderRadius: 999,
                 zIndex: 2,
               }}
-              aria-hidden="true"
             >
               {gallery.map((_, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={goTo(i)}
-                  aria-label={`Ir para foto ${i + 1}`}
+                  aria-label={`Ir para foto ${i + 1} de ${total}`}
+                  aria-current={i === idx ? "true" : undefined}
                   style={{
                     width: i === idx ? 8 : 6,
                     height: i === idx ? 8 : 6,

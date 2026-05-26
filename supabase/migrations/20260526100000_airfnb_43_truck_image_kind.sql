@@ -65,6 +65,11 @@ select
      limit 1
   ) as cover_url,
   (
+    -- ORDER must run BEFORE the LIMIT, otherwise Postgres picks 6
+    -- arbitrary rows and truck-priority ordering is lost (the outer
+    -- array_agg(... order by) only sorts whatever rows survived the
+    -- truncation). Inner select sorts the full set; outer LIMIT keeps
+    -- the top 6 for the carousel.
     select array_agg(url order by kind_rank, is_cover_rank, sort_order)
       from (
         select
@@ -80,6 +85,16 @@ select
           sort_order
         from public.airfnb_truck_images
        where truck_id = t.id
+       order by
+         case kind
+           when 'truck' then 1
+           when 'food'  then 2
+           when 'venue' then 3
+           when 'team'  then 4
+           else 5
+         end,
+         (case when is_cover then 0 else 1 end),
+         sort_order
        limit 6
       ) ordered
   ) as gallery_urls,

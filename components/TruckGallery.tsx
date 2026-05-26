@@ -24,7 +24,11 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
   if (images.length === 0) return null;
 
   const total = images.length;
-  const active = images[idx];
+  // Clamp the index in case `images` shrinks via parent re-render
+  // (e.g. owner deletes a photo). Without this `images[idx]` becomes
+  // undefined and the first <Image src={...}> dereference crashes.
+  const safeIdx = Math.min(idx, total - 1);
+  const active = images[safeIdx];
 
   const go = (delta: 1 | -1) => () => {
     setIdx((i) => (i + delta + total) % total);
@@ -75,7 +79,7 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
               }}
               aria-hidden="true"
             >
-              {idx + 1} / {total}
+              {safeIdx + 1} / {total}
             </div>
           </>
         )}
@@ -96,7 +100,8 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
               key={img.id}
               type="button"
               role="tab"
-              aria-selected={i === idx}
+              aria-selected={i === safeIdx}
+              aria-label={img.alt && img.alt.trim() ? img.alt : `Ver foto ${i + 1} de ${total}`}
               onClick={() => setIdx(i)}
               className="thumb"
               style={{
