@@ -30,9 +30,11 @@ export type EventPlan = {
 /**
  * Compute a planning sketch for an event with `pax` guests.
  *
- * Heuristic:
- *   - 1 truck per ~80-100 guests for a "full meal" event
- *   - clamp to >= 1; cap at 8 (events bigger than ~800 pax need bespoke planning,
+ * Heuristic (aligned with wizard's auto-suggest at ~150 pax/truck mid):
+ *   - upper bound = 1 truck per 200 guests (snack / cocktail-only scenario)
+ *   - lower bound = 1 truck per 120 guests (full-meal scenario)
+ *   - ~150 sits in the middle and matches the wizard's slider auto-fill
+ *   - cap at 8 (events bigger than ~1600 pax need bespoke planning;
  *     surface the cap with a caveat in the UI)
  *   - kVA per truck: 4-8 (running draw, not peak start surge)
  *   - genset sizing: 1.5× the upper-bound kVA, rounded up to a common rental size
@@ -46,8 +48,8 @@ export type EventPlan = {
 export function recommendForEvent(pax: number): EventPlan {
   const safePax = Number.isFinite(pax) && pax > 0 ? Math.floor(pax) : 100;
 
-  const trucksLower = Math.max(1, Math.ceil(safePax / 100));
-  const trucksUpper = Math.max(trucksLower, Math.ceil(safePax / 80));
+  const trucksLower = Math.max(1, Math.ceil(safePax / 200));
+  const trucksUpper = Math.max(trucksLower, Math.ceil(safePax / 120));
   const trucksMin = Math.min(trucksLower, 8);
   const trucksMax = Math.min(trucksUpper, 8);
 
