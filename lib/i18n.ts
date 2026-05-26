@@ -813,6 +813,9 @@ export const dictionaries = {
       submitted_by:            "submetido por",
       review:                  "Rever",
       settings_link:           "⚙️ Definições",
+      assisted_title:          "Pedidos a aguardar curadoria",
+      assisted_subtitle:       "Organizadores que pediram a ajuda da equipa Air F&B para curar a shortlist.",
+      assisted_open:           "Abrir pedido",
     },
     dashboard_sidebar: {
       signed_in_as:              "Sessão iniciada como",
@@ -1326,6 +1329,7 @@ export const dictionaries = {
         stat_invited:                "Convidados",
         curated_hint:                "Este pedido é privado — só trucks convidados podem candidatar-se.",
         curated_invite_cta:          "Convidar trucks →",
+        assisted_banner:             "A equipa Air F&B está a curar a tua shortlist. Vamos contactar-te em breve com sugestões.",
         section_proposals:           "Propostas recebidas",
         empty_applications:          "Ainda sem candidaturas. Os trucks vão receber o teu pedido em minutos.",
         label_total_expected:        "Total esperado:",
@@ -1389,6 +1393,8 @@ export const dictionaries = {
         notif_application_rejected:  "Candidatura não selecionada.",
         notif_booking_confirmed:     "Reserva confirmada.",
         notif_booking_cancelled:     "Reserva cancelada.",
+        notif_request_invited:       "Foste convidado para um evento.",
+        notif_request_assistance:    "Organizador pediu curadoria da equipa.",
         err_auth:                    "auth required",
       },
       shared_account: {
@@ -2226,6 +2232,9 @@ export const dictionaries = {
       submitted_by:            "submitted by",
       review:                  "Review",
       settings_link:           "⚙️ Settings",
+      assisted_title:          "Requests awaiting curation",
+      assisted_subtitle:       "Organisers who asked the Air F&B team to curate their shortlist.",
+      assisted_open:           "Open request",
     },
     dashboard_sidebar: {
       signed_in_as:              "Signed in as",
@@ -2739,6 +2748,7 @@ export const dictionaries = {
         stat_invited:                "Invited",
         curated_hint:                "This request is private — only invited trucks can apply.",
         curated_invite_cta:          "Invite trucks →",
+        assisted_banner:             "The Air F&B team is curating your shortlist. We'll reach out shortly with suggestions.",
         section_proposals:           "Proposals received",
         empty_applications:          "No applications yet. Trucks will receive your request within minutes.",
         label_total_expected:        "Expected total:",
@@ -2802,6 +2812,8 @@ export const dictionaries = {
         notif_application_rejected:  "Application not selected.",
         notif_booking_confirmed:     "Booking confirmed.",
         notif_booking_cancelled:     "Booking cancelled.",
+        notif_request_invited:       "You've been invited to an event.",
+        notif_request_assistance:    "An organiser asked for team curation.",
         err_auth:                    "auth required",
       },
       shared_account: {

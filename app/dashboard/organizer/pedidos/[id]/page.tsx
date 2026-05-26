@@ -18,7 +18,12 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     .maybeSingle();
 
   if (!req) notFound();
-  if (req.organizer_id !== user.id) redirect("/dashboard/organizer");
+  // Admins/staff need read access from the /admin curation queue. The
+  // metrics RPC is gated server-side by airfnb_is_admin(), so an empty
+  // result is the canonical "not an admin" signal.
+  const { data: adminGate } = await (supa as any).rpc("airfnb_admin_metrics");
+  const isAdmin = (adminGate as any[] | null)?.length ? true : false;
+  if (req.organizer_id !== user.id && !isAdmin) redirect("/dashboard/organizer");
 
   const { data: applicationsData } = await (supa as any)
     .from("airfnb_applications")
@@ -125,6 +130,21 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
                 style={{ background: "var(--orange)", color: "#fff", fontSize: 13, padding: "8px 16px" }}>
             {t.curated_invite_cta ?? "Convidar trucks →"}
           </Link>
+        </div>
+      )}
+
+      {req.assistance_requested === true && (
+        <div style={{
+          marginTop: 14, padding: 12,
+          background: "linear-gradient(180deg, #FFF6F2 0%, #FFFFFF 100%)",
+          border: "1px solid var(--orange)", borderRadius: 8,
+          fontSize: 14,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span className="material-symbols-outlined" style={{ color: "var(--orange)", fontSize: 22 }} aria-hidden="true">
+            support_agent
+          </span>
+          <span>{t.assisted_banner ?? "A equipa Air F&B está a curar a tua shortlist. Vamos contactar-te em breve com sugestões."}</span>
         </div>
       )}
 
