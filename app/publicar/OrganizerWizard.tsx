@@ -16,7 +16,9 @@ function format(template: string, vars: Record<string, string | number>): string
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = {
-  userId: string;
+  /** Null when an anonymous visitor lands on /publicar — wizard then
+   *  collects password + ToS in step 5 and signs them up before insert. */
+  userId: string | null;
   defaultName: string;
   defaultEmail: string;
   defaultPhone: string;
@@ -230,8 +232,15 @@ export function OrganizerWizard({
   // ---- Step 4: extra services ----
   const [extras, setExtras] = useState<string[]>([]);
 
-  // ---- Step 5: selection mode ----
+  // ---- Step 5: selection mode + (anon-only) account creation ----
   const [selectionMode, setSelectionMode] = useState<"open_to_offers" | "pick_myself" | "assisted">("open_to_offers");
+  // Inline signup fields, only used when userId === null. The wizard's
+  // existing step-1 already captures name / email; password and ToS
+  // are the only extras needed to call supabase.auth.signUp() before
+  // inserting the request.
+  const isAnonymous = userId === null;
+  const [password, setPassword]   = useState("");
+  const [tosAccepted, setTos]     = useState(false);
 
   // Auto-clear stale step-1 banner once the step actually validates again.
   // Re-runs the same validator instead of just checking "all required
@@ -282,6 +291,66 @@ export function OrganizerWizard({
 
       const supa = supabaseBrowser();
 
+      // Anonymous publish: signUp first, then use the resulting user.id
+      // as organizer_id for the request insert. If Supabase requires
+      // email confirmation (no session returned), stash the assembled
+      // form state in localStorage and bail with an actionable message
+      // — the next /publicar visit with a confirmed session will
+      // restore the draft and let them publish in one click (rehydrate
+      // logic ships separately; for now the user re-fills from the
+      // draft on a future visit).
+      let effectiveUserId: string = userId ?? "";
+      if (isAnonymous) {
+        if ((password ?? "").length < 8) {
+          throw new Error((t.errors as Record<string, string>).short_password ?? "Password com pelo menos 8 caracteres.");
+        }
+        if (!tosAccepted) {
+          throw new Error((t.errors as Record<string, string>).tos_required ?? "Aceita os Termos para publicar.");
+        }
+        const { data: signUpData, error: signUpErr } = await supa.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { full_name: name.trim(), locale: "pt-PT" },
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/publicar?draft=1")}&as=organizer`,
+          },
+        });
+        if (signUpErr) throw new Error(signUpErr.message);
+        if (!signUpData.user) throw new Error("signup failed");
+        if (!signUpData.session) {
+          // Email confirmation pending — persist a draft of the
+          // wizard's state so a future return visit (after confirming)
+          // can rehydrate the form. We use localStorage rather than
+          // round-tripping the whole payload through a token because
+          // the draft is large and only useful in the same browser.
+          try {
+            localStorage.setItem("airfnb-publish-draft", JSON.stringify({
+              ts: Date.now(),
+              email: email.trim(),
+              draft: {
+                name, phone, eventTitle, address, locality, kind, guests, trucksWanted,
+                cateringType, startAt, endAt, budget, budgetFlex, cuisines, specialtyIds,
+                dietary, notes, setupMin, teardownMin, energy, energyHelp,
+                waterProvided, wcProvided, extras, selectionMode,
+              },
+            }));
+          } catch { /* private mode / storage full — silently ignore */ }
+          setBusy(false);
+          setErr((t.errors as Record<string, string>).confirm_email ?? "Conta criada. Confirma o teu email e volta a publicar — os teus dados ficaram guardados.");
+          return;
+        }
+        effectiveUserId = signUpData.user.id;
+        // Best-effort profile patch so the wizard's contact_phone /
+        // role lands on the new profile row. The profile is auto-
+        // created by an auth trigger; this fills in fields beyond
+        // what user_metadata covers.
+        await (supa as any).from("airfnb_profiles").update({
+          full_name: name.trim(),
+          phone: phone.trim() || null,
+          role: "organizer",
+        }).eq("id", signUpData.user.id);
+      }
+
       // Rate limit (10 pedidos/organizer/day) is enforced by a BEFORE INSERT
       // trigger on airfnb_event_requests. We don't precheck here because the
       // precheck calls the SAME mutating RPC and would double-charge the
@@ -293,7 +362,7 @@ export function OrganizerWizard({
         selectionMode === "pick_myself" ? "curated" :
         "broadcast"; // open_to_offers + assisted both go broadcast; assisted just flags assistance_requested
       const { data, error } = await (supa as any).from("airfnb_event_requests").insert({
-        organizer_id:          userId,
+        organizer_id:          effectiveUserId,
         title:                 eventTitle.trim(),
         kind,
         contact_name:          name.trim(),
@@ -658,6 +727,49 @@ export function OrganizerWizard({
               </button>
             ))}
           </div>
+
+          {isAnonymous && (
+            <div style={{
+              marginTop: 28, padding: 18,
+              background: "linear-gradient(180deg, #FFF6F2 0%, #FFFFFF 100%)",
+              border: "1px solid var(--orange)", borderRadius: 14,
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                {(t as any).anon_signup_title ?? "Cria conta para publicar"}
+              </div>
+              <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 12 }}>
+                {(t as any).anon_signup_hint ?? "Vamos criar uma conta com o teu email para acompanhares as candidaturas dos trucks."}
+              </div>
+              <Field label={(t as any).anon_password_label ?? "Password (mín. 8 caracteres)"}>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                />
+              </Field>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 10, fontSize: 14, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={tosAccepted}
+                  onChange={(e) => setTos(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <span>
+                  {(t as any).anon_tos_prefix ?? "Aceito os "}
+                  <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: "var(--orange)", textDecoration: "underline" }}>
+                    {(t as any).anon_tos_link ?? "Termos"}
+                  </a>
+                  {(t as any).anon_tos_middle ?? " e a "}
+                  <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: "var(--orange)", textDecoration: "underline" }}>
+                    {(t as any).anon_privacy_link ?? "Política de Privacidade"}
+                  </a>
+                  .
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       )}
 
