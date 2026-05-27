@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
-import { NotifBell } from "@/components/NotifBell";
+import { AccountMenu } from "@/components/AccountMenu";
 import { LangToggle } from "@/components/LangToggle";
 import { useDict } from "@/components/DictProvider";
 import type { Locale } from "@/lib/i18n";
@@ -104,8 +104,6 @@ export function Header({ user, locale = "pt" }: Props) {
     }
     window.location.href = "/";
   };
-  const initial = (user?.displayName || user?.email || "?")[0]?.toUpperCase();
-
   return (
     <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
       <div className="brand">
@@ -137,50 +135,7 @@ export function Header({ user, locale = "pt" }: Props) {
       </ul>
       <div className="header-actions">
         {user ? (
-          <>
-            <NotifBell userId={user.id} />
-            <Link className="icon-chip" href="/dashboard/conversas" aria-label={t.conv_aria}>
-              <span className="material-symbols-outlined">chat_bubble</span>
-            </Link>
-            <Link
-              className="icon-chip"
-              href={dashboardHref}
-              title={user.displayName ?? user.email}
-              aria-label={`${t.dashboard_aria_prefix} ${user.displayName ?? user.email}`}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-            >
-              {user.avatarUrl ? (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "inline-block", width: 28, height: 28, borderRadius: "50%",
-                    background: `center/cover no-repeat url(${user.avatarUrl})`,
-                    border: "1.5px solid rgba(255,255,255,0.7)",
-                  }}
-                />
-              ) : (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: "rgba(255,255,255,0.18)", color: "#fff",
-                    fontFamily: "Bebas Neue, sans-serif", fontSize: 14, letterSpacing: 0,
-                  }}
-                >
-                  {initial}
-                </span>
-              )}
-              <span className="label-hide">{t.dashboard_label}</span>
-            </Link>
-            <button
-              className="icon-chip"
-              aria-label={t.logout_aria}
-              onClick={signOut}
-            >
-              <span className="material-symbols-outlined">logout</span>
-            </button>
-          </>
+          <AccountMenu user={user} dashboardHref={dashboardHref} />
         ) : (
           <>
             <Link className="icon-chip" href="/login">
