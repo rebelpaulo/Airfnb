@@ -22,6 +22,11 @@ export default async function FavoritesPage() {
 
   const dict = await getDictionary();
   const t = dict.dashboard_favorites;
+  // Short "Novo" / "New" label TruckCard shows when a truck has zero
+  // ratings yet. Borrowing from the catalog namespace keeps this page
+  // free of a duplicate key — and avoids the previous bug where the
+  // long empty-state sentence leaked into the card.
+  const newLabel = dict.catalog.truck_new as string;
 
   // Pull the favourite rows then enrich with the truck card view in a single
   // query. The view `airfnb_v_truck_card` is already used by /catalogo, so
@@ -58,7 +63,7 @@ export default async function FavoritesPage() {
               // the heart starts filled, the toggle still works.
               initialFavorited={true}
               authed={true}
-              newLabel={t.empty_state /* not used; truck always rated by this point — placeholder */}
+              newLabel={newLabel}
             />
           ))}
         </div>
