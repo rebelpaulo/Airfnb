@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { truckCover } from "@/lib/img";
 import { HeartButton } from "@/components/HeartButton";
+
+// Touch-swipe activation threshold. Below 40px the user is probably
+// just tapping or scrolling vertically — we don't want stray finger
+// drift to flip the photo. 40px is the same value used by the
+// react-swipeable defaults for casual horizontal swipes.
+const SWIPE_THRESHOLD_PX = 40;
 
 // Card used on /catalogo, /procurar, and anywhere we render a list of
 // trucks. Single image was misleading — owners marked food shots as cover,
@@ -51,6 +57,14 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
   const [idx, setIdx] = useState(0);
   const total = Math.max(1, gallery.length);
   const current = gallery[idx] ?? truck.cover_url ?? null;
+  // Track the start of a horizontal touch so we can swipe to next/prev
+  // on mobile without the user having to find the dot indicator. We
+  // also remember whether the gesture is horizontal — if the user is
+  // scrolling vertically we leave touchend alone so the page scrolls
+  // normally and we don't fire a stray photo change.
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchScrollingRef = useRef(false);
 
   const go = (delta: 1 | -1) => (e: React.MouseEvent) => {
     // Prevent the wrapping <Link> from following the href when the user
@@ -65,9 +79,51 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
     setIdx(i);
   };
 
+  function onTouchStart(e: React.TouchEvent) {
+    if (total <= 1) return;
+    const t = e.touches[0];
+    touchStartXRef.current = t.clientX;
+    touchStartYRef.current = t.clientY;
+    touchScrollingRef.current = false;
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const t = e.touches[0];
+    const dx = Math.abs(t.clientX - touchStartXRef.current);
+    const dy = Math.abs(t.clientY - touchStartYRef.current);
+    // Vertical dominant motion → user is scrolling the page. Mark and
+    // skip the swipe handler so we don't steal the gesture.
+    if (dy > dx && dy > 12) {
+      touchScrollingRef.current = true;
+    }
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartXRef.current === null) return;
+    if (touchScrollingRef.current) {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      return;
+    }
+    const endX = e.changedTouches[0]?.clientX ?? touchStartXRef.current;
+    const dx = endX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
+    // Prevent the parent Link's onClick from triggering on a tap that
+    // happened to end on the image after the swipe completed.
+    e.preventDefault();
+    setIdx((i) => (i + (dx < 0 ? 1 : -1) + total) % total);
+  }
+
   return (
     <Link href={`/catalogo/${truck.slug}`} className="truck-card">
-      <div className="thumb" style={{ position: "relative" }}>
+      <div
+        className="thumb"
+        style={{ position: "relative", touchAction: "pan-y" }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <Image
           src={truckCover(current)}
           alt={truck.name}
