@@ -46,54 +46,54 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={openLightboxAt(safeIdx)}
-        aria-label={(active.alt && active.alt.trim())
-          ? `${active.alt} — abrir em grande`
-          : `Abrir foto ${safeIdx + 1} de ${total} em grande`}
-        className="thumb"
-        style={{
-          aspectRatio: "16/10", position: "relative",
-          padding: 0, border: 0, background: "transparent",
-          width: "100%", cursor: "zoom-in",
-          borderRadius: 14, overflow: "hidden",
-        }}
-      >
-        <Image
-          src={active.url}
-          alt={active.alt ?? fallbackAlt}
-          fill
-          sizes="(max-width: 768px) 100vw, 66vw"
-          priority
-          style={{ objectFit: "cover" }}
-        />
+      {/* Hero stage. The image is wrapped in a <button> that opens the
+          lightbox, but chevrons and the counter sit OUTSIDE that button
+          as absolutely-positioned siblings of the wrapper — nesting
+          focusable controls inside another button is invalid HTML and
+          breaks keyboard navigation. */}
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={openLightboxAt(safeIdx)}
+          aria-label={(active.alt && active.alt.trim())
+            ? `${active.alt} — abrir em grande`
+            : `Abrir foto ${safeIdx + 1} de ${total} em grande`}
+          className="thumb"
+          style={{
+            aspectRatio: "16/10", position: "relative",
+            padding: 0, border: 0, background: "transparent",
+            width: "100%", cursor: "zoom-in", display: "block",
+            borderRadius: 14, overflow: "hidden",
+          }}
+        >
+          <Image
+            src={active.url}
+            alt={active.alt ?? fallbackAlt}
+            fill
+            sizes="(max-width: 768px) 100vw, 66vw"
+            priority
+            style={{ objectFit: "cover" }}
+          />
+        </button>
 
         {total > 1 && (
           <>
-            {/* Hero chevrons live on top of the click-to-open button
-                using stopPropagation so users can page without
-                triggering the lightbox until they're ready. */}
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(-1)(); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); go(-1)(); } }}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); go(-1)(); }}
               aria-label="Foto anterior"
               style={chevronStyle("left")}
             >
               <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(1)(); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); go(1)(); } }}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); go(1)(); }}
               aria-label="Foto seguinte"
               style={chevronStyle("right")}
             >
               <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-            </span>
+            </button>
 
             {/* Counter chip top-right — gives a quick sense of how much
                 more is in the gallery beyond the visible thumb strip. */}
@@ -110,7 +110,7 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
             </span>
           </>
         )}
-      </button>
+      </div>
 
       {total > 1 && (
         <div
@@ -212,17 +212,23 @@ function Lightbox({
   const touchStartYRef = useRef<number | null>(null);
   const touchScrollingRef = useRef(false);
 
-  const close = useCallback(() => {
-    onIndexChange(safeIdx);
-    onClose();
-  }, [onClose, onIndexChange, safeIdx]);
+  // Latest-value refs so the mount-only effect below doesn't need to
+  // depend on the unstable close/go callbacks (those capture idx and
+  // get re-created on every page change). Without this, paging the
+  // lightbox tore down the keydown listener, briefly restored body
+  // scroll, and re-fired focus restore — making every chevron tap
+  // also flicker the dialog half-closed.
+  const goRef = useRef<(delta: 1 | -1) => void>(() => {});
+  const closeRef = useRef<() => void>(() => {});
+  goRef.current = (delta: 1 | -1) => setIdx((i) => (i + delta + total) % total);
+  closeRef.current = () => { onIndexChange(safeIdx); onClose(); };
 
-  const go = useCallback((delta: 1 | -1) => {
-    setIdx((i) => (i + delta + total) % total);
-  }, [total]);
+  const go = useCallback((delta: 1 | -1) => goRef.current(delta), []);
+  const close = useCallback(() => closeRef.current(), []);
 
   // Lock body scroll, listen for Esc + arrow keys, restore focus on
-  // close. Required ARIA modal behavior.
+  // close. Mount-only — handlers read latest values via refs, so this
+  // effect never re-runs while the dialog is open.
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
@@ -232,9 +238,9 @@ function Lightbox({
     requestAnimationFrame(() => closeBtnRef.current?.focus());
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape")       { e.preventDefault(); close(); return; }
-      if (e.key === "ArrowLeft")    { e.preventDefault(); go(-1); return; }
-      if (e.key === "ArrowRight")   { e.preventDefault(); go(1);  return; }
+      if (e.key === "Escape")       { e.preventDefault(); closeRef.current(); return; }
+      if (e.key === "ArrowLeft")    { e.preventDefault(); goRef.current(-1); return; }
+      if (e.key === "ArrowRight")   { e.preventDefault(); goRef.current(1);  return; }
       if (e.key === "Tab") {
         // Two focusable buttons in the dialog (close + chevrons appear
         // when total>1). Cycle Tab between them.
@@ -256,7 +262,8 @@ function Lightbox({
       // Restore focus to whatever opened the dialog.
       opener?.focus();
     };
-  }, [close, go]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onTouchStart(e: React.TouchEvent) {
     if (total <= 1) return;
@@ -326,24 +333,26 @@ function Lightbox({
         <span className="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
 
-      {/* The image — wrapped in a non-clickable container so click-outside
-          on the overlay reliably hits the overlayRef, not the image. */}
-      <div
+      {/* The image — uses a plain <img> with object-fit: contain so the
+          element sizes to the actual image bounds. The previous next/image
+          fill wrapper spanned the full overlay, swallowing every
+          click-outside attempt on the letterboxed dark space.
+          eslint-disable-next-line @next/next/no-img-element — this is a
+          single full-resolution photo, not a responsive grid; next/image
+          would force us to box it back to a clickable rectangle. */}
+      <img
+        src={active.url}
+        alt={active.alt ?? fallbackAlt}
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: "relative", width: "100%", height: "100%",
-          maxWidth: 1400, maxHeight: "100%",
+          maxWidth: "100%", maxHeight: "100%",
+          width: "auto", height: "auto",
+          objectFit: "contain",
+          // Drop-shadow keeps the image readable against the dark overlay
+          // when the photo itself has lots of dark areas.
+          filter: "drop-shadow(0 4px 24px rgba(0,0,0,0.5))",
         }}
-      >
-        <Image
-          src={active.url}
-          alt={active.alt ?? fallbackAlt}
-          fill
-          sizes="100vw"
-          priority
-          style={{ objectFit: "contain" }}
-        />
-      </div>
+      />
 
       {total > 1 && (
         <>
