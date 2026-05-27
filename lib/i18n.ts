@@ -686,6 +686,11 @@ export const dictionaries = {
       drawer_help:       "Precisa de Ajuda?",
       drawer_logout:     "Terminar sessão",
       logout_error_prefix: "Erro ao terminar sessão:",
+      account_menu_aria:    "Conta",
+      menu_notifications:   "Notificações",
+      menu_conversations:   "Conversas",
+      menu_profile:         "Perfil",
+      menu_logout:          "Terminar sessão",
     },
     forms: {
       partner_lead: {
@@ -2177,6 +2182,11 @@ export const dictionaries = {
       drawer_help:       "Need Help?",
       drawer_logout:     "Log out",
       logout_error_prefix: "Error signing out:",
+      account_menu_aria:    "Account",
+      menu_notifications:   "Notifications",
+      menu_conversations:   "Conversations",
+      menu_profile:         "Profile",
+      menu_logout:          "Log out",
     },
     forms: {
       partner_lead: {
