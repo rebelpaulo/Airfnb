@@ -123,11 +123,14 @@ export function AccountMenu({ user, dashboardHref }: Props) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        // Announce the trigger's purpose ("opens the account menu") while
-        // still surfacing the user identity — screen-reader users hear
-        // "Conta — Paulo" instead of just "Paulo" with no hint that the
-        // button opens a menu.
-        aria-label={`${t.account_menu_aria ?? "Conta"} — ${user.displayName ?? user.email}`}
+        // Announce the trigger's purpose ("opens the account menu") plus
+        // the user identity AND any unread-notification count. Without
+        // the count, SR users have no equivalent of the red dot — the
+        // dot itself is aria-hidden because the count is the real signal.
+        aria-label={
+          `${t.account_menu_aria ?? "Conta"} — ${user.displayName ?? user.email}` +
+          (unread > 0 ? ` (${unread}${tBell?.aria_unread_suffix ? " " + tBell.aria_unread_suffix : ""})` : "")
+        }
         style={{ display: "inline-flex", alignItems: "center", gap: 8, position: "relative" }}
       >
         {user.avatarUrl ? (
@@ -222,7 +225,6 @@ export function AccountMenu({ user, dashboardHref }: Props) {
         </div>
       )}
 
-      {tBell ? <span style={{ display: "none" }}>{tBell.aria_unread_suffix}</span> : null}
     </div>
   );
 }
