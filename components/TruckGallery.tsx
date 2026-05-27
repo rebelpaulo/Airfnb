@@ -1,4 +1,11 @@
 "use client";
+// The lightbox renders a single full-resolution photo via a plain <img>
+// so click-outside on the dark letterbox space reaches the overlay
+// instead of being swallowed by next/image's fill-mode wrapper. The
+// rest of the file uses next/image properly; the disable is scoped to
+// this file because there's exactly one img tag and bundling the
+// directive inside a JSX comment doesn't work (CR finding on PR #54).
+/* eslint-disable @next/next/no-img-element */
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -333,13 +340,10 @@ function Lightbox({
         <span className="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
 
-      {/* The image — uses a plain <img> with object-fit: contain so the
-          element sizes to the actual image bounds. The previous next/image
-          fill wrapper spanned the full overlay, swallowing every
-          click-outside attempt on the letterboxed dark space.
-          eslint-disable-next-line @next/next/no-img-element — this is a
-          single full-resolution photo, not a responsive grid; next/image
-          would force us to box it back to a clickable rectangle. */}
+      {/* Plain <img> with object-fit: contain so the element sizes to
+          the actual image bounds. The previous next/image fill wrapper
+          spanned the full overlay, swallowing every click-outside
+          attempt on the letterboxed dark space. */}
       <img
         src={active.url}
         alt={active.alt ?? fallbackAlt}
