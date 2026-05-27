@@ -22,9 +22,17 @@ const LABELS: Record<Provider, string> = {
 // Empty / unset = no OAuth buttons (useful while Google/Apple credentials
 // aren't wired in the Supabase dashboard — clicking the button otherwise
 // errors out with "provider is not enabled").
+// Validate each token against the literal Provider union at runtime so a
+// typo in NEXT_PUBLIC_OAUTH_PROVIDERS (e.g. "Google" or "gooogle") gets
+// dropped silently here instead of leaking through the type assertion
+// and surfacing as a Supabase "provider X is not enabled" error after
+// the user clicks the button.
+const ALL_PROVIDERS: readonly Provider[] = ["google", "apple"] as const;
+const isProvider = (s: string): s is Provider =>
+  (ALL_PROVIDERS as readonly string[]).includes(s);
 const ENABLED_PROVIDERS = new Set<Provider>(
   (process.env.NEXT_PUBLIC_OAUTH_PROVIDERS ?? "")
-    .split(",").map((s) => s.trim()).filter(Boolean) as Provider[]
+    .split(",").map((s) => s.trim().toLowerCase()).filter(isProvider)
 );
 
 /** True when at least one OAuth provider is enabled via env. Lets the

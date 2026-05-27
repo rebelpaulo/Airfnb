@@ -242,7 +242,11 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
         borderRadius: 14,
         boxShadow: "var(--shadow-card)",
         display: "grid",
-        gridTemplateColumns: "1.2fr 1fr auto",
+        // auto-fit + min(...,100%) collapses the 3 cells to a single
+        // column on narrow phones while keeping the desktop row when
+        // there's space. Without this the 1.2fr / 1fr / auto cells
+        // jammed against each other at ~375px.
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
         gap: 24,
         alignItems: "center",
       }}>
@@ -280,7 +284,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
           <div style={{ color: "var(--muted)" }}>
             {t.label_per_pax} <strong style={{ color: "var(--ink)" }}>{truck.price_per_pax ? money(truck.price_per_pax) : t.em_dash}</strong>
             <span style={{ margin: "0 6px" }}>·</span>
-            {truck.capacity} {t.label_capacity_unit}
+            {truck.capacity ? `${truck.capacity} ${t.label_capacity_unit}` : t.em_dash}
           </div>
         </div>
 
@@ -293,7 +297,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
             </Link>
           ) : myOpenRequests.length > 0 ? (
             <form action={invite} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select name="request_id" className="filters-btn" style={{ padding: "8px 12px", fontSize: 13 }} required>
+              <select name="request_id" aria-label={t.invite_label} className="filters-btn" style={{ padding: "8px 12px", fontSize: 13 }} required>
                 {myOpenRequests.map((r) => (<option key={r.id} value={r.id}>{r.title}</option>))}
               </select>
               <button className="btn-pill" type="submit" style={{ whiteSpace: "nowrap" }}>{t.send_invite}</button>
