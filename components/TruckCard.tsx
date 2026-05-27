@@ -43,9 +43,14 @@ type Props = {
   authed: boolean;
   /** Localised "Novo" label for first-rated trucks. */
   newLabel: string;
+  /** Optional pre-formatted subtitle (e.g. translated category names
+   *  on the landing page). When omitted the card joins the raw slugs
+   *  in `truck.category_slugs`, which is what /catalogo and /procurar
+   *  use today. */
+  subtitleOverride?: string;
 };
 
-export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) {
+export function TruckCard({ truck, initialFavorited, authed, newLabel, subtitleOverride }: Props) {
   // De-dupe in case the view returns the cover both standalone and inside
   // the gallery. Falls back to the cover-only list if gallery is empty.
   const gallery = (() => {
@@ -216,7 +221,7 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
       </div>
       <div className="info">
         <h3>{truck.name}</h3>
-        <div className="subtitle">{(truck.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
+        <div className="subtitle">{subtitleOverride ?? (truck.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
         <div className="meta">
           <span className="loc">
             <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>

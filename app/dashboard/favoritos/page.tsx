@@ -1,9 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getDictionary } from "@/lib/i18n";
-import { truckCover } from "@/lib/img";
+import { TruckCard } from "@/components/TruckCard";
 
 export const dynamic = "force-dynamic";
 
@@ -51,31 +50,17 @@ export default async function FavoritesPage() {
         </div>
       ) : (
         <div className="truck-grid cols-3" style={{ marginTop: 26 }}>
-          {favorites.map((r: any) => {
-            const tr = r.airfnb_v_truck_card;
-            return (
-              <Link key={r.truck_id} href={`/catalogo/${tr.slug}`} className="truck-card">
-                <div className="thumb" style={{ position: "relative" }}>
-                  <Image
-                    src={truckCover(tr.cover_url)}
-                    alt={tr.name ?? "Truck"}
-                    fill
-                    sizes="(max-width: 600px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-                <div className="info">
-                  <h3>{tr.name}</h3>
-                  <div className="meta">
-                    <span className="loc">
-                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }} aria-hidden="true">location_on</span>
-                      {tr.base_city ?? "—"}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+          {favorites.map((r: any) => (
+            <TruckCard
+              key={r.truck_id}
+              truck={r.airfnb_v_truck_card}
+              // Everything on this page is by definition a favorite —
+              // the heart starts filled, the toggle still works.
+              initialFavorited={true}
+              authed={true}
+              newLabel={t.empty_state /* not used; truck always rated by this point — placeholder */}
+            />
+          ))}
         </div>
       )}
     </div>

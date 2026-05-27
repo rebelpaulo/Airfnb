@@ -67,7 +67,13 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
             : `Abrir foto ${safeIdx + 1} de ${total} em grande`}
           className="thumb"
           style={{
-            aspectRatio: "16/10", position: "relative",
+            // 16/9 (wider) plus a maxHeight cap so the hero never
+            // dominates the viewport on desktop — the user shouldn't
+            // have to scroll past the photo to reach trust badges,
+            // logistics or reviews. Tap-to-open lightbox still gives
+            // the "see big" affordance.
+            aspectRatio: "16/9", position: "relative",
+            maxHeight: 380,
             padding: 0, border: 0, background: "transparent",
             width: "100%", cursor: "zoom-in", display: "block",
             borderRadius: 14, overflow: "hidden",
