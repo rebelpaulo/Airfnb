@@ -1,13 +1,11 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
-import { truckCover } from "@/lib/img";
 import { Logo } from "@/components/Logo";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { getDictionary } from "@/lib/i18n";
 import { getFavoritedTruckIds } from "@/lib/favorites";
-import { HeartButton } from "@/components/HeartButton";
+import { TruckCard } from "@/components/TruckCard";
 
 export const revalidate = 60;
 
@@ -160,44 +158,25 @@ export default async function HomePage() {
 
           {trucks.length > 0 && (
             <div className="truck-grid">
-              {trucks.map((tr: any, idx: number) => (
-                <Link key={tr.id} href={`/catalogo/${tr.slug}`} className="truck-card">
-                  <div className="thumb" style={{ position: "relative" }}>
-                    <Image
-                      src={truckCover(tr.cover_url)}
-                      alt={tr.name}
-                      fill
-                      sizes="(max-width: 600px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      priority={idx === 0}
-                      style={{ objectFit: "cover" }}
-                    />
-                    <HeartButton truckId={tr.id} initialFavorited={favoritedIds.has(tr.id)} authed={authed} />
-                  </div>
-                  <div className="info">
-                    <h3>{tr.name}</h3>
-                    <div className="subtitle">
-                      {(tr.category_slugs ?? [])
-                        .slice(0, 3)
-                        .map((slug: string) => {
-                          const key = CATEGORY_KEY_BY_SLUG[slug as keyof typeof CATEGORY_KEY_BY_SLUG];
-                          return key ? (t as Record<string, string>)[key] ?? slug : slug;
-                        })
-                        .join(" · ")}
-                    </div>
-                    <div className="meta">
-                      <span className="loc">
-                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#FF4919" }}>location_on</span>
-                        {tr.base_city ?? "—"}
-                      </span>
-                      <span className="cap">
-                        {Number(tr.rating_count) > 0
-                          ? `★ ${Number(tr.rating_avg).toFixed(1)} (${tr.rating_count})`
-                          : t.partner_truck_new}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+              {trucks.map((tr: any) => {
+                const translatedSubtitle = (tr.category_slugs ?? [])
+                  .slice(0, 3)
+                  .map((slug: string) => {
+                    const key = CATEGORY_KEY_BY_SLUG[slug as keyof typeof CATEGORY_KEY_BY_SLUG];
+                    return key ? (t as Record<string, string>)[key] ?? slug : slug;
+                  })
+                  .join(" · ");
+                return (
+                  <TruckCard
+                    key={tr.id}
+                    truck={tr}
+                    initialFavorited={favoritedIds.has(tr.id)}
+                    authed={authed}
+                    newLabel={t.partner_truck_new}
+                    subtitleOverride={translatedSubtitle}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
