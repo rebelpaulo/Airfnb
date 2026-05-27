@@ -34,6 +34,17 @@ const SWIPE_THRESHOLD_PX = 40;
 export function TruckGallery({ images, fallbackAlt }: Props) {
   const [idx, setIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Hero-stage swipe for mobile — same 40px threshold + vertical-
+  // dominance escape hatch the cards use, so the gesture feels
+  // consistent across the app. A pure horizontal swipe pages the
+  // hero; vertical motion (page scroll) is left alone. Refs are
+  // declared BEFORE the early-return guard so the hook count stays
+  // stable across renders (Rules of Hooks).
+  const heroTouchStartXRef = useRef<number | null>(null);
+  const heroTouchStartYRef = useRef<number | null>(null);
+  const heroTouchScrollingRef = useRef(false);
+  const heroTouchSwipedRef = useRef(false);
+
   if (images.length === 0) return null;
 
   const total = images.length;
@@ -50,6 +61,46 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
     setIdx(i);
     setLightboxOpen(true);
   };
+  function onHeroTouchStart(e: React.TouchEvent) {
+    if (total <= 1) return;
+    const t = e.touches[0];
+    heroTouchStartXRef.current = t.clientX;
+    heroTouchStartYRef.current = t.clientY;
+    heroTouchScrollingRef.current = false;
+    heroTouchSwipedRef.current = false;
+  }
+  function onHeroTouchMove(e: React.TouchEvent) {
+    if (heroTouchStartXRef.current === null || heroTouchStartYRef.current === null) return;
+    const t = e.touches[0];
+    const dx = Math.abs(t.clientX - heroTouchStartXRef.current);
+    const dy = Math.abs(t.clientY - heroTouchStartYRef.current);
+    if (dy > dx && dy > 12) heroTouchScrollingRef.current = true;
+  }
+  function onHeroTouchEnd(e: React.TouchEvent) {
+    if (heroTouchStartXRef.current === null) return;
+    if (heroTouchScrollingRef.current) {
+      heroTouchStartXRef.current = null;
+      heroTouchStartYRef.current = null;
+      return;
+    }
+    const endX = e.changedTouches[0]?.clientX ?? heroTouchStartXRef.current;
+    const dx = endX - heroTouchStartXRef.current;
+    heroTouchStartXRef.current = null;
+    heroTouchStartYRef.current = null;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
+    e.preventDefault();
+    heroTouchSwipedRef.current = true;
+    setIdx((i) => (i + (dx < 0 ? 1 : -1) + total) % total);
+  }
+  function onHeroClick() {
+    // Suppress the lightbox open if this click is the tail of a
+    // horizontal swipe that just paged the hero.
+    if (heroTouchSwipedRef.current) {
+      heroTouchSwipedRef.current = false;
+      return;
+    }
+    openLightboxAt(safeIdx)();
+  }
 
   return (
     <div>
@@ -58,10 +109,15 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
           as absolutely-positioned siblings of the wrapper — nesting
           focusable controls inside another button is invalid HTML and
           breaks keyboard navigation. */}
-      <div style={{ position: "relative" }}>
+      <div
+        style={{ position: "relative", touchAction: "pan-y" }}
+        onTouchStart={onHeroTouchStart}
+        onTouchMove={onHeroTouchMove}
+        onTouchEnd={onHeroTouchEnd}
+      >
         <button
           type="button"
-          onClick={openLightboxAt(safeIdx)}
+          onClick={onHeroClick}
           aria-label={(active.alt && active.alt.trim())
             ? `${active.alt} — abrir em grande`
             : `Abrir foto ${safeIdx + 1} de ${total} em grande`}
@@ -125,46 +181,11 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
         )}
       </div>
 
-      {total > 1 && (
-        <div
-          role="tablist"
-          aria-label="Galeria de fotos"
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${Math.min(total, 5)}, 1fr)`,
-            gap: 8, marginTop: 8,
-          }}
-        >
-          {images.slice(0, 5).map((img, i) => (
-            <button
-              key={img.id}
-              type="button"
-              role="tab"
-              aria-selected={i === safeIdx}
-              aria-label={img.alt && img.alt.trim() ? img.alt : `Ver foto ${i + 1} de ${total}`}
-              onClick={openLightboxAt(i)}
-              className="thumb"
-              style={{
-                aspectRatio: "1/1", position: "relative",
-                padding: 0, border: 0, background: "transparent",
-                outline: i === safeIdx ? "2px solid var(--orange)" : "2px solid transparent",
-                outlineOffset: 2,
-                borderRadius: 8,
-                overflow: "hidden",
-                cursor: "zoom-in",
-              }}
-            >
-              <Image
-                src={img.url}
-                alt={img.alt ?? ""}
-                fill
-                sizes="(max-width: 768px) 25vw, 165px"
-                style={{ objectFit: "cover", opacity: i === safeIdx ? 1 : 0.85, transition: "opacity 0.15s" }}
-              />
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Thumbnail strip removed on purpose — the hero already shows
+          one photo, chevrons + swipe page through the rest, and a
+          click opens the lightbox with every photo. The strip was
+          pushing the About / trust badges / logistics below the
+          fold for no extra information value. */}
 
       {lightboxOpen && (
         <Lightbox
