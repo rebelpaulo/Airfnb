@@ -18,7 +18,22 @@ const LABELS: Record<Provider, string> = {
   apple:  "Continuar com Apple",
 };
 
+// NEXT_PUBLIC_OAUTH_PROVIDERS=google,apple to enable specific providers.
+// Empty / unset = no OAuth buttons (useful while Google/Apple credentials
+// aren't wired in the Supabase dashboard — clicking the button otherwise
+// errors out with "provider is not enabled").
+const ENABLED_PROVIDERS = new Set<Provider>(
+  (process.env.NEXT_PUBLIC_OAUTH_PROVIDERS ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean) as Provider[]
+);
+
+/** True when at least one OAuth provider is enabled via env. Lets the
+ *  signup/login pages hide the "or" separator when no buttons render. */
+export const OAUTH_ENABLED: boolean = ENABLED_PROVIDERS.size > 0;
+
 export function OAuthButtons({ next = "/", asRole, refCode }: Props) {
+  // Bail entirely when no providers are enabled — no buttons, no separator.
+  if (ENABLED_PROVIDERS.size === 0) return null;
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr]   = useState<string | null>(null);
 
@@ -44,7 +59,7 @@ export function OAuthButtons({ next = "/", asRole, refCode }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
       {err && <div className="error">{err}</div>}
-      {(["google", "apple"] as const).map((p) => (
+      {(["google", "apple"] as const).filter((p) => ENABLED_PROVIDERS.has(p)).map((p) => (
         <button
           key={p}
           type="button"

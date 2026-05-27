@@ -230,7 +230,92 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 28, marginTop: 28 }}>
+      {/* DECISION CARD — sits between the hero and the info sections so
+          owner + price + CTA are visible at the same scroll position as
+          the photo. Replaces the previous sticky right-rail (which was
+          getting visually cut off and made the page feel imbalanced).
+          Single column from here down. */}
+      <div style={{
+        marginTop: 20,
+        padding: 18,
+        background: "#fff",
+        borderRadius: 14,
+        boxShadow: "var(--shadow-card)",
+        display: "grid",
+        gridTemplateColumns: "1.2fr 1fr auto",
+        gap: 24,
+        alignItems: "center",
+      }}>
+        {/* Owner cell */}
+        {truck.owner ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            {truck.owner.avatar_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={truck.owner.avatar_url} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--orange)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                {(truck.owner.display_name ?? truck.owner.full_name ?? "?").trim().slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>{t.section_owner}</div>
+              <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {truck.owner.display_name ?? truck.owner.full_name ?? "—"}
+              </div>
+              {truck.owner.created_at && (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {fmtTpl(t.trust_member_since, { year: String(new Date(truck.owner.created_at).getFullYear()) })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : <div />}
+
+        {/* Price cell */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 13 }}>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: "var(--orange)", lineHeight: 1 }}>
+            {truck.base_price ? money(truck.base_price) : t.em_dash}
+            <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 6 }}>base</span>
+          </div>
+          <div style={{ color: "var(--muted)" }}>
+            {t.label_per_pax} <strong style={{ color: "var(--ink)" }}>{truck.price_per_pax ? money(truck.price_per_pax) : t.em_dash}</strong>
+            <span style={{ margin: "0 6px" }}>·</span>
+            {truck.capacity} {t.label_capacity_unit}
+          </div>
+        </div>
+
+        {/* CTA + heart cell */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <HeartButton truckId={truck.id} initialFavorited={initialFavorited} authed={authed} absolute={false} />
+          {!user ? (
+            <Link href={`/login?next=/catalogo/${slug}`} className="btn-pill" style={{ whiteSpace: "nowrap" }}>
+              {t.login_to_invite}
+            </Link>
+          ) : myOpenRequests.length > 0 ? (
+            <form action={invite} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select name="request_id" className="filters-btn" style={{ padding: "8px 12px", fontSize: 13 }} required>
+                {myOpenRequests.map((r) => (<option key={r.id} value={r.id}>{r.title}</option>))}
+              </select>
+              <button className="btn-pill" type="submit" style={{ whiteSpace: "nowrap" }}>{t.send_invite}</button>
+            </form>
+          ) : (
+            <Link href="/publicar" className="btn-pill outline" style={{ whiteSpace: "nowrap" }}>
+              {t.publish_to_invite}
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Category chips — small horizontal strip between decision card and info */}
+      {cats.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+          {cats.map((c: string) => (
+            <span key={c} style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, background: "#FFF6F2", color: "var(--orange-deep)", fontSize: 12 }}>{c}</span>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 28 }}>
         <div>
           {/* ABOUT */}
           <section>
@@ -353,80 +438,6 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
           </section>
         </div>
 
-        {/* STICKY SIDEBAR */}
-        <aside style={{ position: "sticky", top: 100, alignSelf: "flex-start", padding: 22, background: "#fff", borderRadius: 14, boxShadow: "var(--shadow-card)" }}>
-          {/* Owner card */}
-          {truck.owner && (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 14, marginBottom: 14, borderBottom: "1px solid var(--line)" }}>
-              {truck.owner.avatar_url ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={truck.owner.avatar_url} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--orange)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-                  {(truck.owner.display_name ?? truck.owner.full_name ?? "?").trim().slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>{t.section_owner}</div>
-                <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {truck.owner.display_name ?? truck.owner.full_name ?? "—"}
-                </div>
-                {truck.owner.created_at && (
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {fmtTpl(t.trust_member_since, { year: String(new Date(truck.owner.created_at).getFullYear()) })}
-                  </div>
-                )}
-              </div>
-              <HeartButton truckId={truck.id} initialFavorited={initialFavorited} authed={authed} absolute={false} />
-            </div>
-          )}
-
-          {/* Price block */}
-          <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
-            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: "var(--orange)" }}>
-              {truck.base_price ? money(truck.base_price) : t.em_dash}
-              <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 6 }}>base</span>
-            </div>
-            <div>
-              <span style={{ color: "var(--muted)" }}>{t.label_per_pax} </span>
-              <strong>{truck.price_per_pax ? money(truck.price_per_pax) : t.em_dash}</strong>
-            </div>
-            <div>
-              <span style={{ color: "var(--muted)" }}>{t.label_capacity} </span>
-              <strong>{truck.capacity} {t.label_capacity_unit}</strong>
-            </div>
-            <div>
-              <span style={{ color: "var(--muted)" }}>{t.label_radius} </span>
-              <strong>{truck.service_radius_km} {t.label_radius_unit}</strong>
-            </div>
-          </div>
-
-          {cats.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              {cats.map((c: string) => (
-                <span key={c} style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, background: "#FFF6F2", color: "var(--orange-deep)", fontSize: 12, marginRight: 6, marginBottom: 6 }}>{c}</span>
-              ))}
-            </div>
-          )}
-
-          {!user ? (
-            <Link href={`/login?next=/catalogo/${slug}`} className="btn-pill" style={{ marginTop: 18, width: "100%", justifyContent: "center", display: "inline-flex" }}>
-              {t.login_to_invite}
-            </Link>
-          ) : myOpenRequests.length > 0 ? (
-            <form action={invite} style={{ marginTop: 18 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>{t.invite_label}</label>
-              <select name="request_id" className="filters-btn" style={{ width: "100%", padding: "10px 14px" }} required>
-                {myOpenRequests.map((r) => (<option key={r.id} value={r.id}>{r.title}</option>))}
-              </select>
-              <button className="btn-pill" type="submit" style={{ marginTop: 10, width: "100%", justifyContent: "center" }}>{t.send_invite}</button>
-            </form>
-          ) : (
-            <Link href="/publicar" className="btn-pill outline" style={{ marginTop: 18, width: "100%", justifyContent: "center", display: "inline-flex" }}>
-              {t.publish_to_invite}
-            </Link>
-          )}
-        </aside>
       </div>
     </div>
   );
