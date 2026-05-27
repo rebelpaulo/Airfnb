@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { OAuthButtons, OAUTH_ENABLED } from "@/components/auth/OAuthButtons";
 import { useDict } from "@/components/DictProvider";
 
 export default function SignupPage() {
@@ -92,12 +92,14 @@ export default function SignupPage() {
 
       <OAuthButtons next={next} asRole={role} refCode={refCode} />
 
-      <div role="separator" aria-orientation="horizontal"
-           style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>
-        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
-        {t.separator_or}
-        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
-      </div>
+      {OAUTH_ENABLED && (
+        <div role="separator" aria-orientation="horizontal"
+             style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>
+          <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+          {t.separator_or}
+          <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+        </div>
+      )}
 
       {err  && <div className="error">{err}</div>}
       {info && <div className="error" style={{ background: "#E8F5F1", color: "#1F5B65" }}>{info}</div>}

@@ -18,7 +18,30 @@ const LABELS: Record<Provider, string> = {
   apple:  "Continuar com Apple",
 };
 
+// NEXT_PUBLIC_OAUTH_PROVIDERS=google,apple to enable specific providers.
+// Empty / unset = no OAuth buttons (useful while Google/Apple credentials
+// aren't wired in the Supabase dashboard — clicking the button otherwise
+// errors out with "provider is not enabled").
+// Validate each token against the literal Provider union at runtime so a
+// typo in NEXT_PUBLIC_OAUTH_PROVIDERS (e.g. "Google" or "gooogle") gets
+// dropped silently here instead of leaking through the type assertion
+// and surfacing as a Supabase "provider X is not enabled" error after
+// the user clicks the button.
+const ALL_PROVIDERS: readonly Provider[] = ["google", "apple"] as const;
+const isProvider = (s: string): s is Provider =>
+  (ALL_PROVIDERS as readonly string[]).includes(s);
+const ENABLED_PROVIDERS = new Set<Provider>(
+  (process.env.NEXT_PUBLIC_OAUTH_PROVIDERS ?? "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(isProvider)
+);
+
+/** True when at least one OAuth provider is enabled via env. Lets the
+ *  signup/login pages hide the "or" separator when no buttons render. */
+export const OAUTH_ENABLED: boolean = ENABLED_PROVIDERS.size > 0;
+
 export function OAuthButtons({ next = "/", asRole, refCode }: Props) {
+  // Bail entirely when no providers are enabled — no buttons, no separator.
+  if (ENABLED_PROVIDERS.size === 0) return null;
   const [busy, setBusy] = useState<Provider | null>(null);
   const [err, setErr]   = useState<string | null>(null);
 
@@ -44,7 +67,7 @@ export function OAuthButtons({ next = "/", asRole, refCode }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
       {err && <div className="error">{err}</div>}
-      {(["google", "apple"] as const).map((p) => (
+      {(["google", "apple"] as const).filter((p) => ENABLED_PROVIDERS.has(p)).map((p) => (
         <button
           key={p}
           type="button"

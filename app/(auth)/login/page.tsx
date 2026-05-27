@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { OAuthButtons, OAUTH_ENABLED } from "@/components/auth/OAuthButtons";
 import { useDict } from "@/components/DictProvider";
 
 export default function LoginPage() {
@@ -55,12 +55,14 @@ export default function LoginPage() {
 
       <OAuthButtons next={next} />
 
-      <div role="separator" aria-orientation="horizontal"
-           style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>
-        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
-        {t.separator_or}
-        <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
-      </div>
+      {OAUTH_ENABLED && (
+        <div role="separator" aria-orientation="horizontal"
+             style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px", color: "var(--muted)", fontSize: 12 }}>
+          <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+          {t.separator_or}
+          <hr style={{ flex: 1, border: 0, borderTop: "1px solid var(--line)" }} />
+        </div>
+      )}
 
       <div className="role-toggle" role="tablist" aria-label={t.method_aria}>
         <button type="button" role="tab" aria-selected={mode === "password"}
