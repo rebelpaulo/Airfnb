@@ -82,7 +82,13 @@ export function AccountMenu({ user, dashboardHref }: Props) {
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
-      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrapperRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        // Mirror the Esc handler — restore focus to the trigger so keyboard
+        // users (and screen-reader users who closed via outside click) don't
+        // lose their place in the tab order.
+        triggerRef.current?.focus();
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -117,7 +123,11 @@ export function AccountMenu({ user, dashboardHref }: Props) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={user.displayName ?? user.email}
+        // Announce the trigger's purpose ("opens the account menu") while
+        // still surfacing the user identity — screen-reader users hear
+        // "Conta — Paulo" instead of just "Paulo" with no hint that the
+        // button opens a menu.
+        aria-label={`${t.account_menu_aria ?? "Conta"} — ${user.displayName ?? user.email}`}
         style={{ display: "inline-flex", alignItems: "center", gap: 8, position: "relative" }}
       >
         {user.avatarUrl ? (
