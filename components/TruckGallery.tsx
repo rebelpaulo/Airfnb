@@ -34,6 +34,17 @@ const SWIPE_THRESHOLD_PX = 40;
 export function TruckGallery({ images, fallbackAlt }: Props) {
   const [idx, setIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Hero-stage swipe for mobile — same 40px threshold + vertical-
+  // dominance escape hatch the cards use, so the gesture feels
+  // consistent across the app. A pure horizontal swipe pages the
+  // hero; vertical motion (page scroll) is left alone. Refs are
+  // declared BEFORE the early-return guard so the hook count stays
+  // stable across renders (Rules of Hooks).
+  const heroTouchStartXRef = useRef<number | null>(null);
+  const heroTouchStartYRef = useRef<number | null>(null);
+  const heroTouchScrollingRef = useRef(false);
+  const heroTouchSwipedRef = useRef(false);
+
   if (images.length === 0) return null;
 
   const total = images.length;
@@ -50,17 +61,6 @@ export function TruckGallery({ images, fallbackAlt }: Props) {
     setIdx(i);
     setLightboxOpen(true);
   };
-
-  // Hero-stage swipe for mobile — same 40px threshold + vertical-
-  // dominance escape hatch the cards use, so the gesture feels
-  // consistent across the app. A pure horizontal swipe pages the
-  // hero; vertical motion (page scroll) is left alone. Won't fire
-  // a stray lightbox open because we track the start position and
-  // suppress the trailing click ourselves via preventDefault.
-  const heroTouchStartXRef = useRef<number | null>(null);
-  const heroTouchStartYRef = useRef<number | null>(null);
-  const heroTouchScrollingRef = useRef(false);
-  const heroTouchSwipedRef = useRef(false);
   function onHeroTouchStart(e: React.TouchEvent) {
     if (total <= 1) return;
     const t = e.touches[0];
