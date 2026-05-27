@@ -1,6 +1,6 @@
 -- Restore the truck-kind row that PR #46 tried (and failed) to seed
 -- with hand-picked Unsplash URLs. This time we use the bundled
--- /truck-placeholder.svg shipped in /public — it's a stylised
+-- /truck-placeholder.png shipped in /public — it's a stylised
 -- food-truck illustration the design team already approved as the
 -- generic stand-in. Result on the catalogo / procurar cards:
 --   * cover_url picks the placeholder (kind='truck' wins the view's rank)
@@ -18,7 +18,7 @@
 -- also makes the migration idempotent on its own without leaning on a
 -- unique constraint the table doesn't have.
 insert into public.airfnb_truck_images (truck_id, url, alt, is_cover, sort_order, kind)
-select t.id, '/truck-placeholder.svg', t.name || ' (truck)', false, -1, 'truck'
+select t.id, '/truck-placeholder.png', t.name || ' (truck)', false, -1, 'truck'
   from public.airfnb_trucks t
  where t.status = 'active'
    and not exists (
