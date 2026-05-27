@@ -159,6 +159,24 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
               }}
             />
 
+            {/* Visible chevron pills — purely visual cues that the
+                photo can be paged. The wider invisible halves above
+                are the real tap targets (better for thumbs on
+                mobile); these are presentational with
+                pointer-events:none so they never steal the click. */}
+            <span
+              aria-hidden="true"
+              style={cardChevronStyle("left")}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_left</span>
+            </span>
+            <span
+              aria-hidden="true"
+              style={cardChevronStyle("right")}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+            </span>
+
             {/* Dots indicator (always visible — needed on touch where
                 there's no hover signal). The container is presentational
                 (no aria-hidden — the dots are focusable buttons, hiding
@@ -213,4 +231,25 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel }: Props) 
       </div>
     </Link>
   );
+}
+
+// Decorative chevron pill for the card carousel. `pointer-events: none`
+// because the real click target is the wider invisible half above it —
+// the chevron is purely a visual affordance that pagers exist.
+function cardChevronStyle(side: "left" | "right"): React.CSSProperties {
+  return {
+    position: "absolute",
+    [side]: 8,
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 28, height: 28,
+    borderRadius: "50%",
+    background: "rgba(0,0,0,0.45)",
+    color: "#fff",
+    pointerEvents: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  };
 }
