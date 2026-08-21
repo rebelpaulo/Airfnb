@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ensureFbMembership } from "@/lib/auth/fb-membership";
 import { OAuthButtons, OAUTH_ENABLED } from "@/components/auth/OAuthButtons";
 import { useDict } from "@/components/DictProvider";
 
@@ -50,22 +51,19 @@ export default function SignupPage() {
       return;
     }
 
-    // We have a session — upgrade the role + name now while we still have the user id.
-    if (data.user) {
-      const { error: profileErr } = await (supa as any)
-        .from("airfnb_profiles")
-        .update({ role, full_name: name })
-        .eq("id", data.user.id);
-      if (profileErr) {
-        setBusy(false);
-        setErr(t.role_set_error);
-        return;
-      }
-      // Apply referral attribution on the immediate-session path (the
-      // /auth/callback handler covers the email-confirm + OAuth paths).
-      if (refCode) {
-        await (supa as any).rpc("airfnb_apply_referral", { p_code: refCode });
-      }
+    // We have a session: explicitly bootstrap this app's membership, then
+    // make the user's one-time self-service role claim.
+    try {
+      await ensureFbMembership(supa, { role, fullName: name, locale: "pt-PT" });
+    } catch {
+      setBusy(false);
+      setErr(t.role_set_error);
+      return;
+    }
+    // Apply referral attribution on the immediate-session path (the
+    // /auth/callback handler covers the email-confirm + OAuth paths).
+    if (refCode) {
+      await (supa as any).rpc("airfnb_apply_referral", { p_code: refCode });
     }
     setBusy(false);
     router.push(next);

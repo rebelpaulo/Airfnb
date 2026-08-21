@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
+import { ensureFbMembership } from "@/lib/auth/fb-membership";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { WrongAccountType } from "@/components/WrongAccountType";
 import { getDictionary } from "@/lib/i18n";
@@ -28,7 +29,9 @@ export default async function OnboardingTruckPage() {
   if (profile?.onboarding_completed) {
     // already onboarded; skip wizard but make sure they have a truck row
     const { data: existing } = await (supa as any)
-      .from("airfnb_trucks").select("id").eq("owner_id", user.id).maybeSingle();
+      .rpc("airfnb_supplier_services", { p_truck: null })
+      .limit(1)
+      .maybeSingle();
     redirect(existing ? "/dashboard/truck" : "/dashboard/truck/novo");
   }
 
@@ -57,25 +60,7 @@ export default async function OnboardingTruckPage() {
       throw new Error(t.err_vat);
     }
 
-    // Atomic role claim — exclusive roles. Setting role=owner only when it
-    // is still NULL closes the read-then-write race (a concurrent request
-    // setting role=organizer between read and write would otherwise be
-    // overwritten). Then re-check that the row ended up as owner.
-    const claim = await (supa as any)
-      .from("airfnb_profiles")
-      .update({ role: "owner" })
-      .eq("id", user.id)
-      .is("role", null)
-      .select("role");
-    if (claim.error) throw new Error(claim.error.message);
-
-    if (!claim.data?.length) {
-      const { data: cur } = await (supa as any)
-        .from("airfnb_profiles").select("role").eq("id", user.id).maybeSingle();
-      if (cur?.role !== "owner") {
-        throw new Error(t.err_wrong_role);
-      }
-    }
+    await ensureFbMembership(supa, { role: "owner", fullName: full_name, locale: "pt-PT" });
 
     const { error: profErr } = await (supa as any)
       .from("airfnb_profiles")

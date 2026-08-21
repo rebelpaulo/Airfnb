@@ -2,19 +2,24 @@
   "name": "airfb-app",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:e2e:source": "node --test tests/local-e2e-go-live-source.test.mjs",
+    "check": "pnpm typecheck && pnpm test && bash -n scripts/vercel-env-bootstrap.sh && git diff --check",
     "types:gen": "supabase gen types typescript --linked --schema public > /tmp/all.ts && node scripts/extract-airfnb-types.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
-    "next": "15.5.18",
+    "next": "15.5.21",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "stripe": "^17.3.1",
+    "stripe": "17.7.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -22,5 +27,12 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "nanoid": "3.3.18",
+      "postcss": "8.5.23",
+      "sharp": "0.35.0"
+    }
   }
 }

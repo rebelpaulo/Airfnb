@@ -20,8 +20,8 @@ import { recommendForEvent } from "@/lib/event-planning";
 // wizard can prefill its step-1 fields without losing context.
 
 export const metadata: Metadata = {
-  title: "Plano e food trucks para o teu evento",
-  description: "Recomendações operacionais (eletricidade, água, espaço) e food trucks compatíveis para o teu evento.",
+  title: "Food Trucks, Catering e Bares para Eventos",
+  description: "Encontra fornecedores de food trucks, catering e bares compatíveis com o teu evento.",
   alternates: { canonical: "/procurar" },
 };
 
@@ -34,7 +34,10 @@ type SearchParams = Promise<{
   end_at?: Raw;
   expected_pax?: Raw;
   cuisines?: Raw;
+  service_type?: Raw;
 }>;
+
+const SERVICE_TYPES = ["food_truck", "catering", "bar"] as const;
 
 function first(v: Raw): string | undefined {
   if (v == null) return undefined;
@@ -84,6 +87,9 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
   const endAt    = first(sp.end_at);
   const pax      = num(sp.expected_pax) ?? 100;
   const cuisines = csv(sp.cuisines);
+  const serviceTypeRaw = first(sp.service_type);
+  const serviceType = serviceTypeRaw && (SERVICE_TYPES as readonly string[]).includes(serviceTypeRaw)
+    ? serviceTypeRaw : undefined;
 
   const plan = recommendForEvent(pax);
 
@@ -97,9 +103,14 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
     .order("id", { ascending: true })
     .limit(60);
   if (city)            q = q.ilike("base_city", `%${city}%`);
+  if (serviceType)     q = q.eq("service_type", serviceType);
   if (cuisines.length) q = q.overlaps("cuisine_types", cuisines);
 
-  const { data: trucks = [], error } = await q;
+  const { data: trucksData, error } = await q;
+  // Failed PostgREST queries use `data: null`; normalize explicitly because
+  // a destructuring default only handles undefined and would leave `.length`
+  // and `.map` vulnerable to a secondary render-time exception.
+  const trucks = (trucksData ?? []) as any[];
   if (error) console.error("procurar query failed", error.message);
 
   // For the cuisine chips: count occurrences of each cuisine across the
@@ -110,10 +121,12 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
     .select("cuisine_types")
     .limit(200);
   if (city) qAll = qAll.ilike("base_city", `%${city}%`);
-  const { data: allTrucks = [] } = await qAll;
+  if (serviceType) qAll = qAll.eq("service_type", serviceType);
+  const { data: allTrucksData } = await qAll;
+  const allTrucks = (allTrucksData ?? []) as any[];
 
   const cuisineCounts = new Map<string, number>();
-  for (const tr of (allTrucks as any[])) {
+  for (const tr of allTrucks) {
     for (const c of (tr?.cuisine_types ?? []) as string[]) {
       cuisineCounts.set(c, (cuisineCounts.get(c) ?? 0) + 1);
     }
@@ -142,6 +155,7 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
     start_at: startAt,
     end_at: endAt,
     expected_pax: pax ? String(pax) : undefined,
+    service_type: serviceType,
   };
 
   const ctaHref = buildHref("/publicar", baseParams, cuisines);
@@ -307,13 +321,14 @@ export default async function ProcurarPage({ searchParams }: { searchParams: Sea
           </div>
         ) : (
           <div className="truck-grid cols-4" style={{ marginTop: 16 }}>
-            {(trucks as any[]).map((tr: any) => (
+            {trucks.map((tr: any, index: number) => (
               <TruckCard
                 key={tr.id}
                 truck={tr}
                 initialFavorited={favoritedIds.has(tr.id)}
                 authed={authed}
                 newLabel={dict.catalog?.truck_new ?? "New"}
+                priority={index === 0}
               />
             ))}
           </div>

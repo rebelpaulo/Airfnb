@@ -15,9 +15,9 @@ import { WrongAccountType } from "@/components/WrongAccountType";
 // Migrate to generateMetadata async + getDictionary() once we accept the
 // extra dynamic render.
 export const metadata: Metadata = {
-  title: "Registar Food Truck",
+  title: "Registar fornecedor para eventos",
   description:
-    "Regista o teu food truck em 2 minutos, mostra-o aos organizers e começa a receber pedidos de eventos.",
+    "Regista o teu serviço de Food Truck, Catering ou Bar, apresenta-o a organizadores e começa a receber pedidos de eventos.",
   alternates: { canonical: "/registar" },
 };
 
@@ -49,10 +49,9 @@ export default async function RegistarPage() {
   }
 
   // Already an owner — check if they have any trucks yet
-  const { count } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_id", user.id);
+  const { data: services } = await (supa as any)
+    .rpc("airfnb_supplier_services", { p_truck: null })
+    .limit(1);
 
-  redirect((count ?? 0) > 0 ? "/dashboard/truck" : "/dashboard/truck/novo");
+  redirect((services?.length ?? 0) > 0 ? "/dashboard/truck" : "/dashboard/truck/novo");
 }

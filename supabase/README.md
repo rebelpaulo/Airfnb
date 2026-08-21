@@ -1,6 +1,6 @@
 # Supabase
 
-Schema completo do Air F&B, prefixado `airfnb_` para coexistir com outras apps no mesmo cluster.
+Schema completo da F&B Tailor, mantendo o prefixo técnico `airfnb_` para compatibilidade e para coexistir com outras apps no mesmo cluster.
 
 ## Estrutura
 
@@ -9,6 +9,11 @@ migrations/        # ficheiros SQL ordenados (timestamp_name.sql)
 functions/         # edge functions: send-email, stripe-webhook
 config.toml.example
 ```
+
+A baseline específica do projeto Indigo partilhado não faz parte desta cadeia:
+fica em `scripts/migrations/apply/20260821124724_indigo_shared_project_baseline.sql`
+e só pode ser aplicada pelo runbook dedicado. Nunca a mover para
+`supabase/migrations` nem a incluir em `supabase db push`.
 
 ## Aplicar num projecto fresh
 
@@ -45,9 +50,9 @@ supabase functions deploy stripe-webhook
 ## Edge functions — secrets
 
 ```bash
-supabase secrets set RESEND_API_KEY=re_xxx
-supabase secrets set FROM_EMAIL="Air F&B <ola@airfnb.example>"
-supabase secrets set ALLOWED_TEMPLATES="booking_inquiry_received,proposal_sent,booking_confirmed,booking_cancelled,payment_received,review_request,contact_reply,newsletter_confirm"
-supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx
+supabase secrets set --env-file <local-secrets-file>
 ```
+
+O ficheiro local, não versionado, deve definir `RESEND_API_KEY`, um
+`FROM_EMAIL` verificado, `ALLOWED_TEMPLATES`, `STRIPE_SECRET_KEY` e
+`STRIPE_WEBHOOK_SECRET`. Não coloques valores reais neste repositório.

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -6,8 +7,22 @@ import { money } from "@/lib/money";
 import { truckCover } from "@/lib/img";
 import { getDictionary } from "@/lib/i18n";
 import { getFavoritedTruckIds } from "@/lib/favorites";
+import { serializeJsonLd } from "@/lib/safe-json-ld.mjs";
+import { publicAvatarUrl } from "@/lib/public-avatar-url";
 import { HeartButton } from "@/components/HeartButton";
 import { TruckGallery } from "@/components/TruckGallery";
+
+type PublicServiceType = "food_truck" | "catering" | "bar";
+
+const PUBLIC_SERVICE_TYPE_LABELS: Record<PublicServiceType, string> = {
+  food_truck: "Food Truck",
+  catering: "Catering",
+  bar: "Bar",
+};
+
+function publicServiceType(value: unknown): PublicServiceType {
+  return value === "catering" || value === "bar" ? value : "food_truck";
+}
 
 // TODO: i18n metadata via generateMetadata
 export async function generateMetadata(
@@ -17,15 +32,18 @@ export async function generateMetadata(
   const supa = await supabaseServer();
   const { data: t } = await (supa as any)
     .from("airfnb_v_truck_card")
-    .select("name, tagline, base_city, cover_url, rating_avg, rating_count")
+    // `*` keeps deployments compatible while the service_type migration is
+    // rolling out: newer rows expose it, older schemas/rows fall back safely.
+    .select("*")
     .eq("slug", slug)
     .maybeSingle();
-  if (!t) return { title: "Truck não encontrado" };
+  if (!t) return { title: "Fornecedor não encontrado" };
 
-  const title = `${t.name}${t.base_city ? ` · ${t.base_city}` : ""}`;
+  const serviceLabel = PUBLIC_SERVICE_TYPE_LABELS[publicServiceType(t.service_type)];
+  const title = `${t.name} · ${serviceLabel}${t.base_city ? ` · ${t.base_city}` : ""}`;
   const description =
     (t.tagline as string | null) ??
-    `${t.name}, food truck${t.base_city ? ` em ${t.base_city}` : ""} disponível para o teu evento.`;
+    `${t.name}, ${serviceLabel}${t.base_city ? ` em ${t.base_city}` : ""} disponível para o teu evento.`;
   const cover = truckCover(t.cover_url);
 
   return {
@@ -55,52 +73,40 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
   const supa = await supabaseServer();
 
   const { data: truck } = await (supa as any)
-    .from("airfnb_trucks")
-    .select(`
-      *,
-      airfnb_truck_images ( id, url, alt, is_cover, sort_order, kind ),
-      airfnb_menu_items   ( id, name, description, price, category ),
-      airfnb_truck_categories ( airfnb_categories ( slug, name_pt, icon ) ),
-      owner:airfnb_profiles!airfnb_trucks_owner_id_fkey ( id, display_name, full_name, avatar_url, created_at )
-    `)
-    .eq("slug", slug)
-    .maybeSingle();
+    .rpc("airfnb_public_service_detail", { p_slug: slug });
   if (!truck) notFound();
 
-  // Reviews + truck documents — parallel fetches so the detail page stays
-  // a single roundtrip even with the richer layout. Reviews join the
-  // reviewer's display_name for the "by X" line.
-  const [reviewsRes, docsRes] = await Promise.all([
-    (supa as any)
-      .from("airfnb_reviews")
-      .select(`
-        id, rating_overall, body, reply_body, reply_at, is_verified, created_at,
-        reviewer:airfnb_profiles!airfnb_reviews_organizer_id_fkey ( display_name, full_name )
-      `)
-      .eq("truck_id", truck.id)
-      .order("created_at", { ascending: false })
-      .limit(6),
-    (supa as any)
-      .from("airfnb_truck_documents")
-      .select("kind, expires_at")
-      .eq("truck_id", truck.id),
-  ]);
+  const reviewsRes = await (supa as any)
+    .from("airfnb_reviews")
+    .select(`
+      id, rating_overall, body, reply_body, reply_at, is_verified, created_at,
+      reviewer:airfnb_profiles!airfnb_reviews_organizer_id_fkey ( display_name, full_name )
+    `)
+    .eq("truck_id", truck.id)
+    .order("created_at", { ascending: false })
+    .limit(6);
   const reviews: any[] = reviewsRes.data ?? [];
-  const docs: any[]    = docsRes.data ?? [];
+  const docs: any[] = truck.document_states ?? [];
 
   // Order matches the airfnb_v_truck_card view: truck → food → venue →
   // team → other, then is_cover, then sort_order. Keeps the carousel
   // semantically grouped so organisers see the truck first.
   const KIND_RANK: Record<string, number> = { truck: 1, food: 2, venue: 3, team: 4, other: 5 };
-  const images = (truck.airfnb_truck_images ?? [])
+  const images = (truck.images ?? [])
     .slice()
     .sort((a: any, b: any) =>
       (KIND_RANK[a.kind ?? "other"] - KIND_RANK[b.kind ?? "other"]) ||
       ((b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0)) ||
       (a.sort_order - b.sort_order)
     );
-  const menu = (truck.airfnb_menu_items ?? []);
-  const cats = (truck.airfnb_truck_categories ?? []).map((tc:any)=> tc.airfnb_categories?.name_pt).filter(Boolean);
+  const menu = (truck.menu_items ?? []);
+  const cats = (truck.categories ?? []).map((category: any) => category.name_pt).filter(Boolean);
+  const serviceType = publicServiceType(truck.service_type);
+  const serviceLabel = dict.vocab.service_type[serviceType];
+  const ownerAvatarUrl = publicAvatarUrl(
+    truck.owner?.avatar_url,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  );
 
   const { data: { user } } = await supa.auth.getUser();
   const authed = !!user;
@@ -123,11 +129,11 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     "use server";
     const reqId = String(formData.get("request_id"));
     const supa = await supabaseServer();
-    await (supa as any).from("airfnb_request_invitations").insert({
-      request_id: reqId,
-      truck_id: truck!.id,
-      invited_by: (await supa.auth.getUser()).data.user!.id,
+    const { error } = await (supa as any).rpc("airfnb_invite_request_services", {
+      p_request: reqId,
+      p_trucks: [truck!.id],
     });
+    if (error) throw new Error(error.message);
   }
 
   // Schema.org Restaurant for richer Google SERP cards + aggregateRating
@@ -137,7 +143,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     "@context":   "https://schema.org",
     "@type":      "Restaurant",
     name:         truck.name,
-    description:  truck.description ?? truck.tagline ?? undefined,
+    description:  truck.description ?? truck.tagline ?? `${truck.name}, ${serviceLabel} disponível para eventos.`,
     url:          `/catalogo/${truck.slug}`,
     image:        coverForLd ? truckCover(coverForLd) : undefined,
     address:      truck.base_city ? { "@type": "PostalAddress", addressLocality: truck.base_city, addressCountry: "PT" } : undefined,
@@ -167,20 +173,20 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 1100 }}>
       <script
         type="application/ld+json"
-        // JSON.stringify drops `undefined` fields and the truck data is server-rendered,
-        // so the payload is safe to inject without sanitization.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(restaurantLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbLd) }}
       />
       <nav className="breadcrumb">
         <Link href="/catalogo">{t.breadcrumb_catalog}</Link> &nbsp;/&nbsp; <span>{truck.name}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginBottom: 8 }}>{truck.name}</h1>
-      {truck.tagline && <p style={{ color: "var(--muted)", margin: 0, fontSize: 18 }}>{truck.tagline}</p>}
+      <p style={{ color: "var(--muted)", margin: 0, fontSize: 18 }}>
+        <strong>{serviceLabel}</strong>{truck.tagline ? ` · ${truck.tagline}` : ""}
+      </p>
 
       {/* Stat strip — one line summary that travels with the H1. The
           fields the organizer cares about most for an at-a-glance call:
@@ -253,22 +259,28 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ sl
         {/* Owner cell */}
         {truck.owner ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-            {truck.owner.avatar_url ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={truck.owner.avatar_url} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover" }} />
+            {ownerAvatarUrl ? (
+              <Image
+                src={ownerAvatarUrl}
+                alt=""
+                width={44}
+                height={44}
+                referrerPolicy="no-referrer"
+                style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover" }}
+              />
             ) : (
               <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--orange)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-                {(truck.owner.display_name ?? truck.owner.full_name ?? "?").trim().slice(0, 1).toUpperCase()}
+                {(truck.owner.display_name ?? "?").trim().slice(0, 1).toUpperCase()}
               </div>
             )}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>{t.section_owner}</div>
               <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {truck.owner.display_name ?? truck.owner.full_name ?? "—"}
+                {truck.owner.display_name ?? "—"}
               </div>
-              {truck.owner.created_at && (
+              {truck.owner.member_since_year && (
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                  {fmtTpl(t.trust_member_since, { year: String(new Date(truck.owner.created_at).getFullYear()) })}
+                  {fmtTpl(t.trust_member_since, { year: String(truck.owner.member_since_year) })}
                 </div>
               )}
             </div>
@@ -497,25 +509,17 @@ function LogisticsTile({ icon, label, value }: { icon: string; label: string; va
 type TrustBadge = { label: string; tone: "ok" | "warn" };
 function trustBadges(docs: any[], truck: any, t: Record<string, string>): TrustBadge[] {
   const out: TrustBadge[] = [];
-  const today = Date.now();
-  const dayMs = 86400000;
-  // ASAE + insurance — pull from airfnb_truck_documents (kind='asae' / 'seguro')
-  // first, fall back to the per-truck homologation/insurance columns if no
-  // doc row is present.
-  const asaeExp = (docs.find((d) => d.kind === "asae")?.expires_at) ?? truck.homologation_expires_at;
-  if (asaeExp) {
-    const days = Math.round((new Date(asaeExp).getTime() - today) / dayMs);
-    if (days < 0) out.push({ label: t.trust_asae_expired, tone: "warn" });
-    else if (days < 30) out.push({ label: fmtTpl(t.trust_asae_expiring, { days }), tone: "warn" });
-    else out.push({ label: t.trust_asae_ok, tone: "ok" });
-  }
-  const insExp = (docs.find((d) => d.kind === "seguro")?.expires_at) ?? truck.insurance_expires_at;
-  if (insExp) {
-    const days = Math.round((new Date(insExp).getTime() - today) / dayMs);
-    if (days < 0) out.push({ label: t.trust_insurance_expired, tone: "warn" });
-    else if (days < 30) out.push({ label: fmtTpl(t.trust_insurance_expiring, { days }), tone: "warn" });
-    else out.push({ label: t.trust_insurance_ok, tone: "ok" });
-  }
+  // The public projection deliberately exposes only a derived trust state,
+  // never exact compliance/document expiry dates.
+  const asaeState = docs.find((d) => d.kind === "asae")?.state ?? truck.homologation_state;
+  if (asaeState === "expired") out.push({ label: t.trust_asae_expired, tone: "warn" });
+  else if (asaeState === "expiring") out.push({ label: fmtTpl(t.trust_asae_expiring, { days: 30 }), tone: "warn" });
+  else if (asaeState === "valid") out.push({ label: t.trust_asae_ok, tone: "ok" });
+
+  const insuranceState = truck.insurance_state;
+  if (insuranceState === "expired") out.push({ label: t.trust_insurance_expired, tone: "warn" });
+  else if (insuranceState === "expiring") out.push({ label: fmtTpl(t.trust_insurance_expiring, { days: 30 }), tone: "warn" });
+  else if (insuranceState === "valid") out.push({ label: t.trust_insurance_ok, tone: "ok" });
   if (truck.status === "active") out.push({ label: t.trust_verified, tone: "ok" });
   return out;
 }

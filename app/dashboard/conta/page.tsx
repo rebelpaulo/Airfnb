@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * Account management hub — the GDPR control panel.
  * Lets the user export everything we hold on them (JSON via /api/me/export)
- * and trigger a self-destruct that cascades through the profile row.
+ * and delete or anonymize their F&B membership data without deleting the
+ * shared Tailor Auth identity used outside this product.
  */
 export default async function ContaPage() {
   const supa = await supabaseServer();
@@ -61,6 +62,12 @@ export default async function ContaPage() {
         <h2 style={{ margin: 0, fontSize: 18, color: "var(--orange-deep)" }}>{t.delete_title}</h2>
         <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.5, color: "var(--ink)" }}>
           {t.delete_body}
+        </p>
+        <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.5, color: "var(--ink)", fontWeight: 600 }}>
+          {t.delete_auth_body}
+        </p>
+        <p style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: "var(--muted)" }}>
+          {t.delete_tombstone_body}
         </p>
         <DeleteAccountButton />
       </section>

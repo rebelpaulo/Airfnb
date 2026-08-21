@@ -1,4 +1,4 @@
-# Air F&B — Roadmap pós-MVP
+# F&B Tailor — Roadmap pós-MVP
 
 Sequência de blocos a entregar, um por PR, com loop CodeRabbit→fix→merge.
 

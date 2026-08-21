@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { money } from "@/lib/money";
 import { getDictionary, getLocale } from "@/lib/i18n";
+import { createLockFeeCheckout, markLockFeePaidDev } from "@/lib/payments/lock-fee.server";
 
 function format(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
@@ -19,23 +20,12 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
   const locale = await getLocale();
   const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
-  const { data: app } = await (supa as any)
-    .from("airfnb_applications")
-    .select(`
-      id, status, proposed_price, deal_type,
-      airfnb_trucks ( id, name, owner_id ),
-      airfnb_event_requests ( id, title, start_at, city ),
-      airfnb_lock_fees ( id, amount, platform_fee, organizer_share, due_until, status )
-    `)
-    .eq("id", id)
+  const { data: lockFee } = await (supa as any)
+    .rpc("airfnb_supplier_lock_fee", { p_application: id })
     .maybeSingle();
 
-  if (!app) notFound();
-  if (app.airfnb_trucks?.owner_id !== user.id) redirect("/dashboard/truck");
-
-  const lockFee = Array.isArray(app.airfnb_lock_fees) ? app.airfnb_lock_fees[0] : app.airfnb_lock_fees;
   if (!lockFee) notFound();
-  if (lockFee.status === "paid") {
+  if (lockFee.lock_fee_status === "paid") {
     return (
       <div className="dash">
         <h1>{t.confirmed_title}</h1>
@@ -54,47 +44,38 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error(t.err_auth);
 
-    const res = await fetch(`${process.env.APP_URL}/api/stripe/checkout`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ application_id: id }),
-      cache: "no-store",
-    });
-    const { url, error } = await res.json();
-    if (error) throw new Error(error);
-    redirect(url);
+    const result = await createLockFeeCheckout({ applicationId: id, user, supplier: supa });
+    if (!result.ok) throw new Error(result.error);
+    redirect(result.value.url);
   }
 
   async function devPay() {
     "use server";
     const dict = await getDictionary();
     const t = dict.dashboard.truck_lock_fee;
-    const token = process.env.DEV_PAY_TOKEN;
-    const res = await fetch(`${process.env.APP_URL}/api/dev/mark-paid`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(token ? { "x-dev-pay-token": token } : {}),
-      },
-      body: JSON.stringify({ application_id: id }),
-      cache: "no-store",
-    });
-    const r = await res.json();
-    if (!r.ok) throw new Error(r.error ?? t.err_dev_pay);
+    const supa = await supabaseServer();
+    const { data: { user } } = await supa.auth.getUser();
+    if (!user) throw new Error(t.err_auth);
+    const result = await markLockFeePaidDev({ applicationId: id, supplier: supa });
+    if (!result.ok) throw new Error(result.error ?? t.err_dev_pay);
     redirect(`/dashboard/truck?paid=${id}`);
   }
 
-  // dev-pay button only outside production, OR explicit opt-in.
+  // The local payment control is never rendered in production; the flag
+  // cannot override that boundary.
+  const devPayOptIn =
+    process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_PAY === "1";
   const showDev =
+    process.env.NODE_ENV !== "production" &&
     !process.env.STRIPE_SECRET_KEY &&
-    (process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_PAY === "1");
+    devPayOptIn;
 
   return (
     <div className="dash">
       <h1>{t.title}</h1>
       <div className="stat-strip">
-        <div className="stat"><div className="label">{t.stat_event}</div><div className="value" style={{ fontSize: 18 }}>{app.airfnb_event_requests?.title}</div></div>
-        <div className="stat"><div className="label">{t.stat_city}</div><div className="value" style={{ fontSize: 22 }}>{app.airfnb_event_requests?.city}</div></div>
+        <div className="stat"><div className="label">{t.stat_event}</div><div className="value" style={{ fontSize: 18 }}>{lockFee.request_title}</div></div>
+        <div className="stat"><div className="label">{t.stat_city}</div><div className="value" style={{ fontSize: 22 }}>{lockFee.city}</div></div>
         <div className="stat"><div className="label">{t.stat_total}</div><div className="value">{money(lockFee.amount)}</div></div>
         <div className="stat"><div className="label">{t.stat_deadline}</div><div className="value" style={{ fontSize: 18 }}>
           {new Date(lockFee.due_until).toLocaleString(dateLocale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
@@ -104,7 +85,7 @@ export default async function LockFeePage({ params }: { params: Promise<{ id: st
       <div style={{ background: "#FFF6F2", padding: 22, borderRadius: 14, marginTop: 14, lineHeight: 1.7 }}>
         <p style={{ margin: 0 }}>
           <strong>{money(lockFee.platform_fee)}</strong>{t.breakdown_pre}<br />
-          <strong>{money(lockFee.organizer_share)}</strong>{t.breakdown_mid_pre}{app.deal_type}{t.breakdown_mid_post}<strong>{money(lockFee.organizer_share)}</strong>{t.breakdown_post}
+          <strong>{money(lockFee.organizer_share)}</strong>{t.breakdown_mid_pre}{lockFee.deal_type}{t.breakdown_mid_post}<strong>{money(lockFee.organizer_share)}</strong>{t.breakdown_post}
         </p>
       </div>
 

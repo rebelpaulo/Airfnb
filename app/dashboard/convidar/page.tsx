@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { CopyButton } from "./CopyButton";
 import { getDictionary, getLocale } from "@/lib/i18n";
+import { resolveAppOrigin } from "@/lib/app-url.mjs";
 
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
+const APP_URL = resolveAppOrigin();
 
 export default async function ConvidarPage() {
   const supa = await supabaseServer();
@@ -28,7 +29,11 @@ export default async function ConvidarPage() {
   // migration 30. If the code is somehow missing, render the placeholder UI
   // without a copyable link rather than producing a broken `?ref=—`.
   const code = profile?.referral_code ?? null;
-  const link = code ? `${APP_URL}/signup?ref=${code}` : null;
+  const link = code ? (() => {
+    const referralUrl = new URL("/signup", APP_URL);
+    referralUrl.searchParams.set("ref", code);
+    return referralUrl.toString();
+  })() : null;
 
   const { data: redeemed } = await (supa as any)
     .from("airfnb_profiles")

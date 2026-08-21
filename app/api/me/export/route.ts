@@ -14,26 +14,22 @@ export async function GET() {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  // Parallelise — every query is keyed on the user id so RLS will scope.
-  const [profile, trucks, requests, applications, bookings, reviewsOrg, reviewsTruck, notifications, messages, lockFees] = await Promise.all([
+  // Parallelise. Supplier-owned collections cross the closed owner_id
+  // boundary through a bounded, owner-scoped SECURITY DEFINER projection.
+  const [profile, requests, bookings, reviewsOrg, notifications, messages, supplierExport] = await Promise.all([
     (supa as any).from("airfnb_profiles").select("*").eq("id", user.id).maybeSingle(),
-    (supa as any).from("airfnb_trucks").select("*").eq("owner_id", user.id),
-    (supa as any).from("airfnb_event_requests").select("*").eq("organizer_id", user.id),
-    (supa as any).from("airfnb_applications").select("*, airfnb_trucks!inner(owner_id)").eq("airfnb_trucks.owner_id", user.id),
+    (supa as any).rpc("airfnb_private_event_requests", { p_request_id: null }),
     (supa as any).from("airfnb_bookings").select("*").eq("organizer_id", user.id),
     (supa as any).from("airfnb_reviews").select("*").eq("organizer_id", user.id),
-    // organizer_reviews is the truck-rates-organizer direction; authorship
-    // is via truck_id → airfnb_trucks.owner_id. Filtering on organizer_id
-    // would return reviews ABOUT the user (already covered for organizers
-    // by RLS on the underlying table) rather than the ones the user
-    // authored as truck owner.
-    (supa as any).from("airfnb_organizer_reviews")
-      .select("*, airfnb_trucks!inner(owner_id)")
-      .eq("airfnb_trucks.owner_id", user.id),
     (supa as any).from("airfnb_notifications").select("*").eq("user_id", user.id),
     (supa as any).from("airfnb_messages").select("*").eq("sender_id", user.id),
-    (supa as any).from("airfnb_lock_fees").select("*"),  // RLS scopes to caller
+    (supa as any).rpc("airfnb_supplier_export_data"),
   ]);
+
+  if (supplierExport.error) {
+    return NextResponse.json({ error: "export_failed" }, { status: 500 });
+  }
+  const supplierData = (supplierExport.data ?? {}) as Record<string, unknown>;
 
   const archive = {
     exported_at: new Date().toISOString(),
@@ -47,15 +43,15 @@ export async function GET() {
       last_sign_in_at: (user as any).last_sign_in_at,
     },
     profile:                 profile.data,
-    trucks_as_owner:         trucks.data ?? [],
+    trucks_as_owner:         supplierData.trucks_as_owner ?? [],
     event_requests:          requests.data ?? [],
-    applications_as_owner:   applications.data ?? [],
+    applications_as_owner:   supplierData.applications_as_owner ?? [],
     bookings_as_organizer:   bookings.data ?? [],
     reviews_left_for_trucks: reviewsOrg.data ?? [],
-    reviews_left_for_organizers: reviewsTruck.data ?? [],
+    reviews_left_for_organizers: supplierData.reviews_left_for_organizers ?? [],
     notifications:           notifications.data ?? [],
     messages_sent:           messages.data ?? [],
-    lock_fees:               lockFees.data ?? [],
+    lock_fees:               supplierData.lock_fees ?? [],
   };
 
   const filename = `airfnb-export-${user.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;

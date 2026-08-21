@@ -29,30 +29,52 @@ export interface AirfnbEventRequestRow {
   city: string | null;
   address_id: string | null;
   expected_pax: number;
-  slots_needed: number;
+  slots_needed: number | null;
   budget_min: number | null;
   budget_max: number | null;
-  desired_categories: number[];
+  desired_categories: number[] | null;
   dietary_requirements: Array<
     | "vegan" | "vegetarian" | "gluten_free" | "lactose_free"
     | "nut_free" | "halal" | "kosher" | "spicy"
-  >;
+  > | null;
   applications_deadline: string | null;
-  power_available: boolean;
-  water_available: boolean;
+  power_available: boolean | null;
+  water_available: boolean | null;
   notes: string | null;
-  status: "draft" | "open" | "reviewing" | "awarded" | "closed" | "expired" | "cancelled";
-  visibility: "public" | "invite_only";
+  status:
+    | "draft" | "open" | "reviewing" | "awarded"
+    | "closed" | "expired" | "cancelled"
+    | null;
+  visibility: "public" | "invite_only" | null;
   awarded_at: string | null;
-  created_at: string;
-  updated_at: string;
-  discovery_mode: "curated" | "broadcast" | "auto_match";
-  accepted_deal_types: string[];
+  created_at: string | null;
+  updated_at: string | null;
+  discovery_mode: "curated" | "broadcast" | "auto_match" | null;
+  accepted_deal_types: string[] | null;
   min_fixed_fee: number | null;
   min_revenue_share_pct: number | null;
   recommended_slots: number | null;
   slot_breakdown: Json | null;
-  application_response_window_hours: number;
+  application_response_window_hours: number | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  address_line: string | null;
+  locality: string | null;
+  budget_estimate: number | null;
+  budget_flexible: boolean | null;
+  catering_type: "food" | "drinks" | "food_and_drinks" | null;
+  desired_cuisines: string[] | null;
+  setup_minutes: number | null;
+  teardown_minutes: number | null;
+  energy_need: "nao_preciso" | "ate_3kw" | "3_a_10kw" | "mais_10kw" | null;
+  energy_assistance: boolean | null;
+  sanitation_level: "nao_necessario" | "wc_proximo" | "wc_dedicado" | null;
+  extra_services: string[] | null;
+  selection_mode: "open_to_offers" | "pick_myself" | "assisted" | null;
+  assistance_requested: boolean | null;
+  water_provided: string[];
+  wc_provided: string[];
 }
 
 export interface AirfnbApplicationRow {
@@ -88,6 +110,7 @@ export interface AirfnbLockFeeRow {
   created_at: string;
   platform_fee: number;
   organizer_share: number;
+  provider_event_log: Json;
 }
 
 export interface AirfnbRequestInvitationRow {
@@ -408,12 +431,14 @@ export interface AirfnbDatabase {
       }
       airfnb_bookings: {
         Row: {
+          application_id: string | null
           cancellation_reason: string | null
           created_at: string | null
           currency: string | null
           ends_at: string | null
           event_id: string | null
           id: string
+          ics_token: string | null
           notes: string | null
           organizer_id: string | null
           pax_count: number | null
@@ -423,12 +448,14 @@ export interface AirfnbDatabase {
           updated_at: string | null
         }
         Insert: {
+          application_id?: string | null
           cancellation_reason?: string | null
           created_at?: string | null
           currency?: string | null
           ends_at?: string | null
           event_id?: string | null
           id?: string
+          ics_token?: string | null
           notes?: string | null
           organizer_id?: string | null
           pax_count?: number | null
@@ -438,12 +465,14 @@ export interface AirfnbDatabase {
           updated_at?: string | null
         }
         Update: {
+          application_id?: string | null
           cancellation_reason?: string | null
           created_at?: string | null
           currency?: string | null
           ends_at?: string | null
           event_id?: string | null
           id?: string
+          ics_token?: string | null
           notes?: string | null
           organizer_id?: string | null
           pax_count?: number | null
@@ -453,6 +482,13 @@ export interface AirfnbDatabase {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "airfnb_bookings_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "airfnb_bookings_event_id_fkey"
             columns: ["event_id"]
@@ -576,21 +612,31 @@ export interface AirfnbDatabase {
       }
       airfnb_conversations: {
         Row: {
+          application_id: string | null
           booking_id: string | null
           created_at: string | null
           id: string
         }
         Insert: {
+          application_id?: string | null
           booking_id?: string | null
           created_at?: string | null
           id?: string
         }
         Update: {
+          application_id?: string | null
           booking_id?: string | null
           created_at?: string | null
           id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "airfnb_conversations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "airfnb_conversations_booking_id_fkey"
             columns: ["booking_id"]
@@ -875,6 +921,33 @@ export interface AirfnbDatabase {
           },
         ]
       }
+      airfnb_newsletter_subs: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string | null
+          email: string
+          id: string
+          source: string | null
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          source?: string | null
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          source?: string | null
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
       airfnb_newsletter_subscribers: {
         Row: {
           confirm_token: string | null
@@ -898,6 +971,90 @@ export interface AirfnbDatabase {
           id?: string
         }
         Relationships: []
+      }
+      airfnb_organizer_reviews: {
+        Row: {
+          body: string | null
+          booking_id: string
+          created_at: string | null
+          id: string
+          is_verified: boolean | null
+          organizer_id: string
+          rating_communication: number | null
+          rating_overall: number | null
+          rating_payment: number | null
+          rating_reliability: number | null
+          reply_at: string | null
+          reply_body: string | null
+          truck_id: string
+        }
+        Insert: {
+          body?: string | null
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          organizer_id: string
+          rating_communication?: number | null
+          rating_overall?: number | null
+          rating_payment?: number | null
+          rating_reliability?: number | null
+          reply_at?: string | null
+          reply_body?: string | null
+          truck_id: string
+        }
+        Update: {
+          body?: string | null
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          organizer_id?: string
+          rating_communication?: number | null
+          rating_overall?: number | null
+          rating_payment?: number | null
+          rating_reliability?: number | null
+          reply_at?: string | null
+          reply_body?: string | null
+          truck_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airfnb_organizer_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_organizer_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_v_booking_full"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_organizer_reviews_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_organizer_reviews_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_trucks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_organizer_reviews_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_v_truck_card"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       airfnb_notifications: {
         Row: {
@@ -934,41 +1091,113 @@ export interface AirfnbDatabase {
           },
         ]
       }
+      airfnb_partner_leads: {
+        Row: {
+          created_at: string
+          email: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["airfnb_partner_lead_kind"]
+          name: string
+          notes: string | null
+          payload: Json
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["airfnb_partner_lead_kind"]
+          name: string
+          notes?: string | null
+          payload?: Json
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["airfnb_partner_lead_kind"]
+          name?: string
+          notes?: string | null
+          payload?: Json
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airfnb_partner_leads_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "airfnb_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       airfnb_payments: {
         Row: {
+          application_id: string | null
           amount: number | null
           booking_id: string | null
           created_at: string | null
           currency: string | null
+          direction: Database["public"]["Enums"]["airfnb_payment_direction"] | null
           id: string
+          kind: Database["public"]["Enums"]["airfnb_payment_kind"] | null
+          last_provider_event_at: string | null
+          lock_fee_id: string | null
           method: Database["public"]["Enums"]["airfnb_payment_method"] | null
           paid_at: string | null
           provider_ref: string | null
+          refunded_amount: number
           status: Database["public"]["Enums"]["airfnb_payment_status"] | null
         }
         Insert: {
+          application_id?: string | null
           amount?: number | null
           booking_id?: string | null
           created_at?: string | null
           currency?: string | null
+          direction?: Database["public"]["Enums"]["airfnb_payment_direction"] | null
           id?: string
+          kind?: Database["public"]["Enums"]["airfnb_payment_kind"] | null
+          last_provider_event_at?: string | null
+          lock_fee_id?: string | null
           method?: Database["public"]["Enums"]["airfnb_payment_method"] | null
           paid_at?: string | null
           provider_ref?: string | null
+          refunded_amount?: number
           status?: Database["public"]["Enums"]["airfnb_payment_status"] | null
         }
         Update: {
+          application_id?: string | null
           amount?: number | null
           booking_id?: string | null
           created_at?: string | null
           currency?: string | null
+          direction?: Database["public"]["Enums"]["airfnb_payment_direction"] | null
           id?: string
+          kind?: Database["public"]["Enums"]["airfnb_payment_kind"] | null
+          last_provider_event_at?: string | null
+          lock_fee_id?: string | null
           method?: Database["public"]["Enums"]["airfnb_payment_method"] | null
           paid_at?: string | null
           provider_ref?: string | null
+          refunded_amount?: number
           status?: Database["public"]["Enums"]["airfnb_payment_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "airfnb_payments_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "airfnb_payments_booking_id_fkey"
             columns: ["booking_id"]
@@ -983,7 +1212,105 @@ export interface AirfnbDatabase {
             referencedRelation: "airfnb_v_booking_full"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "airfnb_payments_lock_fee_id_fkey"
+            columns: ["lock_fee_id"]
+            isOneToOne: true
+            referencedRelation: "airfnb_lock_fees"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      airfnb_stripe_events: {
+        Row: {
+          amount_minor: number
+          application_id: string
+          booking_id: string
+          currency: string
+          event_created_at: string
+          event_id: string
+          event_type: string
+          lock_fee_id: string
+          payment_status: string
+          processed_at: string | null
+          processing_result: string | null
+          provider_ref: string
+          received_at: string
+          refunded_amount_minor: number
+        }
+        Insert: {
+          amount_minor: number
+          application_id: string
+          booking_id: string
+          currency: string
+          event_created_at: string
+          event_id: string
+          event_type: string
+          lock_fee_id: string
+          payment_status: string
+          processed_at?: string | null
+          processing_result?: string | null
+          provider_ref: string
+          received_at?: string
+          refunded_amount_minor?: number
+        }
+        Update: {
+          amount_minor?: number
+          application_id?: string
+          booking_id?: string
+          currency?: string
+          event_created_at?: string
+          event_id?: string
+          event_type?: string
+          lock_fee_id?: string
+          payment_status?: string
+          processed_at?: string | null
+          processing_result?: string | null
+          provider_ref?: string
+          received_at?: string
+          refunded_amount_minor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airfnb_stripe_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_stripe_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airfnb_stripe_events_lock_fee_id_fkey"
+            columns: ["lock_fee_id"]
+            isOneToOne: false
+            referencedRelation: "airfnb_lock_fees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      airfnb_membership_tombstones: {
+        Row: {
+          deleted_at: string
+          storage_truck_ids: string[]
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          storage_truck_ids?: string[]
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          storage_truck_ids?: string[]
+          user_id?: string
+        }
+        Relationships: []
       }
       airfnb_profiles: {
         Row: {
@@ -996,7 +1323,7 @@ export interface AirfnbDatabase {
           locale: string | null
           marketing_opt_in: boolean | null
           phone: string | null
-          role: Database["public"]["Enums"]["airfnb_user_role"]
+          role: Database["public"]["Enums"]["airfnb_user_role"] | null
           updated_at: string | null
           vat_number: string | null
         }
@@ -1010,7 +1337,7 @@ export interface AirfnbDatabase {
           locale?: string | null
           marketing_opt_in?: boolean | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["airfnb_user_role"]
+          role?: Database["public"]["Enums"]["airfnb_user_role"] | null
           updated_at?: string | null
           vat_number?: string | null
         }
@@ -1024,7 +1351,7 @@ export interface AirfnbDatabase {
           locale?: string | null
           marketing_opt_in?: boolean | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["airfnb_user_role"]
+          role?: Database["public"]["Enums"]["airfnb_user_role"] | null
           updated_at?: string | null
           vat_number?: string | null
         }
@@ -1376,85 +1703,118 @@ export interface AirfnbDatabase {
       }
       airfnb_trucks: {
         Row: {
-          base_city: string | null
-          base_price: number | null
-          capacity: number | null
-          created_at: string | null
-          description: string | null
-          dimensions_m: number[] | null
-          featured: boolean | null
-          homologation_expires_at: string | null
           id: string
-          insurance_expires_at: string | null
-          max_event_pax: number | null
-          min_event_pax: number | null
+          owner_id: string | null
+          slug: string
           name: string
-          needs_water: boolean | null
-          owner_id: string
-          power_required_kw: number | null
+          tagline: string | null
+          description: string | null
+          base_city: string | null
+          service_radius_km: number | null
+          capacity: number | null
+          min_event_pax: number | null
+          max_event_pax: number | null
+          base_price: number | null
           price_per_pax: number | null
+          setup_minutes: number | null
+          power_required_kw: number | null
+          needs_water: boolean | null
+          dimensions_m: number[] | null
+          status: Database["public"]["Enums"]["airfnb_truck_status"] | null
           rating_avg: number | null
           rating_count: number | null
-          service_radius_km: number | null
-          setup_minutes: number | null
-          slug: string
-          status: Database["public"]["Enums"]["airfnb_truck_status"] | null
-          tagline: string | null
+          featured: boolean | null
+          homologation_expires_at: string | null
+          insurance_expires_at: string | null
+          created_at: string | null
           updated_at: string | null
+          lead_response_rate: number | null
+          last_active_at: string | null
+          subscription_tier: string | null
+          cuisine_types: string[] | null
+          dietary_options: Database["public"]["Enums"]["airfnb_dietary_tag"][] | null
+          teardown_minutes: number | null
+          sanitation_required: string | null
+          catering_type: string | null
+          serves: string | null
+          compatible_event_kinds: Database["public"]["Enums"]["airfnb_event_kind"][]
+          service_type: Database["public"]["Enums"]["airfnb_service_type"]
         }
         Insert: {
-          base_city?: string | null
-          base_price?: number | null
-          capacity?: number | null
-          created_at?: string | null
-          description?: string | null
-          dimensions_m?: number[] | null
-          featured?: boolean | null
-          homologation_expires_at?: string | null
           id?: string
-          insurance_expires_at?: string | null
-          max_event_pax?: number | null
-          min_event_pax?: number | null
+          owner_id?: string | null
+          slug: string
           name: string
-          needs_water?: boolean | null
-          owner_id: string
-          power_required_kw?: number | null
+          tagline?: string | null
+          description?: string | null
+          base_city?: string | null
+          service_radius_km?: number | null
+          capacity?: number | null
+          min_event_pax?: number | null
+          max_event_pax?: number | null
+          base_price?: number | null
           price_per_pax?: number | null
+          setup_minutes?: number | null
+          power_required_kw?: number | null
+          needs_water?: boolean | null
+          dimensions_m?: number[] | null
+          status?: Database["public"]["Enums"]["airfnb_truck_status"] | null
           rating_avg?: number | null
           rating_count?: number | null
-          service_radius_km?: number | null
-          setup_minutes?: number | null
-          slug: string
-          status?: Database["public"]["Enums"]["airfnb_truck_status"] | null
-          tagline?: string | null
+          featured?: boolean | null
+          homologation_expires_at?: string | null
+          insurance_expires_at?: string | null
+          created_at?: string | null
           updated_at?: string | null
+          lead_response_rate?: number | null
+          last_active_at?: string | null
+          subscription_tier?: string | null
+          cuisine_types?: string[] | null
+          dietary_options?: Database["public"]["Enums"]["airfnb_dietary_tag"][] | null
+          teardown_minutes?: number | null
+          sanitation_required?: string | null
+          catering_type?: string | null
+          serves?: string | null
+          compatible_event_kinds?: Database["public"]["Enums"]["airfnb_event_kind"][]
+          service_type?: Database["public"]["Enums"]["airfnb_service_type"]
         }
         Update: {
-          base_city?: string | null
-          base_price?: number | null
-          capacity?: number | null
-          created_at?: string | null
-          description?: string | null
-          dimensions_m?: number[] | null
-          featured?: boolean | null
-          homologation_expires_at?: string | null
           id?: string
-          insurance_expires_at?: string | null
-          max_event_pax?: number | null
-          min_event_pax?: number | null
+          owner_id?: string | null
+          slug?: string
           name?: string
-          needs_water?: boolean | null
-          owner_id?: string
-          power_required_kw?: number | null
+          tagline?: string | null
+          description?: string | null
+          base_city?: string | null
+          service_radius_km?: number | null
+          capacity?: number | null
+          min_event_pax?: number | null
+          max_event_pax?: number | null
+          base_price?: number | null
           price_per_pax?: number | null
+          setup_minutes?: number | null
+          power_required_kw?: number | null
+          needs_water?: boolean | null
+          dimensions_m?: number[] | null
+          status?: Database["public"]["Enums"]["airfnb_truck_status"] | null
           rating_avg?: number | null
           rating_count?: number | null
-          service_radius_km?: number | null
-          setup_minutes?: number | null
-          slug?: string
-          status?: Database["public"]["Enums"]["airfnb_truck_status"] | null
-          tagline?: string | null
+          featured?: boolean | null
+          homologation_expires_at?: string | null
+          insurance_expires_at?: string | null
+          created_at?: string | null
           updated_at?: string | null
+          lead_response_rate?: number | null
+          last_active_at?: string | null
+          subscription_tier?: string | null
+          cuisine_types?: string[] | null
+          dietary_options?: Database["public"]["Enums"]["airfnb_dietary_tag"][] | null
+          teardown_minutes?: number | null
+          sanitation_required?: string | null
+          catering_type?: string | null
+          serves?: string | null
+          compatible_event_kinds?: Database["public"]["Enums"]["airfnb_event_kind"][]
+          service_type?: Database["public"]["Enums"]["airfnb_service_type"]
         }
         Relationships: [
           {
@@ -1495,19 +1855,34 @@ export interface AirfnbDatabase {
       }
       airfnb_v_truck_card: {
         Row: {
-          base_city: string | null
-          base_price: number | null
-          capacity: number | null
-          category_slugs: string[] | null
-          cover_url: string | null
-          featured: boolean | null
           id: string | null
+          slug: string | null
           name: string | null
+          tagline: string | null
+          base_city: string | null
+          capacity: number | null
+          base_price: number | null
+          price_per_pax: number | null
+          min_event_pax: number | null
+          max_event_pax: number | null
+          service_radius_km: number | null
+          cuisine_types: string[] | null
+          dietary_options: Database["public"]["Enums"]["airfnb_dietary_tag"][] | null
+          catering_type: string | null
+          serves: string | null
+          setup_minutes: number | null
+          teardown_minutes: number | null
+          power_required_kw: number | null
+          sanitation_required: string | null
+          compatible_event_kinds: Database["public"]["Enums"]["airfnb_event_kind"][] | null
           rating_avg: number | null
           rating_count: number | null
-          slug: string | null
+          featured: boolean | null
           status: Database["public"]["Enums"]["airfnb_truck_status"] | null
-          tagline: string | null
+          cover_url: string | null
+          gallery_urls: string[] | null
+          category_slugs: string[] | null
+          service_type: Database["public"]["Enums"]["airfnb_service_type"] | null
         }
         Insert: {
           base_city?: string | null
@@ -1545,7 +1920,7 @@ export interface AirfnbDatabase {
       /* ------- Marketplace tables (migrations 09-12) ------- */
 
       airfnb_event_requests: {
-        Row: AirfnbEventRequestRow;
+        Row: AirfnbEventRequestRow & Record<string, unknown>;
         Insert: Partial<AirfnbEventRequestRow> & {
           organizer_id: string; title: string; start_at: string; expected_pax: number;
         };
@@ -1554,7 +1929,7 @@ export interface AirfnbDatabase {
       };
 
       airfnb_applications: {
-        Row: AirfnbApplicationRow;
+        Row: AirfnbApplicationRow & Record<string, unknown>;
         Insert: Partial<AirfnbApplicationRow> & {
           request_id: string; truck_id: string; proposed_price: number;
         };
@@ -1563,7 +1938,7 @@ export interface AirfnbDatabase {
       };
 
       airfnb_lock_fees: {
-        Row: AirfnbLockFeeRow;
+        Row: AirfnbLockFeeRow & Record<string, unknown>;
         Insert: Partial<AirfnbLockFeeRow> & {
           application_id: string; amount: number; due_until: string;
         };
@@ -1572,21 +1947,191 @@ export interface AirfnbDatabase {
       };
 
       airfnb_request_invitations: {
-        Row: AirfnbRequestInvitationRow;
+        Row: AirfnbRequestInvitationRow & Record<string, unknown>;
         Insert: Partial<AirfnbRequestInvitationRow> & { request_id: string; truck_id: string };
         Update: Partial<AirfnbRequestInvitationRow>;
         Relationships: [];
       };
 
       airfnb_truck_alert_prefs: {
-        Row: AirfnbTruckAlertPrefRow;
+        Row: AirfnbTruckAlertPrefRow & Record<string, unknown>;
         Insert: Partial<AirfnbTruckAlertPrefRow> & { truck_id: string };
         Update: Partial<AirfnbTruckAlertPrefRow>;
         Relationships: [];
       };
     };
     Functions: {
+      airfnb_ensure_profile: {
+        Args: { p_full_name?: string | null; p_locale?: string };
+        Returns: AirfnbDatabase["public"]["Tables"]["airfnb_profiles"]["Row"];
+      };
+      airfnb_claim_role: {
+        Args: { p_role: AirfnbDatabase["public"]["Enums"]["airfnb_user_role"] };
+        Returns: AirfnbDatabase["public"]["Tables"]["airfnb_profiles"]["Row"];
+      };
+      airfnb_self_delete: {
+        Args: never;
+        Returns: undefined;
+      };
+      airfnb_self_delete_storage_prefixes: {
+        Args: never;
+        Returns: string[];
+      };
+      airfnb_supplier_services: {
+        Args: { p_truck?: string | null };
+        Returns: Array<{
+          id: string;
+          slug: string;
+          name: string;
+          tagline: string | null;
+          description: string | null;
+          base_city: string | null;
+          service_radius_km: number | null;
+          capacity: number | null;
+          min_event_pax: number | null;
+          max_event_pax: number | null;
+          base_price: number | null;
+          price_per_pax: number | null;
+          setup_minutes: number | null;
+          power_required_kw: number | null;
+          needs_water: boolean | null;
+          dimensions_m: number[] | null;
+          status: AirfnbDatabase["public"]["Enums"]["airfnb_truck_status"];
+          rating_avg: number | null;
+          rating_count: number | null;
+          featured: boolean | null;
+          homologation_expires_at: string | null;
+          insurance_expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+          lead_response_rate: number | null;
+          last_active_at: string | null;
+          subscription_tier: string | null;
+          cuisine_types: string[] | null;
+          dietary_options: AirfnbDatabase["public"]["Enums"]["airfnb_dietary_tag"][] | null;
+          teardown_minutes: number | null;
+          sanitation_required: string | null;
+          catering_type: string | null;
+          serves: string | null;
+          compatible_event_kinds: AirfnbDatabase["public"]["Enums"]["airfnb_event_kind"][];
+          service_type: AirfnbDatabase["public"]["Enums"]["airfnb_service_type"];
+        }>;
+      };
+      airfnb_public_service_detail: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      airfnb_invitation_candidates: {
+        Args: { p_request: string };
+        Returns: Array<{
+          truck_id: string;
+          slug: string;
+          name: string;
+          base_city: string | null;
+          cover_url: string | null;
+          capacity: number | null;
+          rating_avg: number | null;
+          rating_count: number | null;
+          cuisine_types: string[] | null;
+          category_slugs: string[];
+          already_invited: boolean;
+        }>;
+      };
+      airfnb_invite_request_services: {
+        Args: { p_request: string; p_trucks: string[] };
+        Returns: Array<{ truck_id: string }>;
+      };
+      airfnb_booking_service_context: {
+        Args: { p_booking?: string | null };
+        Returns: Array<{
+          booking_id: string;
+          booking_status: AirfnbDatabase["public"]["Enums"]["airfnb_booking_status"];
+          starts_at: string;
+          ends_at: string;
+          pax_count: number;
+          total_amount: number;
+          currency: string;
+          ics_token: string | null;
+          application_id: string | null;
+          request_id: string | null;
+          request_title: string | null;
+          request_city: string | null;
+          event_title: string | null;
+          organizer_display_name: string | null;
+          truck_id: string;
+          truck_name: string;
+          truck_slug: string;
+          truck_base_city: string | null;
+          agreed_price: number;
+          is_organizer: boolean;
+          is_owned: boolean;
+        }>;
+      };
+      airfnb_request_application_service_context: {
+        Args: { p_request: string };
+        Returns: Array<{
+          application_id: string;
+          application_status: AirfnbDatabase["public"]["Enums"]["airfnb_application_status"];
+          proposed_price: number;
+          cover_message: string | null;
+          deal_type: AirfnbDatabase["public"]["Enums"]["airfnb_deal_type"];
+          proposed_fixed_to_organizer: number;
+          proposed_revenue_share_pct: number;
+          created_at: string;
+          truck_id: string;
+          truck_name: string;
+          truck_slug: string;
+          truck_base_city: string | null;
+          truck_rating_avg: number | null;
+          truck_rating_count: number | null;
+        }>;
+      };
+      airfnb_supplier_export_data: {
+        Args: never;
+        Returns: Json;
+      };
       airfnb_is_admin: { Args: never; Returns: boolean };
+      airfnb_can_manage_truck: {
+        Args: { p_truck_text: string };
+        Returns: boolean;
+      };
+      airfnb_can_submit_application: {
+        Args: { p_request: string; p_truck: string };
+        Returns: boolean;
+      };
+      airfnb_own_application_truck: {
+        Args: never;
+        Returns: Array<{
+          truck_id: string;
+          truck_name: string;
+          truck_status: AirfnbDatabase["public"]["Enums"]["airfnb_truck_status"];
+        }>;
+      };
+      airfnb_can_read_truck_child: {
+        Args: { p_truck_text: string };
+        Returns: boolean;
+      };
+      airfnb_check_rate_limit: {
+        Args: {
+          p_action: string;
+          p_bucket: string;
+          p_limit_per_window: number;
+          p_window_seconds: number;
+        };
+        Returns: boolean;
+      };
+      airfnb_mark_conversation_read: {
+        Args: { p_conversation: string };
+        Returns: void;
+      };
+      airfnb_reply_to_organizer_review: {
+        Args: { p_reply: string; p_review: string };
+        Returns: void;
+      };
+      airfnb_reply_to_truck_review: {
+        Args: { p_reply: string; p_review: string };
+        Returns: void;
+      };
       airfnb_truck_is_available: {
         Args: { p_from: string; p_to: string; p_truck: string };
         Returns: boolean;
@@ -1598,6 +2143,22 @@ export interface AirfnbDatabase {
       airfnb_match_score: {
         Args: { p_truck: string; p_request: string };
         Returns: number;
+      };
+      airfnb_match_category_availability_score: {
+        Args: { p_truck: string; p_request: string };
+        Returns: number;
+      };
+      airfnb_match_scores_batch: {
+        Args: { p_truck_ids: string[]; p_request_ids: string[] };
+        Returns: Array<{
+          truck_id: string;
+          request_id: string;
+          score: number;
+        }>;
+      };
+      airfnb_private_event_requests: {
+        Args: { p_request_id?: string | null };
+        Returns: AirfnbEventRequestRow[];
       };
       airfnb_recommend_slots: {
         Args: { p_kind: AirfnbDatabase["public"]["Enums"]["airfnb_event_kind"]; p_pax: number };
@@ -1650,9 +2211,49 @@ export interface AirfnbDatabase {
         Args: { p_application: string; p_reason?: string | null };
         Returns: void;
       };
+      airfnb_reconcile_stripe_event: {
+        Args: {
+          p_event_id: string;
+          p_event_type: string;
+          p_event_created_at: string;
+          p_application_id: string;
+          p_lock_fee_id: string;
+          p_booking_id: string;
+          p_payment_intent: string;
+          p_amount_minor: number;
+          p_currency: string;
+          p_payment_status: string;
+          p_refunded_amount_minor?: number;
+        };
+        Returns: Json;
+      };
+      airfnb_supplier_lock_fee: {
+        Args: { p_application: string };
+        Returns: Array<{
+          application_id: string;
+          application_status: AirfnbDatabase["public"]["Enums"]["airfnb_application_status"];
+          proposed_price: number;
+          deal_type: AirfnbDatabase["public"]["Enums"]["airfnb_deal_type"];
+          truck_id: string;
+          truck_name: string;
+          request_id: string;
+          request_title: string;
+          start_at: string;
+          city: string | null;
+          lock_fee_id: string;
+          amount: number;
+          platform_fee: number;
+          organizer_share: number;
+          currency: string;
+          due_until: string;
+          lock_fee_status: AirfnbDatabase["public"]["Enums"]["airfnb_lock_fee_status"];
+        }>;
+      };
     };
     Enums: {
       airfnb_user_role: "organizer" | "owner" | "admin" | "staff";
+      airfnb_partner_lead_kind: "venues" | "guest_mgmt" | "music" | "marketing";
+      airfnb_service_type: "food_truck" | "catering" | "bar";
       airfnb_truck_status: "draft" | "pending_review" | "active" | "paused" | "archived";
       airfnb_dietary_tag:
         | "vegan" | "vegetarian" | "gluten_free" | "lactose_free"
@@ -1681,6 +2282,10 @@ export interface AirfnbDatabase {
       airfnb_lock_fee_status: "pending" | "paid" | "expired" | "refunded" | "waived";
       airfnb_deal_type: "fixed" | "percent" | "mixed";
       airfnb_discovery_mode: "curated" | "broadcast" | "auto_match";
+      airfnb_catering_type: "food" | "drinks" | "food_and_drinks";
+      airfnb_energy_need: "nao_preciso" | "ate_3kw" | "3_a_10kw" | "mais_10kw";
+      airfnb_sanitation_level: "nao_necessario" | "wc_proximo" | "wc_dedicado";
+      airfnb_selection_mode: "open_to_offers" | "pick_myself" | "assisted";
     };
   };
 }
@@ -1753,6 +2358,9 @@ export type NewsletterSubscribersUpdate = AirfnbDatabase['public']['Tables']['ai
 export type Notifications = AirfnbDatabase['public']['Tables']['airfnb_notifications']['Row'];
 export type NotificationsInsert = AirfnbDatabase['public']['Tables']['airfnb_notifications']['Insert'];
 export type NotificationsUpdate = AirfnbDatabase['public']['Tables']['airfnb_notifications']['Update'];
+export type OrganizerReviews = AirfnbDatabase['public']['Tables']['airfnb_organizer_reviews']['Row'];
+export type OrganizerReviewsInsert = AirfnbDatabase['public']['Tables']['airfnb_organizer_reviews']['Insert'];
+export type OrganizerReviewsUpdate = AirfnbDatabase['public']['Tables']['airfnb_organizer_reviews']['Update'];
 export type Payments = AirfnbDatabase['public']['Tables']['airfnb_payments']['Row'];
 export type PaymentsInsert = AirfnbDatabase['public']['Tables']['airfnb_payments']['Insert'];
 export type PaymentsUpdate = AirfnbDatabase['public']['Tables']['airfnb_payments']['Update'];

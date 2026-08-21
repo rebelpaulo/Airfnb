@@ -27,7 +27,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Sear
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80 }}>
       <h1 className="section-title">Pedidos abertos</h1>
       <p style={{ color: "var(--muted)", marginTop: -10 }}>
-        Vê os eventos que estão à procura de food trucks neste momento.
+        Vê os eventos que estão à procura de fornecedores de Food Truck, Catering ou Bar neste momento.
       </p>
 
       <form className="filters-bar" style={{ marginTop: 24 }}>
@@ -79,7 +79,7 @@ export default async function PedidosPage({ searchParams }: { searchParams: Sear
                 </span>
                 <span>
                   <span className="material-symbols-outlined">local_shipping</span>
-                  {r.slots_needed} {r.slots_needed === 1 ? "truck" : "trucks"}
+                  {r.slots_needed} {r.slots_needed === 1 ? "fornecedor" : "fornecedores"}
                 </span>
               </div>
               <div className="row" style={{ justifyContent: "space-between" }}>

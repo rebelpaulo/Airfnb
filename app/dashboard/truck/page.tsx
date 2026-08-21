@@ -17,9 +17,7 @@ export default async function TruckDashboard() {
 
   // List ALL trucks owned by the current user (a company can run several).
   const { data: trucksData } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id, name, slug, rating_avg, rating_count, base_city, status, featured")
-    .eq("owner_id", user.id)
+    .rpc("airfnb_supplier_services", { p_truck: null })
     .order("created_at", { ascending: false });
   const trucks: any[] = trucksData ?? [];
 

@@ -11,17 +11,24 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
 
   const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
-    .select("*")
+    .select("id, title, expected_pax, budget_min, budget_max, min_fixed_fee, min_revenue_share_pct")
     .eq("id", id)
     .maybeSingle();
   if (!req) notFound();
 
-  const { data: myTruck } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id, name")
-    .eq("owner_id", user.id)
+  const { data: myTruck, error: myTruckError } = await (supa as any)
+    .rpc("airfnb_own_application_truck")
     .maybeSingle();
+  if (myTruckError) throw new Error(myTruckError.message);
   if (!myTruck) redirect("/signup?as=truck");
+
+  const { data: canSubmit, error: canSubmitError } = await (supa as any)
+    .rpc("airfnb_can_submit_application", {
+      p_request: id,
+      p_truck: myTruck.truck_id,
+    });
+  if (canSubmitError) throw new Error(canSubmitError.message);
+  if (!canSubmit) redirect(`/pedidos/${id}`);
 
   async function submit(formData: FormData) {
     "use server";
@@ -29,14 +36,21 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
     const { data: { user } } = await supa.auth.getUser();
     if (!user) throw new Error("auth required");
 
-    // Re-resolve the caller's own truck server-side. Never trust the form's truck_id —
-    // a hidden field is tamperable and someone could submit an application "as" another truck.
-    const { data: myTruck } = await (supa as any)
-      .from("airfnb_trucks")
-      .select("id")
-      .eq("owner_id", user.id)
+    // Resolve the caller's own service through the owner-scoped RPC. The browser
+    // never supplies a truck_id, so it cannot submit an application as another owner.
+    const { data: myTruck, error: myTruckError } = await (supa as any)
+      .rpc("airfnb_own_application_truck")
       .maybeSingle();
-    if (!myTruck) throw new Error("Sem food truck registado nesta conta.");
+    if (myTruckError) throw new Error(myTruckError.message);
+    if (!myTruck) throw new Error("Sem fornecedor registado nesta conta.");
+
+    const { data: canSubmit, error: canSubmitError } = await (supa as any)
+      .rpc("airfnb_can_submit_application", {
+        p_request: id,
+        p_truck: myTruck.truck_id,
+      });
+    if (canSubmitError) throw new Error(canSubmitError.message);
+    if (!canSubmit) throw new Error("Este serviço não pode candidatar-se a este pedido.");
 
     const dealType = String(formData.get("deal_type")) as "fixed" | "percent" | "mixed";
     if (!["fixed", "percent", "mixed"].includes(dealType)) throw new Error("Tipo de combinação inválido.");
@@ -53,7 +67,7 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
 
     const { error } = await (supa as any).from("airfnb_applications").insert({
       request_id: id,
-      truck_id: myTruck.id,
+      truck_id: myTruck.truck_id,
       proposed_price: proposedPrice,
       cover_message: cover,
       deal_type: dealType,
@@ -68,13 +82,11 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
 
   return (
     <form action={submit} className="apply-form">
-      <h1 className="section-title" style={{ marginBottom: 4 }}>Candidatar com {myTruck.name}</h1>
+      <h1 className="section-title" style={{ marginBottom: 4 }}>Candidatar o serviço {myTruck.truck_name}</h1>
       <p style={{ color: "var(--muted)", marginTop: 0 }}>
         Pedido: <strong>{req.title}</strong> · {req.expected_pax} convidados ·
         orçamento {req.budget_min ? money(req.budget_min) : "?"} – {req.budget_max ? money(req.budget_max) : "?"}
       </p>
-
-      <input type="hidden" name="truck_id" value={myTruck.id} />
 
       <label className="wizard" style={{ margin: 0 }}>Tipo de combinação</label>
       <div className="deal-types">
@@ -82,8 +94,8 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
           <span key={dt}>
             <input type="radio" id={`dt-${dt}`} name="deal_type" value={dt} defaultChecked={dt === "fixed"} required />
             <label htmlFor={`dt-${dt}`}>
-              {dt === "fixed"   && "Pago fixo ao organizer"}
-              {dt === "percent" && "% da facturação"}
+              {dt === "fixed"   && "Pago fixo ao organizador"}
+              {dt === "percent" && "% da faturação"}
               {dt === "mixed"   && "Fixo + %"}
             </label>
           </span>
@@ -92,31 +104,30 @@ export default async function AplicarPage({ params }: { params: Promise<{ id: st
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
         <div>
-          <label>Fixo ao organizer (€)</label>
+          <label>Fixo ao organizador (€)</label>
           <input name="fixed_to_organizer" type="number" step="0.01" min={0} defaultValue={req.min_fixed_fee ?? 0}
             className="filters-btn" style={{ width: "100%", padding: "12px 14px" }} />
         </div>
         <div>
-          <label>% facturação ao organizer</label>
+          <label>% faturação ao organizador</label>
           <input name="revenue_share_pct" type="number" step="0.1" min={0} max={100} defaultValue={req.min_revenue_share_pct ?? 0}
             className="filters-btn" style={{ width: "100%", padding: "12px 14px" }} />
         </div>
       </div>
 
-      <label>Valor total esperado pelo truck (€)</label>
+      <label>Valor total esperado pelo fornecedor (€)</label>
       <input name="proposed_price" type="number" step="0.01" min={0} required
         className="filters-btn" style={{ width: "100%", padding: "12px 14px" }}
-        placeholder="O que prevês facturar no evento" />
+        placeholder="O que prevês faturar no evento" />
 
       <label>Mensagem de apresentação</label>
       <textarea name="cover_message" required minLength={50} rows={6}
         className="filters-btn"
         style={{ width: "100%", padding: "12px 14px", textAlign: "left" }}
-        placeholder="Conta ao organizer porque o teu truck é a escolha certa para este evento (mínimo 50 caracteres)..." />
+        placeholder="Conta ao organizador por que motivo o teu serviço é a escolha certa para este evento (mínimo 50 caracteres)..." />
 
       <div style={{ background: "#FFF6F2", padding: 14, borderRadius: 12, marginTop: 16, fontSize: 13 }}>
-        Se fores aceite, pagas <strong>€50</strong> de lock-fee à plataforma para confirmares. €25 ficam connosco;
-        €25 são adiantados ao organizer e descontados no que lhe pagas.
+        Se fores aceite, a taxa de confirmação aplicável e a respetiva repartição serão mostradas antes do pagamento.
       </div>
 
       <div style={{ display: "flex", gap: 12, marginTop: 24 }}>

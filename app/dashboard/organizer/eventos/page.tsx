@@ -48,15 +48,8 @@ export default async function OrganizerEventsPage() {
   // Bookings + the title of the originating event request + the truck rows.
   // booking.organizer_id is the gate (RLS enforces this too, redundant
   // server-side filter for clarity).
-  const { data: bookingsData, error: bookingsError } = await (supa as any)
-    .from("airfnb_bookings")
-    .select(`
-      id, status, starts_at, ends_at, pax_count, total_amount, currency, ics_token, application_id,
-      airfnb_booking_trucks ( truck_id, airfnb_trucks ( id, name, slug, base_city ) ),
-      airfnb_applications ( airfnb_event_requests ( id, title, city ) )
-    `)
-    .eq("organizer_id", user.id)
-    .order("starts_at", { ascending: true });
+  const { data: bookingRows, error: bookingsError } = await (supa as any)
+    .rpc("airfnb_booking_service_context", { p_booking: null });
 
   // Treat a failed query as a hard error rather than silently rendering
   // the empty state — an RLS regression or DB outage would otherwise look
@@ -65,7 +58,40 @@ export default async function OrganizerEventsPage() {
     console.error("organizer/eventos bookings query failed:", bookingsError.message);
     throw new Error(bookingsError.message);
   }
-  const bookings: any[] = (bookingsData as any[]) ?? [];
+  const bookingsById = new Map<string, any>();
+  for (const row of (bookingRows as any[]) ?? []) {
+    if (!row.is_organizer) continue;
+    const booking = bookingsById.get(row.booking_id) ?? {
+      id: row.booking_id,
+      status: row.booking_status,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      pax_count: row.pax_count,
+      total_amount: row.total_amount,
+      currency: row.currency,
+      ics_token: row.ics_token,
+      application_id: row.application_id,
+      airfnb_booking_trucks: [],
+      airfnb_applications: {
+        airfnb_event_requests: {
+          id: row.request_id,
+          title: row.request_title,
+          city: row.request_city,
+        },
+      },
+    };
+    booking.airfnb_booking_trucks.push({
+      truck_id: row.truck_id,
+      airfnb_trucks: {
+        id: row.truck_id,
+        name: row.truck_name,
+        slug: row.truck_slug,
+        base_city: row.truck_base_city,
+      },
+    });
+    bookingsById.set(row.booking_id, booking);
+  }
+  const bookings: any[] = Array.from(bookingsById.values());
 
   const now = Date.now();
   const upcoming  = bookings.filter((b) => Date.parse(b.starts_at) >= now && b.status !== "cancelled");

@@ -97,7 +97,7 @@ export function Header({ user, locale = "pt" }: Props) {
   // when the user clicks logout, by which point env should be present.
   const signOut = async () => {
     const supa = supabaseBrowser();
-    const { error } = await supa.auth.signOut();
+    const { error } = await supa.auth.signOut({ scope: "local" });
     if (error) {
       alert(`${t.logout_error_prefix} ${error.message}`);
       return;

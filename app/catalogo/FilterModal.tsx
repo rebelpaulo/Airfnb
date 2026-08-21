@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDict } from "@/components/DictProvider";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
+type ServiceType = "food_truck" | "catering" | "bar";
 
 type Props = {
   initial: {
@@ -11,6 +12,7 @@ type Props = {
     pax?: number;
     priceMin?: number;
     priceMax?: number;
+    serviceType?: ServiceType;
     cateringType?: string;
     cuisines?: string[];
     specialties?: string[];
@@ -56,6 +58,7 @@ const SANI_VALUES = [
   { v: "wc_proximo",  key: "sani_close" },
   { v: "wc_dedicado", key: "sani_dedicated" },
 ] as const;
+const SERVICE_TYPES: ServiceType[] = ["food_truck", "catering", "bar"];
 
 export function FilterModal({ initial, categories }: Props) {
   const dict = useDict();
@@ -72,6 +75,7 @@ export function FilterModal({ initial, categories }: Props) {
   const [pax, setPax]                   = useState(initial.pax ?? 100);
   const [priceMin, setPriceMin]         = useState<number | "">(initial.priceMin ?? "");
   const [priceMax, setPriceMax]         = useState<number | "">(initial.priceMax ?? "");
+  const [serviceType, setServiceType]   = useState<ServiceType | "">(initial.serviceType ?? "");
   const [cateringType, setCateringType] = useState(initial.cateringType ?? "");
   const [cuisines, setCuisines]         = useState<string[]>(initial.cuisines ?? []);
   const [specialties, setSpecialties]   = useState<string[]>(initial.specialties ?? []);
@@ -90,6 +94,7 @@ export function FilterModal({ initial, categories }: Props) {
     if (pax)                       sp.set("pax", String(pax));
     if (priceMin !== "")           sp.set("price_min", String(priceMin));
     if (priceMax !== "")           sp.set("price_max", String(priceMax));
+    if (serviceType)               sp.set("service_type", serviceType);
     if (cateringType)              sp.set("catering", cateringType);
     if (cuisines.length)           sp.set("cuisines", cuisines.join(","));
     if (specialties.length)        sp.set("cats", specialties.join(","));
@@ -103,7 +108,7 @@ export function FilterModal({ initial, categories }: Props) {
 
   function reset() {
     setCity(""); setPax(100); setPriceMin(""); setPriceMax("");
-    setCateringType(""); setCuisines([]); setSpecialties([]); setDietary([]);
+    setServiceType(""); setCateringType(""); setCuisines([]); setSpecialties([]); setDietary([]);
     setSetupMax(""); setPower(""); setSanitation("");
   }
 
@@ -171,6 +176,18 @@ export function FilterModal({ initial, categories }: Props) {
                   <input type="number" min={0} step={10} value={priceMax} onChange={(e) => setPriceMax(e.target.value === "" ? "" : Number(e.target.value))} placeholder={t.price_max} />
                 </div>
               </div>
+
+              <Field label={t.service_type_label}>
+                <select
+                  value={serviceType}
+                  onChange={(e) => setServiceType(e.target.value as ServiceType | "")}
+                >
+                  <option value="">{t.service_type_any}</option>
+                  {SERVICE_TYPES.map((value) => (
+                    <option key={value} value={value}>{dict.vocab.service_type[value]}</option>
+                  ))}
+                </select>
+              </Field>
 
               <Field label={t.catering_label}>
                 <select value={cateringType} onChange={(e) => setCateringType(e.target.value)}>

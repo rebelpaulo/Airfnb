@@ -106,7 +106,7 @@ export function AccountMenu({ user, dashboardHref }: Props) {
 
   async function onSignOut() {
     const supa = supabaseBrowser();
-    const { error } = await supa.auth.signOut();
+    const { error } = await supa.auth.signOut({ scope: "local" });
     if (error) {
       alert(`${t.logout_error_prefix} ${error.message}`);
       return;

@@ -22,9 +22,9 @@ export default function NotFound() {
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
           <Link href="/" className="btn-pill">Voltar ao início</Link>
-          <Link href="/foodtrucks" className="btn-pill outline"
+          <Link href="/catalogo" className="btn-pill outline"
                 style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-            Ver catálogo de food trucks
+            Ver catálogo
           </Link>
         </div>
       </div>

@@ -1,10 +1,21 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getDictionary } from "@/lib/i18n";
-import { DashboardSidebar } from "@/components/DashboardSidebar";
+import { DashboardSidebar, type DashboardRole } from "@/components/DashboardSidebar";
 
 export const dynamic = "force-dynamic";
+
+function toDashboardRole(role: unknown): DashboardRole {
+  if (
+    role === "organizer" ||
+    role === "owner" ||
+    role === "admin" ||
+    role === "staff"
+  ) {
+    return role;
+  }
+  return null;
+}
 
 /**
  * Shared dashboard chrome — a sidebar with role-aware items + the page
@@ -30,17 +41,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", user.id)
     .maybeSingle();
 
-  const role = (profile?.role ?? null) as "organizer" | "owner" | "admin" | null;
+  const role = toDashboardRole(profile?.role);
   const name = profile?.display_name ?? profile?.full_name ?? user.email ?? "";
   const dict = await getDictionary();
 
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "260px 1fr",
-      minHeight: "100dvh", paddingTop: 72,
-    }} className="dashboard-shell">
+    <div className="dashboard-shell">
       <DashboardSidebar role={role} name={name} dict={dict.dashboard_sidebar} />
-      <div>{children}</div>
+      <main className="dashboard-main">{children}</main>
     </div>
   );
 }

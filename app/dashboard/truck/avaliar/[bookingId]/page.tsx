@@ -23,25 +23,25 @@ export default async function AvaliarOrganizerPage({
   const dict = await getDictionary();
   const t = dict.dashboard.truck_review;
 
-  const { data: booking } = await (supa as any)
-    .from("airfnb_bookings")
-    .select(`
-      id, status, organizer_id, starts_at,
-      airfnb_events ( title ),
-      airfnb_profiles!airfnb_bookings_organizer_id_fkey ( id, display_name ),
-      airfnb_booking_trucks ( truck_id, agreed_price,
-        airfnb_trucks ( id, name, slug, owner_id ) )
-    `)
-    .eq("id", bookingId)
-    .maybeSingle();
+  const { data: bookingRows } = await (supa as any)
+    .rpc("airfnb_booking_service_context", { p_booking: bookingId });
+  const ownedRows = ((bookingRows as any[]) ?? []).filter((row) => row.is_owned);
+  const booking = ownedRows[0];
   if (!booking) notFound();
-  if (booking.status !== "confirmed" && booking.status !== "completed") {
+  if (booking.booking_status !== "confirmed" && booking.booking_status !== "completed") {
     redirect("/dashboard/truck");
   }
 
-  // Only show the trucks belonging to the current user
-  const myTrucks = ((booking.airfnb_booking_trucks as any[]) ?? [])
-    .filter((bt) => bt.airfnb_trucks?.owner_id === user.id);
+  // The RPC performs the owner-scoped join without exposing owner_id.
+  const myTrucks = ownedRows.map((row) => ({
+    truck_id: row.truck_id,
+    agreed_price: row.agreed_price,
+    airfnb_trucks: {
+      id: row.truck_id,
+      name: row.truck_name,
+      slug: row.truck_slug,
+    },
+  }));
   if (myTrucks.length === 0) redirect("/dashboard/truck");
 
   const truckIds = myTrucks.map((bt) => bt.truck_id);
@@ -73,35 +73,26 @@ export default async function AvaliarOrganizerPage({
     }
     if (body.length < 20) throw new Error(t.err_comment_too_short);
 
-    // Re-check truck ownership + booking participation server-side.
-    const { data: own } = await (supa as any)
-      .from("airfnb_booking_trucks")
-      .select("truck_id, airfnb_trucks ( owner_id )")
-      .eq("booking_id", bookingId)
-      .eq("truck_id", truckId)
-      .maybeSingle();
-    if (!own || (own as any).airfnb_trucks?.owner_id !== user.id) {
+    // Re-check truck ownership, participation and booking status server-side.
+    const { data: contextRows } = await (supa as any)
+      .rpc("airfnb_booking_service_context", { p_booking: bookingId });
+    const own = ((contextRows as any[]) ?? []).find(
+      (row) => row.truck_id === truckId && row.is_owned,
+    );
+    if (!own) {
       throw new Error(t.err_no_truck_perm);
     }
-    const { data: b } = await (supa as any)
-      .from("airfnb_bookings")
-      .select("status, organizer_id")
-      .eq("id", bookingId)
-      .maybeSingle();
-    if (!b || (b.status !== "confirmed" && b.status !== "completed")) {
+    if (own.booking_status !== "confirmed" && own.booking_status !== "completed") {
       throw new Error(t.err_booking_not_confirmed);
     }
 
-    // organizer_id comes from the booking, not the form — never trust the client
     const { error } = await (supa as any).from("airfnb_organizer_reviews").insert({
       booking_id:           bookingId,
       truck_id:             truckId,
-      organizer_id:         b.organizer_id,
       rating_reliability:   reliability,
       rating_communication: communication,
       rating_payment:       payment,
       body,
-      is_verified:          true,
     });
     if (error) {
       if (error.code === "23505") throw new Error(t.err_duplicate);
@@ -110,16 +101,14 @@ export default async function AvaliarOrganizerPage({
     revalidatePath(`/dashboard/truck/avaliar/${bookingId}`);
   }
 
-  const orgProfile = (booking as any).airfnb_profiles;
-
   return (
     <div className="dash" style={{ maxWidth: 820 }}>
       <nav className="breadcrumb">
         <Link href="/dashboard/truck">{t.breadcrumb_dashboard}</Link> &nbsp;/&nbsp; <span>{t.breadcrumb_current}</span>
       </nav>
-      <h1 style={{ margin: 0 }}>{t.title_prefix} {orgProfile?.display_name ?? t.title_fallback}</h1>
+      <h1 style={{ margin: 0 }}>{t.title_prefix} {booking.organizer_display_name ?? t.title_fallback}</h1>
       <p style={{ color: "var(--muted)", marginTop: 6 }}>
-        {t.event_label} {(booking.airfnb_events as any)?.title ?? "—"}
+        {t.event_label} {booking.event_title ?? booking.request_title ?? "—"}
       </p>
 
       <div style={{ display: "grid", gap: 18, marginTop: 22 }}>

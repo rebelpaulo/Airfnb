@@ -9,9 +9,8 @@ export default async function TruckPerfilPage() {
   if (!user) redirect("/login?next=/dashboard/truck/perfil");
 
   const { data: truck } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("*")
-    .eq("owner_id", user.id)
+    .rpc("airfnb_supplier_services", { p_truck: null })
+    .limit(1)
     .maybeSingle();
   if (!truck) redirect("/dashboard/truck/novo");
 
@@ -35,10 +34,10 @@ export default async function TruckPerfilPage() {
   return (
     <form action={save} className="wizard">
       <nav className="breadcrumb">
-        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp; <span>Perfil do truck</span>
+        <Link href="/dashboard/truck">Dashboard</Link> &nbsp;/&nbsp; <span>Perfil do serviço</span>
       </nav>
-      <h1>Perfil do truck</h1>
-      <p style={{ color: "var(--muted)", margin: 0 }}>Editar dados públicos do {truck.name}.</p>
+      <h1>Perfil do serviço</h1>
+      <p style={{ color: "var(--muted)", margin: 0 }}>Editar os dados públicos de {truck.name}.</p>
 
       <label>Nome</label>
       <input name="name" required defaultValue={truck.name} />

@@ -22,7 +22,7 @@ export default async function AdminDashboardPage() {
   const pending: any[] = (pendingTrucks as any[]) ?? [];
 
   // Assisted requests are the "Preciso de ajuda especializada" branch:
-  // organizer wants the Air F&B team to curate the shortlist. Surface
+  // organizer wants the F&B Tailor team to curate the shortlist. Surface
   // them prominently so the team can pick them up alongside trucks
   // pending moderation. We pull live requests only (status open) so
   // historical assisted requests don't clutter the queue.
@@ -67,7 +67,7 @@ export default async function AdminDashboardPage() {
         <section style={{ marginTop: 32 }}>
           <h2 style={{ margin: 0 }}>{t.assisted_title ?? "Pedidos a aguardar curadoria"}</h2>
           <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-            {t.assisted_subtitle ?? "Organizadores que pediram a ajuda da equipa Air F&B para curar a shortlist."}
+            {t.assisted_subtitle ?? "Organizadores que pediram a ajuda da equipa F&B Tailor para curar a shortlist."}
           </p>
           <ul style={{ listStyle: "none", padding: 0, marginTop: 14, display: "grid", gap: 10 }}>
             {assisted.map((r) => (

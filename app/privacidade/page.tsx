@@ -1,25 +1,37 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n";
+import {
+  getCanonicalHost,
+  getPublicContactEmail,
+  PUBLIC_CONTACT_FALLBACK_PATH,
+} from "@/lib/public-contact";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Política de Privacidade",
-  description: "Como a Air F&B trata os teus dados pessoais sob o RGPD.",
+  description: "Como a F&B Tailor trata os teus dados pessoais sob o RGPD.",
   alternates: { canonical: "/privacidade" },
 };
 
 export default async function PrivacidadePage() {
   const dict = await getDictionary();
   const t = dict.privacy;
+  const canonicalHost = getCanonicalHost();
+  const privacyEmail = getPublicContactEmail("privacy");
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 780 }}>
       <h1 className="section-title">{t.page_title}</h1>
       <p style={{ color: "var(--muted)", marginTop: -6 }}>{t.last_updated}</p>
 
       <Section title={t.who_title}>
-        {t.who_body_pre}<strong>{t.who_domain}</strong>{t.who_body_mid}
-        <a href="mailto:privacidade@airfnb.pt">privacidade@airfnb.pt</a>{t.who_body_post}
+        {t.who_body_pre}<strong>{canonicalHost}</strong>{t.who_body_mid}
+        {privacyEmail ? (
+          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>
+        ) : (
+          <Link href={PUBLIC_CONTACT_FALLBACK_PATH}>{dict.help.page_title}</Link>
+        )}
+        {t.who_body_post}
       </Section>
 
       <Section title={t.data_title}>

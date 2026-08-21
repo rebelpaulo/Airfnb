@@ -32,7 +32,7 @@ export default async function OportunidadeDetailPage({
 
   const { data: req } = await (supa as any)
     .from("airfnb_event_requests")
-    .select("*")
+    .select("id, title, status, start_at, city, locality, expected_pax, slots_needed, budget_min, budget_max, notes, desired_cuisines, dietary_requirements, energy_need, power_available, energy_assistance, sanitation_level, setup_minutes")
     .eq("id", id)
     .maybeSingle();
   if (!req) notFound();
@@ -44,9 +44,7 @@ export default async function OportunidadeDetailPage({
   // Only active trucks can apply — paused/pending trucks would be rejected
   // server-side, so don't even offer them as selectable in the dropdown.
   const { data: myTrucks } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id, name, status")
-    .eq("owner_id", user.id)
+    .rpc("airfnb_supplier_services", { p_truck: null })
     .eq("status", "active");
   if (!myTrucks?.length) {
     // The owner has trucks but none are active — send them to the dashboard
@@ -100,11 +98,9 @@ export default async function OportunidadeDetailPage({
 
     // Re-verify ownership server-side (the form `truck_id` is user-controlled)
     const { data: tr } = await (supa as any)
-      .from("airfnb_trucks")
-      .select("id, owner_id, status")
-      .eq("id", truckId)
+      .rpc("airfnb_supplier_services", { p_truck: truckId })
       .maybeSingle();
-    if (!tr || tr.owner_id !== user.id) throw new Error(t.err_no_truck_perm);
+    if (!tr) throw new Error(t.err_no_truck_perm);
     if (tr.status !== "active") {
       // A truck in 'paused' or 'pending_review' shouldn't be able to apply
       throw new Error(t.err_truck_not_active);
@@ -116,26 +112,13 @@ export default async function OportunidadeDetailPage({
     // effective cap to 25). The trigger raises a Portuguese error we surface
     // verbatim in the catch below.
 
-    // Re-check request eligibility deterministically. Without this we'd let
-    // the user submit, see the row blocked by RLS, and get a cryptic error
-    // instead of a clear "this brief closed / deadline passed" message.
-    // PostgREST serialises timestamptz with an explicit offset, so string
-    // comparison against an ISO "Z" string is fragile — parse to ms.
-    const nowMs = Date.now();
-    const { data: req } = await (supa as any)
-      .from("airfnb_event_requests")
-      .select("id, status, start_at, applications_deadline")
-      .eq("id", id)
-      .maybeSingle();
-    if (!req) throw new Error(t.err_request_not_found);
-    if (req.status !== "open")                            throw new Error(t.err_request_closed);
-    if (Date.parse(req.start_at) <= nowMs)                throw new Error(t.err_event_past);
-    // Use <= to match the RLS policy boundary (which allows applications_deadline > now()).
-    // Otherwise we'd let the request through at the exact boundary and then surface
-    // an RLS-rejected cryptic error instead of our friendly message.
-    if (req.applications_deadline && Date.parse(req.applications_deadline) <= nowMs) {
-      throw new Error(t.err_deadline_expired);
-    }
+    const { data: canSubmit, error: eligibilityError } = await (supa as any)
+      .rpc("airfnb_can_submit_application", {
+        p_request: id,
+        p_truck: truckId,
+      });
+    if (eligibilityError) throw new Error(eligibilityError.message);
+    if (canSubmit !== true) throw new Error(t.err_request_closed);
 
     // Unique on (request_id, truck_id) — DB will reject duplicates. We
     // surface a friendly error instead of letting the constraint bubble.
@@ -145,7 +128,6 @@ export default async function OportunidadeDetailPage({
       proposed_price:    proposedPrice,
       cover_message:     coverMessage,
       estimated_servings: estimatedServings,
-      status:            "submitted",
     });
     if (error) {
       if (error.code === "23505") {
@@ -194,7 +176,7 @@ export default async function OportunidadeDetailPage({
         )}
       </header>
 
-      {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes || req.address_line) && (
+      {(req.desired_cuisines?.length || req.dietary_requirements?.length || req.energy_need || req.sanitation_level || req.setup_minutes) && (
         <section style={{ marginTop: 18, padding: 18, background: "#fff", border: "1px solid var(--line)", borderRadius: 12 }}>
           <h2 style={{ margin: 0, fontSize: 15, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 700 }}>
             {t.briefing_title}
@@ -232,12 +214,6 @@ export default async function OportunidadeDetailPage({
               <>
                 <dt style={{ color: "var(--muted)" }}>{t.label_setup_time}</dt>
                 <dd style={{ margin: 0 }}>{req.setup_minutes} {t.setup_min_suffix}</dd>
-              </>
-            )}
-            {req.address_line && (
-              <>
-                <dt style={{ color: "var(--muted)" }}>{t.label_address}</dt>
-                <dd style={{ margin: 0 }}>{req.address_line}</dd>
               </>
             )}
           </dl>

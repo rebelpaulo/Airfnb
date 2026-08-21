@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabase/server";
+import { resolveAppOrigin } from "@/lib/app-url.mjs";
 
-const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
+const APP_URL = resolveAppOrigin();
 
 /**
  * Dynamic sitemap pulling every active truck plus the static marketing pages.

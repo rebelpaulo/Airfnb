@@ -27,11 +27,9 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
   // badge on /dashboard/conversas would never clear (it's computed from
   // last_read_at vs message timestamps). Best-effort: a failure shouldn't
   // block rendering the chat.
-  await (supa as any)
-    .from("airfnb_conversation_participants")
-    .update({ last_read_at: new Date().toISOString() })
-    .eq("conversation_id", id)
-    .eq("user_id", user.id);
+  await (supa as any).rpc("airfnb_mark_conversation_read", {
+    p_conversation: id,
+  });
 
   return <ChatClient conversationId={id} initialMessages={messages} currentUserId={user.id} />;
 }

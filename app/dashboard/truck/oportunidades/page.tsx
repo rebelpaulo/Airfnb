@@ -29,9 +29,7 @@ export default async function OportunidadesPage() {
   const dateLocale = locale === "en" ? "en-US" : "pt-PT";
 
   const { data: myTrucks } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id, name, base_city, status")
-    .eq("owner_id", user.id)
+    .rpc("airfnb_supplier_services", { p_truck: null })
     .in("status", ["active", "paused"]);
   if (!myTrucks?.length) redirect("/dashboard/truck/novo");
 

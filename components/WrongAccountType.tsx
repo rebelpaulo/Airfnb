@@ -25,8 +25,8 @@ export async function WrongAccountType({ intent, currentRole }: Props) {
   // the parser only captures up to the first unencoded `?` and the as= flag
   // silently drops.
   const cta = intent === "add_truck"
-    ? { href: `/logout?next=${encodeURIComponent("/signup?as=truck")}`, label: t.cta_logout_truck }
-    : { href: `/logout?next=${encodeURIComponent("/signup?as=organizer")}`, label: t.cta_logout_event };
+    ? { next: "/signup?as=truck", label: t.cta_logout_truck }
+    : { next: "/signup?as=organizer", label: t.cta_logout_event };
   const back = isOrg
     ? { href: "/dashboard/organizer", label: t.back_organizer }
     : { href: "/dashboard/truck", label: t.back_truck };
@@ -43,7 +43,9 @@ export async function WrongAccountType({ intent, currentRole }: Props) {
           {t.reason}
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
-          <Link href={cta.href as any} className="btn-pill">{cta.label}</Link>
+          <form action={`/logout?next=${encodeURIComponent(cta.next)}`} method="post">
+            <button type="submit" className="btn-pill">{cta.label}</button>
+          </form>
           <Link href={back.href as any} className="btn-pill outline"
                 style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
             {back.label}

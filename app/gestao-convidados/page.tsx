@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Gestão de Convidados, Bilhética & Cashless — Air F&B",
+  title: "Gestão de Convidados, Bilhética & Cashless — F&B Tailor",
   description:
     "Vendes bilhetes, geres convidados, ou precisas de cashless e POS no teu evento? Em parceria com a 3cket — a plataforma portuguesa que cobre bilhética, listas, fast-track e pagamentos no recinto.",
   alternates: { canonical: "/gestao-convidados" },

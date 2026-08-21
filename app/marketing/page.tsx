@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Marketing & Publicidade para Eventos — Air F&B",
+  title: "Marketing & Publicidade para Eventos — F&B Tailor",
   description:
     "Convites, sinalética, redes sociais, QR codes no recinto, relatórios pós-evento. Em parceria com agências e estúdios que conhecem o mercado de eventos.",
   alternates: { canonical: "/marketing" },

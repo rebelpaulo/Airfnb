@@ -17,9 +17,7 @@ export default async function MinhasCandidaturasPage() {
   // Multi-truck companies have more than one truck under the same owner —
   // surface candidaturas for ALL of them in one feed, not just the first.
   const { data: myTrucks } = await (supa as any)
-    .from("airfnb_trucks")
-    .select("id, name")
-    .eq("owner_id", user.id);
+    .rpc("airfnb_supplier_services", { p_truck: null });
   if (!myTrucks?.length) redirect("/dashboard/truck/novo");
 
   const truckIds = myTrucks.map((t: any) => t.id);

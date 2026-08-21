@@ -8,8 +8,8 @@ import { TruckCard } from "@/components/TruckCard";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Catálogo de Food Trucks",
-  description: "Explora food trucks certificados em Portugal. Filtra por localização, capacidade, cozinha e dietas.",
+  title: "Food Trucks, Catering e Bares para Eventos",
+  description: "Explora fornecedores de food trucks, catering e bares para eventos em Portugal.",
   alternates: { canonical: "/catalogo" },
 };
 
@@ -23,11 +23,14 @@ type SearchParams = Promise<{
   price_min?: Raw; price_max?: Raw; catering?: Raw;
   cuisines?: Raw; dietary?: Raw;
   setup_max?: Raw; power?: Raw; sanitation?: Raw;
+  service_type?: Raw;
   from?: Raw; to?: Raw;
   event_kind?: Raw;
 }>;
 
 const EVENT_KINDS = ["wedding","birthday","corporate","festival","conference","private","other"] as const;
+const SERVICE_TYPES = ["food_truck", "catering", "bar"] as const;
+type ServiceType = (typeof SERVICE_TYPES)[number];
 
 function first(v: Raw): string | undefined {
   if (v == null) return undefined;
@@ -70,6 +73,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
   const setupMax   = num(sp.setup_max);
   const power      = first(sp.power);
   const sanitation = first(sp.sanitation);
+  const serviceTypeRaw = first(sp.service_type);
   // FilterModal persists this as `catering` (food/drinks/food_and_drinks);
   // backed by airfnb_trucks.serves.
   const serves     = first(sp.catering);
@@ -87,6 +91,8 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     ? sanitation : undefined;
   const validServes     = serves && ["food", "drinks", "food_and_drinks"].includes(serves)
     ? serves : undefined;
+  const validServiceType = serviceTypeRaw && (SERVICE_TYPES as readonly string[]).includes(serviceTypeRaw)
+    ? serviceTypeRaw as ServiceType : undefined;
 
   const supa = await supabaseServer();
 
@@ -98,6 +104,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     .limit(60);
 
   if (city)             q = q.ilike("base_city", `%${city}%`);
+  if (validServiceType) q = q.eq("service_type", validServiceType);
   if (cats?.length)     q = q.overlaps("category_slugs", cats);
   if (pax)              q = q.gte("capacity", pax);
   // Themed landing cards filter on `compatible_event_kinds` (truck owner
@@ -125,7 +132,11 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
     q = q.in("sanitation_required", allowed);
   }
 
-  const { data: trucks = [], error } = await q;
+  const { data: trucksData, error } = await q;
+  // PostgREST returns `data: null` (not `undefined`) when a query fails.
+  // Destructuring defaults do not cover null, so normalize explicitly before
+  // the render path reads `.length` or maps the result.
+  const trucks = (trucksData ?? []) as any[];
   if (error) console.error("catalogo query failed", error.message);
 
   // One read for which trucks the current user has hearted; HeartButton
@@ -169,6 +180,10 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
 
   const activeFilters: Array<{ key: string; label: string }> = [];
   if (city)             activeFilters.push({ key: "city",      label: `${t.filter_city}: ${city}` });
+  if (validServiceType) activeFilters.push({
+    key: "service_type",
+    label: `${t.filter_service_type}: ${dict.vocab.service_type[validServiceType]}`,
+  });
   if (cats?.length)     activeFilters.push({ key: "cats",      label: `${t.filter_specialties}: ${cats.join(", ")}` });
   if (pax)              activeFilters.push({ key: "pax",       label: `≥ ${pax} ${t.filter_pax}` });
   if (priceMin)         activeFilters.push({ key: "price_min", label: `${t.filter_min} ${priceMin}` });
@@ -192,6 +207,7 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
           initial={{
             city, pax,
             priceMin, priceMax,
+            serviceType: validServiceType,
             cateringType: first(sp.catering),
             cuisines, specialties: cats, dietary,
             setupMax, power, sanitation,
@@ -222,13 +238,14 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Sea
         </div>
       ) : (
         <div className="truck-grid cols-4" style={{ marginTop: 26 }}>
-          {trucks.map((tr: any) => (
+          {trucks.map((tr: any, index: number) => (
             <TruckCard
               key={tr.id}
               truck={tr}
               initialFavorited={favoritedIds.has(tr.id)}
               authed={authed}
               newLabel={t.truck_new}
+              priority={index === 0}
             />
           ))}
         </div>

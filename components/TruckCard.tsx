@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { truckCover } from "@/lib/img";
 import { HeartButton } from "@/components/HeartButton";
+import { useDict } from "@/components/DictProvider";
 
 // Touch-swipe activation threshold. Below 40px the user is probably
 // just tapping or scrolling vertically — we don't want stray finger
@@ -35,6 +36,7 @@ type Truck = {
   category_slugs: string[] | null;
   rating_avg: number | string | null;
   rating_count: number | string | null;
+  service_type?: "food_truck" | "catering" | "bar" | null;
 };
 
 type Props = {
@@ -48,9 +50,15 @@ type Props = {
    *  in `truck.category_slugs`, which is what /catalogo and /procurar
    *  use today. */
   subtitleOverride?: string;
+  /** Preload only when this is the first above-the-fold card in a grid. */
+  priority?: boolean;
 };
 
-export function TruckCard({ truck, initialFavorited, authed, newLabel, subtitleOverride }: Props) {
+export function TruckCard({ truck, initialFavorited, authed, newLabel, subtitleOverride, priority }: Props) {
+  const dict = useDict();
+  const serviceType = truck.service_type === "catering" || truck.service_type === "bar"
+    ? truck.service_type
+    : "food_truck";
   // De-dupe in case the view returns the cover both standalone and inside
   // the gallery. Falls back to the cover-only list if gallery is empty.
   const gallery = (() => {
@@ -135,6 +143,7 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel, subtitleO
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
           style={{ objectFit: "cover" }}
+          priority={priority}
         />
         <HeartButton truckId={truck.id} initialFavorited={initialFavorited} authed={authed} />
 
@@ -220,6 +229,15 @@ export function TruckCard({ truck, initialFavorited, authed, newLabel, subtitleO
         )}
       </div>
       <div className="info">
+        <div style={{ marginBottom: 7 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", padding: "4px 9px",
+            borderRadius: 999, background: "var(--cream)", color: "var(--ink)",
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+          }}>
+            {dict.vocab.service_type[serviceType]}
+          </span>
+        </div>
         <h3>{truck.name}</h3>
         <div className="subtitle">{subtitleOverride ?? (truck.category_slugs ?? []).slice(0, 3).join(" · ")}</div>
         <div className="meta">

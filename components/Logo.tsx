@@ -10,14 +10,14 @@ type Props = {
   alt?: string;
 };
 
-export function Logo({ variant = "white", height = 36, className, alt = "Air F&B" }: Props) {
-  const src = variant === "black" ? "/logo-airfb-black.png" : "/logo-airfb-white.png";
+export function Logo({ variant = "white", height = 36, className, alt = "F&B Tailor" }: Props) {
+  const src = variant === "black" ? "/logo-fb-tailor-black.png" : "/logo-fb-tailor-white.png";
   return (
     <img
       src={src}
       alt={alt}
       className={className}
-      style={{ height, width: "auto", display: "block" }}
+      style={{ height, width: "auto", maxWidth: "100%", objectFit: "contain", display: "block" }}
     />
   );
 }

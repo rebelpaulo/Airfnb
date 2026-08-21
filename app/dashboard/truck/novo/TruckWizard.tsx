@@ -9,6 +9,7 @@ import { useDict } from "@/components/DictProvider";
 
 type Category = { id: number; slug: string; name_pt: string; icon: string | null };
 type Props = { userId: string; categories: Category[] };
+type ServiceType = "food_truck" | "catering" | "bar";
 
 // --- Chip vocabularies that mirror the original /addTruck wizard. -----------
 // Cuisine types: country-flag chips. Stored as free-text in trucks.cuisine_types
@@ -39,6 +40,12 @@ const CATERING_TYPES: { value: "fixed" | "percent" | "mixed" }[] = [
   { value: "fixed" },
   { value: "percent" },
   { value: "mixed" },
+];
+
+const SERVICE_TYPES: { value: ServiceType }[] = [
+  { value: "food_truck" },
+  { value: "catering" },
+  { value: "bar" },
 ];
 
 const SANITATION: { value: string; dictKey: "none" | "wc_proximo" | "wc_dedicado" }[] = [
@@ -75,6 +82,7 @@ export function TruckWizard({ userId, categories }: Props) {
   const [maxPax, setMaxPax] = useState(500);
   const [priceMin, setPriceMin] = useState<number | "">("");
   const [priceMax, setPriceMax] = useState<number | "">("");
+  const [serviceType, setServiceType] = useState<ServiceType | "">("");
   const [cateringType, setCateringType] = useState<string>("fixed");
 
   // step 2
@@ -98,31 +106,20 @@ export function TruckWizard({ userId, categories }: Props) {
 
   async function saveStep1AndAdvance() {
     setErr(null);
+    if (!serviceType)     { setErr(t.errors.no_service_type); return; }
     if (!name.trim())     { setErr(t.errors.no_name); return; }
     if (!baseCity.trim()) { setErr(t.errors.no_city); return; }
     setBusy(true);
     try {
       const supa = supabaseBrowser();
-      // Atomic role claim: only set role=owner when it's still null. Using
-      // .is("role", null) in the WHERE clause closes the read-then-write race
-      // window. If the row already had a role, the update affects 0 rows and
-      // we then re-read to decide whether to advance or block.
-      const claim = await (supa as any)
-        .from("airfnb_profiles")
-        .update({ role: "owner" })
-        .eq("id", userId)
-        .is("role", null)
-        .select("role");
-      if (claim.error) throw new Error(claim.error.message);
-      if (!claim.data?.length) {
-        const { data: cur } = await (supa as any)
-          .from("airfnb_profiles").select("role").eq("id", userId).maybeSingle();
-        if (cur?.role !== "owner") {
-          setErr(t.errors.wrong_role);
-          setBusy(false);
-          return;
-        }
-      }
+      // Role is a security-sensitive field. Claim it through the guarded RPC
+      // so the browser never receives direct write authority over profile roles.
+      // The RPC is idempotent for an existing owner and rejects role changes,
+      // privileged roles, and identities blocked by an F&B deletion tombstone.
+      const { error: claimError } = await (supa as any).rpc("airfnb_claim_role", {
+        p_role: "owner",
+      });
+      if (claimError) throw new Error(claimError.message);
 
       if (truckId) {
         // editing an in-progress draft
@@ -136,6 +133,7 @@ export function TruckWizard({ userId, categories }: Props) {
             max_event_pax: maxPax,
             base_price: priceMin === "" ? null : priceMin,
             price_per_pax: priceMax === "" ? null : priceMax,
+            service_type: serviceType,
             catering_type: cateringType,
           })
           .eq("id", truckId);
@@ -153,6 +151,7 @@ export function TruckWizard({ userId, categories }: Props) {
           max_event_pax:      maxPax,
           base_price:         priceMin === "" ? null : priceMin,
           price_per_pax:      priceMax === "" ? null : priceMax,
+          service_type:       serviceType,
           catering_type:      cateringType,
           status:             "draft",
         }).select("id").single();
@@ -235,6 +234,27 @@ export function TruckWizard({ userId, categories }: Props) {
 
       {step === 1 && (
         <div style={{ display: "grid", gap: 14 }}>
+          <Field label={t.step1.service_type_label}>
+            <div>
+              <div className="chips">
+                {SERVICE_TYPES.map((service) => (
+                  <button
+                    type="button"
+                    key={service.value}
+                    className="chip"
+                    data-active={serviceType === service.value}
+                    aria-pressed={serviceType === service.value}
+                    onClick={() => setServiceType(service.value)}
+                  >
+                    {dict.vocab.service_type[service.value]}
+                  </button>
+                ))}
+              </div>
+              <p style={{ color: "var(--muted)", fontSize: 12, margin: "7px 0 0" }}>
+                {t.step1.service_type_hint}
+              </p>
+            </div>
+          </Field>
           <Field label={t.step1.name_label}>
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder={t.step1.name_placeholder} />
           </Field>
