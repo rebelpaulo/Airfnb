@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { publicAvatarUrl } from "@/lib/public-avatar-url";
 
 type Props = {
   userId: string;
@@ -23,7 +24,9 @@ export function AvatarUpload({
   compress = true, maxMb = 2, size = 96,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [url, setUrl] = useState<string | null>(initialUrl ?? null);
+  const [url, setUrl] = useState<string | null>(() =>
+    publicAvatarUrl(initialUrl, process.env.NEXT_PUBLIC_SUPABASE_URL),
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -52,17 +55,19 @@ export function AvatarUpload({
       if (upErr) throw new Error(upErr.message);
 
       const { data: { publicUrl } } = supa.storage.from(BUCKET).getPublicUrl(path);
+      const safePublicUrl = publicAvatarUrl(publicUrl, process.env.NEXT_PUBLIC_SUPABASE_URL);
+      if (!safePublicUrl) throw new Error("URL de avatar inválido.");
 
       if (persistOnProfile) {
         const { error: profErr } = await (supa as any)
           .from("airfnb_profiles")
-          .update({ avatar_url: publicUrl })
+          .update({ avatar_url: safePublicUrl })
           .eq("id", userId);
         if (profErr) throw new Error(profErr.message);
       }
 
-      setUrl(publicUrl);
-      onUploaded?.(publicUrl);
+      setUrl(safePublicUrl);
+      onUploaded?.(safePublicUrl);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {

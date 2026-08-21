@@ -7,7 +7,7 @@ import { getDictionary, getLocale } from "@/lib/i18n";
 export const metadata: Metadata = {
   title: "Blog",
   description:
-    "Inspiração, dicas e histórias para organizadores de eventos e donos de food trucks em Portugal.",
+    "Inspiração, dicas e histórias para organizadores e fornecedores de Food Truck, Catering e Bar em Portugal.",
   alternates: { canonical: "/blog" },
 };
 

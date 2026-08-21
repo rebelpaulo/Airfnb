@@ -1,4 +1,4 @@
-# Air F&B — Pivot para Marketplace de Pedidos
+# F&B Tailor — Pivot para Marketplace de Pedidos
 
 > **Modelo:** organizer publica brief → trucks aplicam → organizer escolhe → truck paga lock-fee → booking confirmado.
 > **Referências:** Add to Event (UK), Thumbtack, GigSalad, The Bash.

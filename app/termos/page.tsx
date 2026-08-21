@@ -1,17 +1,22 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n";
+import {
+  getPublicContactEmail,
+  PUBLIC_CONTACT_FALLBACK_PATH,
+} from "@/lib/public-contact";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Termos e Condições",
-  description: "Termos de utilização do marketplace Air F&B.",
+  description: "Termos de utilização do marketplace F&B Tailor.",
   alternates: { canonical: "/termos" },
 };
 
 export default async function TermosPage() {
   const dict = await getDictionary();
   const t = dict.terms;
+  const legalEmail = getPublicContactEmail("legal");
   return (
     <div className="container" style={{ paddingTop: 120, paddingBottom: 80, maxWidth: 780 }}>
       <h1 className="section-title">{t.page_title}</h1>
@@ -40,7 +45,11 @@ export default async function TermosPage() {
       <Section title={t.s9_title}>{t.s9_body}</Section>
 
       <Section title={t.s10_title}>
-        <a href="mailto:legal@airfnb.pt">legal@airfnb.pt</a>
+        {legalEmail ? (
+          <a href={`mailto:${legalEmail}`}>{legalEmail}</a>
+        ) : (
+          <Link href={PUBLIC_CONTACT_FALLBACK_PATH}>{dict.help.page_title}</Link>
+        )}
       </Section>
 
       <p style={{ marginTop: 40 }}>

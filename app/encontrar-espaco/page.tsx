@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Espaços para Eventos — Air F&B",
+  title: "Espaços para Eventos — F&B Tailor",
   description:
     "Estás a planear um evento e precisas do espaço perfeito? Os nossos parceiros conhecem quintas, terraços, jardins e salões em todo o país. Diz-nos o que precisas — voltamos a contactar-te.",
   alternates: { canonical: "/encontrar-espaco" },

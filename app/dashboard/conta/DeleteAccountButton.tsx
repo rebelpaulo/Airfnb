@@ -18,16 +18,26 @@ export function DeleteAccountButton() {
   const enabled =
     confirm.trim().toLocaleUpperCase() === phrase.trim().toLocaleUpperCase() && !busy;
 
-  async function deleteAccount() {
+  async function deleteFbMembership() {
     setBusy(true);
     setErr(null);
     try {
       const supa = supabaseBrowser();
-      const { error } = await (supa as any).rpc("airfnb_self_delete");
-      if (error) throw new Error(error.message);
-      // Sign out — the row is gone but the session cookie isn't yet.
-      await supa.auth.signOut();
-      router.push("/?account_deleted=1");
+      const response = await fetch("/api/me/fb-membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "membership deletion failed");
+      }
+      // The shared Tailor Auth identity remains. End only this browser session;
+      // a global sign-out would revoke sessions belonging to the shared account.
+      const { error: signOutError } = await supa.auth.signOut({ scope: "local" });
+      if (signOutError) throw new Error(signOutError.message);
+      router.replace("/?fb_membership_deleted=1");
+      router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -48,7 +58,7 @@ export function DeleteAccountButton() {
       {err && <div style={{ color: "#8B1100", fontSize: 13 }}>{err}</div>}
       <button
         type="button"
-        onClick={deleteAccount}
+        onClick={deleteFbMembership}
         disabled={!enabled}
         className="btn-pill"
         style={{ padding: "10px 22px", background: enabled ? "#8B1100" : "#C5A097", border: "none", color: "#fff", cursor: enabled ? "pointer" : "not-allowed" }}

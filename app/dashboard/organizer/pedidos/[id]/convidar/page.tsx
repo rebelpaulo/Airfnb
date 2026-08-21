@@ -35,25 +35,10 @@ export default async function InvitePage({ params }: { params: Promise<{ id: str
   if (!req) notFound();
   if (req.organizer_id !== user.id) redirect("/dashboard/organizer");
 
-  // Candidate trucks: live + same city (when known) + capacity ≥ guests +
-  // cuisine overlap (when the organizer expressed preferences). The
-  // narrower the request, the smaller the shortlist — better than
-  // dumping the whole catalogue.
-  let q = (supa as any)
-    .from("airfnb_v_truck_card")
-    .select("id, slug, name, base_city, cover_url, capacity, rating_avg, rating_count, cuisine_types, category_slugs")
-    .order("rating_avg", { ascending: false })
-    .order("id", { ascending: true })
-    .limit(80);
-  if (req.city || req.locality) {
-    const city = (req.city ?? req.locality ?? "").trim();
-    if (city) q = q.ilike("base_city", `%${city}%`);
-  }
-  if (req.expected_pax) q = q.gte("capacity", req.expected_pax);
-  if (Array.isArray(req.desired_cuisines) && req.desired_cuisines.length > 0) {
-    q = q.overlaps("cuisine_types", req.desired_cuisines);
-  }
-  const { data: trucks = [] } = await q;
+  const { data: candidateRows = [], error: candidateError } = await (supa as any)
+    .rpc("airfnb_invitation_candidates", { p_request: id });
+  if (candidateError) throw new Error(candidateError.message);
+  const trucks = (candidateRows as any[]).map((row) => ({ ...row, id: row.truck_id }));
 
   // Show which trucks have already been invited so the UI can render a
   // muted "convidado" badge and skip them in the batch action.
@@ -72,91 +57,11 @@ export default async function InvitePage({ params }: { params: Promise<{ id: str
     const checked = formData.getAll("truck_id").map(String).filter(Boolean);
     if (checked.length === 0) return;
 
-    // Re-fetch the request to verify ownership server-side AND to
-    // re-derive the filter set the page used. Don't trust the page
-    // render — server actions can be replayed independently with
-    // forged payloads.
-    const { data: reqRow } = await (supa as any)
-      .from("airfnb_event_requests")
-      .select("id, organizer_id, title, city, locality, expected_pax, desired_cuisines, discovery_mode")
-      .eq("id", id)
-      .maybeSingle();
-    if (!reqRow || reqRow.organizer_id !== user.id) {
-      throw new Error("not authorized");
-    }
-
-    // Re-run the same eligibility query the page used so a forged
-    // truck_id that doesn't match the request filters can't slip
-    // through. Whitelist the resulting ids before any DB write.
-    let elig = (supa as any)
-      .from("airfnb_v_truck_card")
-      .select("id")
-      .in("id", checked);
-    const city = (reqRow.city ?? reqRow.locality ?? "").trim();
-    if (city) elig = elig.ilike("base_city", `%${city}%`);
-    if (reqRow.expected_pax) elig = elig.gte("capacity", reqRow.expected_pax);
-    if (Array.isArray(reqRow.desired_cuisines) && reqRow.desired_cuisines.length > 0) {
-      elig = elig.overlaps("cuisine_types", reqRow.desired_cuisines);
-    }
-    const { data: eligible = [] } = await elig;
-    const eligibleIds = new Set<string>((eligible as Array<{ id: string }>).map((r) => r.id));
-    const safeChecked = checked.filter((tid) => eligibleIds.has(tid));
-    if (safeChecked.length === 0) return;
-
-    // Snapshot the trucks already invited so we can fan out
-    // notifications ONLY to the ones we're actually going to insert.
-    // Otherwise replays / accidental double-submits spam owners with
-    // duplicate "you were invited" pings even though the PK upsert
-    // is a no-op.
-    const { data: existing = [] } = await (supa as any)
-      .from("airfnb_request_invitations")
-      .select("truck_id")
-      .eq("request_id", id)
-      .in("truck_id", safeChecked);
-    const alreadyInvited = new Set<string>((existing as Array<{ truck_id: string }>).map((r) => r.truck_id));
-    const newlyInvitedIds = safeChecked.filter((tid) => !alreadyInvited.has(tid));
-    if (newlyInvitedIds.length === 0) {
-      // Nothing new to insert — just bounce back without notifying.
-      redirect(`/dashboard/organizer/pedidos/${id}`);
-    }
-
-    // Resolve owners of the trucks we're about to invite (one round-trip
-    // for N, regardless of N) so we can fan out notifications.
-    const { data: trucksData } = await (supa as any)
-      .from("airfnb_trucks")
-      .select("id, owner_id, name")
-      .in("id", newlyInvitedIds);
-    const trucksList = (trucksData ?? []) as Array<{ id: string; owner_id: string; name: string }>;
-
-    // Insert invitations (PK is request_id+truck_id; on-conflict-ignore
-    // belt-and-braces in case of a race between two concurrent inserts).
-    const inviteRows = trucksList.map((tr) => ({
-      request_id: id,
-      truck_id:   tr.id,
-      invited_by: user.id,
-    }));
-    const { error: invErr } = await (supa as any)
-      .from("airfnb_request_invitations")
-      .upsert(inviteRows, { onConflict: "request_id,truck_id", ignoreDuplicates: true });
-    if (invErr) throw new Error(invErr.message);
-
-    // Notifications — only for trucks we just newly invited.
-    const notifRows = trucksList.map((tr) => ({
-      user_id: tr.owner_id,
-      kind:    "request.invited",
-      payload: {
-        request_id: id,
-        request_title: reqRow.title,
-        truck_id: tr.id,
-        truck_name: tr.name,
-      },
-    }));
-    if (notifRows.length > 0) {
-      const { error: nErr } = await (supa as any)
-        .from("airfnb_notifications")
-        .insert(notifRows);
-      if (nErr) console.error("notify failed", nErr.message);
-    }
+    const { error } = await (supa as any).rpc("airfnb_invite_request_services", {
+      p_request: id,
+      p_trucks: checked,
+    });
+    if (error) throw new Error(error.message);
 
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
     revalidatePath(`/dashboard/organizer/pedidos/${id}/convidar`);

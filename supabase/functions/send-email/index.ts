@@ -8,7 +8,7 @@
 //
 // Required env (set with `supabase secrets set`):
 //   RESEND_API_KEY        — Resend API key
-//   FROM_EMAIL            — default sender, e.g. "Air F&B <ola@airfnb.example>"
+//   FROM_EMAIL            — verified Resend sender (address or display-name form)
 //   ALLOWED_TEMPLATES     — comma-separated whitelist, e.g. "booking_confirmed,proposal_sent,contact_reply"
 //
 // Invoke:
@@ -37,7 +37,7 @@ type TemplateKey =
   | "newsletter_confirm";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FROM_EMAIL     = Deno.env.get("FROM_EMAIL")   ?? "Air F&B <noreply@airfnb.local>";
+const FROM_EMAIL     = Deno.env.get("FROM_EMAIL")?.trim();
 const ALLOWED        = (Deno.env.get("ALLOWED_TEMPLATES") ?? "")
   .split(",").map(s => s.trim()).filter(Boolean);
 
@@ -61,7 +61,7 @@ const TEMPLATES: Record<TemplateKey, (d: Record<string, unknown>) => { subject: 
     html: layout(`
       <h1>Tudo certo!</h1>
       <p>A tua reserva está <strong>confirmada</strong> para ${escape(d.start_at)}.</p>
-      <p>Trucks: ${escape((d.trucks as string[] | undefined)?.join(", ") ?? "")}</p>`),
+      <p>Fornecedores: ${escape((d.trucks as string[] | undefined)?.join(", ") ?? "")}</p>`),
   }),
   booking_cancelled: (d) => ({
     subject: `Cancelamento — ${d.event_title}`,
@@ -80,7 +80,7 @@ const TEMPLATES: Record<TemplateKey, (d: Record<string, unknown>) => { subject: 
     subject: `Como foi o teu evento?`,
     html: layout(`
       <h1>Conta-nos como correu</h1>
-      <p>Avalia os trucks que serviram o teu evento e ajuda outros clientes a escolherem melhor.</p>
+      <p>Avalia os fornecedores que participaram no teu evento e ajuda outros clientes a escolherem melhor.</p>
       <p><a class="cta" href="${escape(d.url)}">Deixar review</a></p>`),
   }),
   contact_reply: (d) => ({
@@ -91,13 +91,12 @@ const TEMPLATES: Record<TemplateKey, (d: Record<string, unknown>) => { subject: 
     subject: `Confirma a tua subscrição`,
     html: layout(`
       <h1>Quase lá</h1>
-      <p>Clica para confirmar a tua subscrição na newsletter Air F&amp;B.</p>
+      <p>Clica para confirmar a tua subscrição na newsletter F&amp;B Tailor.</p>
       <p><a class="cta" href="${escape(d.url)}">Confirmar</a></p>`),
   }),
 };
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL");
-const SUPABASE_ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 type AuthOk = { ok: true };
@@ -115,7 +114,7 @@ type AuthFail = { ok: false; status: number; msg: string };
  */
 async function authorize(req: Request): Promise<AuthOk | AuthFail> {
   if (!SUPABASE_SERVICE_ROLE_KEY) {
-    return { ok: false, status: 500, msg: "SUPABASE_SERVICE_ROLE_KEY not configured" };
+    return { ok: false, status: 503, msg: "email service unavailable" };
   }
   const authz = req.headers.get("authorization") ?? "";
   if (!authz.toLowerCase().startsWith("bearer ")) {
@@ -132,7 +131,15 @@ Deno.serve(async (req) => {
   const pre = handlePreflight(req);
   if (pre) return pre;
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-  if (!RESEND_API_KEY)       return json({ error: "RESEND_API_KEY not configured" }, 500);
+  if (
+    !RESEND_API_KEY ||
+    !isValidSender(FROM_EMAIL) ||
+    !ALLOWED.length ||
+    !SUPABASE_URL ||
+    !SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    return json({ error: "email service unavailable" }, 503);
+  }
 
   const authResult = await authorize(req);
   if (!authResult.ok) return json({ error: authResult.msg }, authResult.status);
@@ -153,7 +160,7 @@ Deno.serve(async (req) => {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      from: FROM_EMAIL,
+      from: FROM_EMAIL!,
       to: Array.isArray(body.to) ? body.to : [body.to],
       reply_to: body.replyTo,
       subject: body.subject ?? subject,
@@ -162,8 +169,7 @@ Deno.serve(async (req) => {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    return json({ error: "resend failed", detail: text.slice(0, 500) }, 502);
+    return json({ error: "email delivery failed" }, 502);
   }
   const data = await res.json();
 
@@ -176,7 +182,11 @@ Deno.serve(async (req) => {
     await supa.from("airfnb_audit_log").insert({
       action: `email.${body.template}`,
       entity: "email",
-      diff: { to: body.to, subject: body.subject ?? subject, provider_id: data?.id },
+      diff: {
+        template: body.template,
+        recipient_count: Array.isArray(body.to) ? body.to.length : 1,
+        provider_id: data?.id,
+      },
     });
   } catch (_) { /* swallow */ }
 
@@ -193,12 +203,31 @@ function money(v: unknown): string {
   if (!isFinite(n)) return String(v ?? "");
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
 }
+function isValidSender(value: string | undefined): value is string {
+  if (!value || value.length > 320 || /[\r\n]/.test(value)) return false;
+  const match = value.match(
+    /^(?:[^<>]+<)?([A-Za-z0-9][A-Za-z0-9.!%&'*+/=_~-]*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>?$/,
+  );
+  if (!match) return false;
+  const domain = match[1].slice(match[1].lastIndexOf("@") + 1).toLowerCase();
+  return !(
+    domain === "example.com" ||
+    domain === "example.net" ||
+    domain === "example.org" ||
+    domain === "localhost" ||
+    domain.endsWith(".example") ||
+    domain.endsWith(".invalid") ||
+    domain.endsWith(".local") ||
+    domain.endsWith(".localhost") ||
+    domain.endsWith(".test")
+  );
+}
 function layout(inner: string): string {
   return `<!doctype html><html lang="pt"><body style="margin:0;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#FFF6F2;color:#1A1A1A;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.08);overflow:hidden;">
-    <tr><td style="background:#FF6133;color:#fff;padding:22px 28px;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;">AIRF.B</td></tr>
+    <tr><td style="background:#FF6133;color:#fff;padding:22px 28px;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;">F&amp;B Tailor</td></tr>
     <tr><td style="padding:28px;line-height:1.55;font-size:15px;">${inner}</td></tr>
-    <tr><td style="background:#1F5B65;color:#B0C4C8;padding:18px 28px;font-size:12px;">© ${new Date().getFullYear()} Air F&amp;B — todos os direitos reservados.</td></tr>
+    <tr><td style="background:#1F5B65;color:#B0C4C8;padding:18px 28px;font-size:12px;">© ${new Date().getFullYear()} F&amp;B Tailor — todos os direitos reservados.</td></tr>
   </table>
   <style>.cta{display:inline-block;background:#FF4919;color:#fff !important;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;margin-top:8px;}</style>
 </body></html>`;

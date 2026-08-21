@@ -6,6 +6,8 @@ import { Footer } from "@/components/Footer";
 import { DictProvider } from "@/components/DictProvider";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getLocale, dictionaries } from "@/lib/i18n";
+import { resolveAppOrigin } from "@/lib/app-url.mjs";
+import { publicAvatarUrl } from "@/lib/public-avatar-url";
 
 const bebas = Bebas_Neue({
   subsets: ["latin"],
@@ -20,33 +22,39 @@ const montserrat = Montserrat({
   display: "swap",
 });
 
-const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
+const APP_URL = resolveAppOrigin();
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "Air F&B — Marketplace de Food Trucks para Eventos",
-    template: "%s · Air F&B",
+    default: "F&B Tailor — Food Trucks, Catering e Bares para Eventos",
+    template: "%s · F&B Tailor",
   },
-  description:
-    "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
-  applicationName: "Air F&B",
+  description: "Food Trucks, Catering e Bares para Eventos. Encontra fornecedores selecionados e recebe propostas para o teu evento.",
+  applicationName: "F&B Tailor",
+  keywords: [
+    "food trucks para eventos",
+    "catering para eventos",
+    "bares para eventos",
+    "fornecedores para eventos",
+    "F&B Tailor",
+  ],
+  category: "eventos",
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
-    siteName: "Air F&B",
-    title: "Air F&B — Marketplace de Food Trucks para Eventos",
-    description:
-      "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+    siteName: "F&B Tailor",
+    title: "F&B Tailor — Food Trucks, Catering e Bares para Eventos",
+    description: "Food Trucks, Catering e Bares para Eventos. Encontra fornecedores selecionados e recebe propostas para o teu evento.",
     locale: "pt_PT",
     url: APP_URL,
-    images: [{ url: "/logo-airfb-white.png", width: 1200, height: 630, alt: "Air F&B" }],
+    images: [{ url: "/og-fb-tailor.png", width: 1200, height: 630, alt: "F&B Tailor — Food Trucks, Catering e Bares para Eventos" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Air F&B — Marketplace de Food Trucks para Eventos",
-    description:
-      "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
-    images: ["/logo-airfb-white.png"],
+    title: "F&B Tailor — Food Trucks, Catering e Bares para Eventos",
+    description: "Food Trucks, Catering e Bares para Eventos. Encontra fornecedores selecionados e recebe propostas para o teu evento.",
+    images: ["/og-fb-tailor.png"],
   },
 };
 
@@ -64,7 +72,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .eq("id", user.id)
       .maybeSingle();
     role = prof?.role ?? null;
-    avatarUrl = prof?.avatar_url ?? null;
+    avatarUrl = publicAvatarUrl(
+      prof?.avatar_url,
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+    );
     displayName = prof?.display_name ?? prof?.full_name ?? null;
   }
 

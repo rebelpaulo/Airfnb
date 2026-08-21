@@ -12,9 +12,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   if (!user) redirect(`/login?next=/dashboard/organizer/pedidos/${id}`);
 
   const { data: req } = await (supa as any)
-    .from("airfnb_event_requests")
-    .select("*")
-    .eq("id", id)
+    .rpc("airfnb_private_event_requests", { p_request_id: id })
     .maybeSingle();
 
   if (!req) notFound();
@@ -25,16 +23,26 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
   const isAdmin = (adminGate as any[] | null)?.length ? true : false;
   if (req.organizer_id !== user.id && !isAdmin) redirect("/dashboard/organizer");
 
-  const { data: applicationsData } = await (supa as any)
-    .from("airfnb_applications")
-    .select(`
-      id, status, proposed_price, cover_message, deal_type,
-      proposed_fixed_to_organizer, proposed_revenue_share_pct, created_at,
-      airfnb_trucks ( id, name, slug, base_city, rating_avg, rating_count )
-    `)
-    .eq("request_id", id)
-    .order("created_at", { ascending: false });
-  const applications = applicationsData ?? [];
+  const { data: applicationContext } = await (supa as any)
+    .rpc("airfnb_request_application_service_context", { p_request: id });
+  const applications = ((applicationContext as any[]) ?? []).map((row) => ({
+    id: row.application_id,
+    status: row.application_status,
+    proposed_price: row.proposed_price,
+    cover_message: row.cover_message,
+    deal_type: row.deal_type,
+    proposed_fixed_to_organizer: row.proposed_fixed_to_organizer,
+    proposed_revenue_share_pct: row.proposed_revenue_share_pct,
+    created_at: row.created_at,
+    airfnb_trucks: {
+      id: row.truck_id,
+      name: row.truck_name,
+      slug: row.truck_slug,
+      base_city: row.truck_base_city,
+      rating_avg: row.truck_rating_avg,
+      rating_count: row.truck_rating_count,
+    },
+  }));
 
   // Map applications → conversations + bookings so accepted apps deep-link
   // straight into chat or the review form once the booking is confirmed.
@@ -69,7 +77,8 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     "use server";
     const aid = String(formData.get("application_id"));
     const supa = await supabaseServer();
-    await (supa as any).rpc("airfnb_shortlist_application" as any, { p_application: aid });
+    const { error } = await (supa as any).rpc("airfnb_shortlist_application" as any, { p_application: aid });
+    if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
   async function accept(formData: FormData) {
@@ -85,7 +94,8 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
     const aid = String(formData.get("application_id"));
     const reason = String(formData.get("reason") ?? "");
     const supa = await supabaseServer();
-    await (supa as any).rpc("airfnb_reject_application" as any, { p_application: aid, p_reason: reason });
+    const { error } = await (supa as any).rpc("airfnb_reject_application" as any, { p_application: aid, p_reason: reason });
+    if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/organizer/pedidos/${id}`);
   }
 
@@ -125,10 +135,10 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
           display: "flex", justifyContent: "space-between", alignItems: "center",
           gap: 12, flexWrap: "wrap", fontSize: 14,
         }}>
-          <span>{t.curated_hint ?? "Este pedido é privado — só trucks convidados podem candidatar-se."}</span>
+          <span>{t.curated_hint ?? "Este pedido é privado — só fornecedores convidados podem candidatar-se."}</span>
           <Link href={`/dashboard/organizer/pedidos/${id}/convidar`} className="btn-pill"
                 style={{ background: "var(--orange)", color: "#fff", fontSize: 13, padding: "8px 16px" }}>
-            {t.curated_invite_cta ?? "Convidar trucks →"}
+            {t.curated_invite_cta ?? "Convidar fornecedores →"}
           </Link>
         </div>
       )}
@@ -144,7 +154,7 @@ export default async function ManageRequestPage({ params }: { params: Promise<{ 
           <span className="material-symbols-outlined" style={{ color: "var(--orange)", fontSize: 22 }} aria-hidden="true">
             support_agent
           </span>
-          <span>{t.assisted_banner ?? "A equipa Air F&B está a curar a tua shortlist. Vamos contactar-te em breve com sugestões."}</span>
+          <span>{t.assisted_banner ?? "A equipa F&B Tailor está a curar a tua shortlist. Vamos contactar-te em breve com sugestões."}</span>
         </div>
       )}
 

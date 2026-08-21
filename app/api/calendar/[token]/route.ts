@@ -5,10 +5,11 @@
 // content-type so calendar apps recognise the body.
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { resolveAppOrigin } from "@/lib/app-url.mjs";
 
 export const runtime = "nodejs";
 
-const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://airfnb.vercel.app";
+const APP_URL = resolveAppOrigin();
 
 function ics_escape(s: string): string {
   // RFC 5545 §3.3.11 — escape \, ; , and newlines inside TEXT values.
@@ -45,15 +46,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     return new NextResponse("Booking has no start time", { status: 422 });
   }
 
-  const uid = `${b.id}@airfnb`;
-  const title  = `Air F&B — ${b.title}${b.truck_names ? ` (${b.truck_names})` : ""}`;
+  const uid = `fb-tailor-${b.id}@${new URL(APP_URL).host}`;
+  const title  = `F&B Tailor — ${b.title}${b.truck_names ? ` (${b.truck_names})` : ""}`;
   const location = b.city ?? "";
   const desc = `${title}\n\nReserva via ${APP_URL}`;
 
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Air F&B//Marketplace//PT",
+    "PRODID:-//F&B Tailor//Marketplace//PT",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -73,7 +74,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     status: 200,
     headers: {
       "content-type":        "text/calendar; charset=utf-8",
-      "content-disposition": `inline; filename="airfnb-${token}.ics"`,
+      "content-disposition": `inline; filename="fb-tailor-${token}.ics"`,
       "cache-control":       "private, max-age=300",
     },
   });

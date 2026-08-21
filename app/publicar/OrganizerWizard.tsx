@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ensureFbMembership } from "@/lib/auth/fb-membership";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { useDict } from "@/components/DictProvider";
 
@@ -410,15 +411,23 @@ export function OrganizerWizard({
           return;
         }
         effectiveUserId = signUpData.user.id;
-        // Best-effort profile patch so the wizard's contact_phone /
-        // role lands on the new profile row. The profile is auto-
-        // created by an auth trigger; this fills in fields beyond
-        // what user_metadata covers.
-        await (supa as any).from("airfnb_profiles").update({
+      }
+
+      // Whether this is an immediate-session signup or an already signed-in
+      // visitor, membership bootstrap and role claim are explicit and must
+      // succeed before any organizer-owned data is created.
+      await ensureFbMembership(supa, {
+        role: "organizer",
+        fullName: name.trim(),
+        locale: "pt-PT",
+      });
+
+      if (isAnonymous) {
+        const { error: profileError } = await (supa as any).from("airfnb_profiles").update({
           full_name: name.trim(),
           phone: phone.trim() || null,
-          role: "organizer",
-        }).eq("id", signUpData.user.id);
+        }).eq("id", effectiveUserId);
+        if (profileError) throw new Error(profileError.message);
       }
 
       // Rate limit (10 pedidos/organizer/day) is enforced by a BEFORE INSERT
@@ -820,7 +829,7 @@ export function OrganizerWizard({
                 {(t as any).anon_signup_title ?? "Cria conta para publicar"}
               </div>
               <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 12 }}>
-                {(t as any).anon_signup_hint ?? "Vamos criar uma conta com o teu email para acompanhares as candidaturas dos trucks."}
+                {(t as any).anon_signup_hint ?? "Vamos criar uma conta com o teu email para acompanhares as candidaturas dos fornecedores."}
               </div>
               <Field label={(t as any).anon_password_label ?? "Password (mín. 8 caracteres)"}>
                 <input

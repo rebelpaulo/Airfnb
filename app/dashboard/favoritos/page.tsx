@@ -55,7 +55,7 @@ export default async function FavoritesPage() {
         </div>
       ) : (
         <div className="truck-grid cols-3" style={{ marginTop: 26 }}>
-          {favorites.map((r: any) => (
+          {favorites.map((r: any, index: number) => (
             <TruckCard
               key={r.truck_id}
               truck={r.airfnb_v_truck_card}
@@ -64,6 +64,7 @@ export default async function FavoritesPage() {
               initialFavorited={true}
               authed={true}
               newLabel={newLabel}
+              priority={index === 0}
             />
           ))}
         </div>

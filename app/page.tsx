@@ -11,9 +11,8 @@ export const revalidate = 60;
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Air F&B — Marketplace de Food Trucks para Eventos",
-  description:
-    "Publica o teu evento e recebe propostas dos melhores food trucks do país. Grátis para organizers.",
+  title: "F&B Tailor — Food Trucks, Catering e Bares para Eventos",
+  description: "Food Trucks, Catering e Bares para Eventos. Encontra fornecedores selecionados e recebe propostas para o teu evento.",
   alternates: { canonical: "/" },
 };
 
@@ -98,7 +97,7 @@ export default async function HomePage() {
           component in this SEO sweep — track in a follow-up if LCP needs work.
         */}
         <Logo variant="white" height="clamp(110px, 18vw, 230px)" className="logo-mark" />
-        <p className="tagline">{dict.common.tagline}</p>
+        <h1 className="tagline">{dict.common.tagline}</h1>
 
         {/*
           Search bar is the entry-point for organizers exploring an event.
@@ -158,7 +157,7 @@ export default async function HomePage() {
 
           {trucks.length > 0 && (
             <div className="truck-grid">
-              {trucks.map((tr: any) => {
+              {trucks.map((tr: any, index: number) => {
                 const translatedSubtitle = (tr.category_slugs ?? [])
                   .slice(0, 3)
                   .map((slug: string) => {
@@ -174,6 +173,7 @@ export default async function HomePage() {
                     authed={authed}
                     newLabel={t.partner_truck_new}
                     subtitleOverride={translatedSubtitle}
+                    priority={index === 0}
                   />
                 );
               })}

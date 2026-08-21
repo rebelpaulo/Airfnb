@@ -1,18 +1,20 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n";
+import { getPublicContactEmail } from "@/lib/public-contact";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Ajuda",
   description:
-    "Tira dúvidas sobre publicar eventos, registar trucks ou receber propostas — a equipa Air F&B responde em horas úteis.",
+    "Tira dúvidas sobre publicar eventos, registar fornecedores ou receber propostas — a equipa F&B Tailor responde em horas úteis.",
   alternates: { canonical: "/ajuda" },
 };
 
 export default async function AjudaPage() {
   const dict = await getDictionary();
   const t = dict.help;
+  const supportEmail = getPublicContactEmail("support");
   return (
     <div className="container" style={{ paddingTop: 130, paddingBottom: 80, maxWidth: 760 }}>
       <h1 className="section-title">{t.page_title}</h1>
@@ -46,8 +48,14 @@ export default async function AjudaPage() {
 
       <h2 style={{ fontFamily: "Bebas Neue, sans-serif", color: "var(--teal)", marginTop: 28 }}>{t.team_title}</h2>
       <p style={{ lineHeight: 1.7 }}>
-        {t.team_email_label} <a href="mailto:ola@airfnb.example" style={{ color: "var(--orange)" }}>ola@airfnb.example</a>
-        <br />{t.team_whatsapp_label}
+        {supportEmail ? (
+          <>
+            {t.team_email_label}{" "}
+            <a href={`mailto:${supportEmail}`} style={{ color: "var(--orange)" }}>{supportEmail}</a>
+            <br />
+          </>
+        ) : null}
+        {t.team_whatsapp_label}
       </p>
 
       <p style={{ marginTop: 32 }}>

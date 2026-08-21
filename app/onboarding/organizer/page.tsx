@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
+import { ensureFbMembership } from "@/lib/auth/fb-membership";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { getDictionary } from "@/lib/i18n";
 
@@ -34,11 +35,12 @@ export default async function OnboardingOrganizerPage() {
     const vat_number   = String(formData.get("vat_number") ?? "").trim() || null;
     const marketing    = formData.get("marketing") === "on";
 
+    await ensureFbMembership(supa, { role: "organizer", fullName: full_name, locale: "pt-PT" });
+
     const { error } = await (supa as any)
       .from("airfnb_profiles")
       .update({
         full_name, phone, company_name, vat_number,
-        role: "organizer",
         marketing_opt_in: marketing,
         onboarding_completed: true,
       })

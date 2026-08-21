@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ensureFbProfile } from "@/lib/auth/fb-membership";
 import { OAuthButtons, OAUTH_ENABLED } from "@/components/auth/OAuthButtons";
 import { useDict } from "@/components/DictProvider";
 
@@ -42,8 +43,24 @@ export default function LoginPage() {
     }
 
     const { error } = await supa.auth.signInWithPassword({ email, password: pwd });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
+    if (error) { setBusy(false); setErr(error.message); return; }
+
+    try {
+      // Existing/imported profiles are returned unchanged. A user entering
+      // F&B for the first time gets a role-null profile and must choose a
+      // registration path explicitly.
+      const profile = await ensureFbProfile(supa);
+      setBusy(false);
+      if (profile.role === null) {
+        router.push("/registar");
+        router.refresh();
+        return;
+      }
+    } catch (membershipError) {
+      setBusy(false);
+      setErr(membershipError instanceof Error ? membershipError.message : String(membershipError));
+      return;
+    }
     router.push(next);
     router.refresh();
   }

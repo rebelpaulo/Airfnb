@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n";
 
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
-  title: "Música & Animação — Air F&B",
+  title: "Música & Animação — F&B Tailor",
   description:
     "DJ, banda ao vivo, animação infantil, fotografia ou vídeo? Os nossos parceiros cobrem todas as áreas de entretenimento para eventos. Diz-nos o que precisas — propomos as melhores opções.",
   alternates: { canonical: "/musica-animacao" },

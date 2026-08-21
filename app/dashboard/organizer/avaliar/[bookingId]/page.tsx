@@ -21,25 +21,31 @@ export default async function AvaliarTrucksPage({
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect(`/login?next=/dashboard/organizer/avaliar/${bookingId}`);
 
-  const { data: booking } = await (supa as any)
-    .from("airfnb_bookings")
-    .select(`
-      id, status, organizer_id, starts_at,
-      airfnb_events ( title ),
-      airfnb_booking_trucks ( truck_id, agreed_price,
-        airfnb_trucks ( id, name, slug, base_city ) )
-    `)
-    .eq("id", bookingId)
-    .maybeSingle();
-  if (!booking) notFound();
-  if (booking.organizer_id !== user.id) redirect("/dashboard/organizer");
+  const { data: contextRows } = await (supa as any)
+    .rpc("airfnb_booking_service_context", { p_booking: bookingId });
+  const rows = ((contextRows as any[]) ?? []).filter((row) => row.is_organizer);
+  if (rows.length === 0) notFound();
+  const booking = {
+    id: rows[0].booking_id,
+    status: rows[0].booking_status,
+    airfnb_events: { title: rows[0].event_title ?? rows[0].request_title },
+  };
   if (booking.status !== "confirmed" && booking.status !== "completed") {
     // Reviews only make sense after the event happened — fail loud rather
     // than letting the organizer post on a pending booking.
     redirect("/dashboard/organizer");
   }
 
-  const truckRows = (booking.airfnb_booking_trucks as any[]) ?? [];
+  const truckRows = rows.map((row) => ({
+    truck_id: row.truck_id,
+    agreed_price: row.agreed_price,
+    airfnb_trucks: {
+      id: row.truck_id,
+      name: row.truck_name,
+      slug: row.truck_slug,
+      base_city: row.truck_base_city,
+    },
+  }));
   const truckIds = truckRows.map((bt) => bt.truck_id);
 
   const { data: existingReviews } = await (supa as any)
@@ -68,39 +74,23 @@ export default async function AvaliarTrucksPage({
     if (body.length < 20)                                        throw new Error(e.err_comment_short);
 
     // Re-check booking ownership + status server-side (form fields are user-controlled)
-    const { data: b } = await (supa as any)
-      .from("airfnb_bookings")
-      .select("id, organizer_id, status")
-      .eq("id", bookingId)
-      .maybeSingle();
-    if (!b || b.organizer_id !== user.id) throw new Error(e.err_no_perm);
-    if (b.status !== "confirmed" && b.status !== "completed") {
+    const { data: actionRows } = await (supa as any)
+      .rpc("airfnb_booking_service_context", { p_booking: bookingId });
+    const actionRow = ((actionRows as any[]) ?? []).find(
+      (row) => row.is_organizer && row.truck_id === truckId,
+    );
+    if (!actionRow) throw new Error(e.err_no_perm);
+    if (actionRow.booking_status !== "confirmed" && actionRow.booking_status !== "completed") {
       throw new Error(e.err_booking_status);
     }
-
-    // Verify the truck_id is actually part of this booking — otherwise a
-    // crafted form could rate trucks that never participated and corrupt
-    // their aggregate score via the recompute trigger.
-    const { data: membership } = await (supa as any)
-      .from("airfnb_booking_trucks")
-      .select("truck_id")
-      .eq("booking_id", bookingId)
-      .eq("truck_id", truckId)
-      .maybeSingle();
-    if (!membership) throw new Error(e.err_truck_not_in_booking);
-
-    const rating_overall = Math.round(((food + service + valueR) / 3) * 10) / 10;
 
     const { error } = await (supa as any).from("airfnb_reviews").insert({
       booking_id:     bookingId,
       truck_id:       truckId,
-      organizer_id:   user.id,
       rating_food:    food,
       rating_service: service,
       rating_value:   valueR,
-      rating_overall,
       body,
-      is_verified:    true,
     });
     if (error) {
       if (error.code === "23505") throw new Error(e.err_duplicate_review);

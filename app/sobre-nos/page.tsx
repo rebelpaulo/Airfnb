@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n";
 // TODO: i18n metadata via generateMetadata
 export const metadata: Metadata = {
   title: "Sobre nós",
-  description: "A Air F&B liga organizadores a food trucks certificados — curadoria, homologação e pagamento sem complicações.",
+  description: "A F&B Tailor liga organizadores a fornecedores selecionados de food trucks, catering e bares para eventos.",
   alternates: { canonical: "/sobre-nos" },
 };
 

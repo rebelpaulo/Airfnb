@@ -10,7 +10,7 @@ import { getDictionary } from "@/lib/i18n";
 export const metadata: Metadata = {
   title: "Publicar pedido",
   description:
-    "Publica o teu evento grátis e recebe propostas dos melhores food trucks do país em poucas horas.",
+    "Publica o teu evento grátis e recebe propostas de fornecedores de Food Truck, Catering e Bar em poucas horas.",
   alternates: { canonical: "/publicar" },
 };
 

@@ -1,0 +1,52 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      APP_URL: http://localhost:3001
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-local-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-local-placeholder-service-role-key
+      STRIPE_SECRET_KEY: sk_test_ci_local_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_local_placeholder
+      PUBLIC_RATE_LIMIT_SECRET: ci-local-placeholder-rate-limit-secret
+      SUPPORT_EMAIL: support@fb-tailor.invalid
+      PARTNERSHIP_EMAIL: partnerships@fb-tailor.invalid
+      PRIVACY_EMAIL: privacy@fb-tailor.invalid
+      LEGAL_EMAIL: legal@fb-tailor.invalid
+      FROM_EMAIL: F&B Tailor <noreply@fb-tailor.invalid>
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable the pinned pnpm version
+        run: corepack enable
+
+      - name: Install from the lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Run repository checks
+        run: pnpm check
+
+      - name: Build the production application
+        run: pnpm build

@@ -67,8 +67,7 @@ export default async function ConversasPage() {
     (supa as any).from("airfnb_conversations")
       .select(`id, booking_id, application_id,
                airfnb_applications ( id,
-                 airfnb_event_requests ( title, start_at, city, organizer_id ),
-                 airfnb_trucks ( name, owner_id ) )`)
+                 airfnb_event_requests ( title, start_at, city, organizer_id ) )`)
       .in("id", convIds),
     (supa as any).rpc("airfnb_conversation_peers"),
     (supa as any).rpc("airfnb_conversation_summaries"),

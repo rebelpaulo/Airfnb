@@ -37,19 +37,9 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
   const t = dict.dashboard.truck_profile_editor;
 
   const { data: truck } = await (supa as any)
-    .from("airfnb_trucks")
-    .select(`
-      id, owner_id, slug, name, tagline, description, base_city, capacity,
-      base_price, price_per_pax, service_radius_km,
-      min_event_pax, max_event_pax,
-      cuisine_types, dietary_options, setup_minutes, teardown_minutes,
-      power_required_kw, sanitation_required,
-      status, rating_avg, rating_count, homologation_expires_at, insurance_expires_at
-    `)
-    .eq("id", id)
+    .rpc("airfnb_supplier_services", { p_truck: id })
     .maybeSingle();
   if (!truck) notFound();
-  if (truck.owner_id !== user.id) redirect("/dashboard/truck");
 
   const [imgsRes, menuRes, catsRes, docsRes] = await Promise.all([
     (supa as any).from("airfnb_truck_images").select("id, url, is_cover").eq("truck_id", id),
@@ -110,16 +100,13 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     // trust the UI's `canSubmit` boolean. A user could craft a request
     // bypassing the button.
     const [tRes, iRes, cRes, dRes] = await Promise.all([
-      (supa as any).from("airfnb_trucks")
-        .select("id, owner_id, status, name, description, base_city, service_radius_km, capacity, min_event_pax, max_event_pax, base_price, price_per_pax, cuisine_types, setup_minutes, teardown_minutes, power_required_kw, sanitation_required")
-        .eq("id", id).maybeSingle(),
+      (supa as any).rpc("airfnb_supplier_services", { p_truck: id }).maybeSingle(),
       (supa as any).from("airfnb_truck_images").select("id, is_cover").eq("truck_id", id),
       (supa as any).from("airfnb_truck_categories").select("category_id").eq("truck_id", id),
       (supa as any).from("airfnb_truck_documents").select("id, kind, expires_at").eq("truck_id", id),
     ]);
     const tr = tRes.data;
     if (!tr) throw new Error(t.err_truck_not_found);
-    if (tr.owner_id !== user.id) throw new Error(t.err_no_perm);
     if (tr.status !== "draft") throw new Error(t.err_not_draft);
 
     const imgs = (iRes.data as any[]) ?? [];
@@ -159,7 +146,6 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
       .from("airfnb_trucks")
       .update({ status: "pending_review" })
       .eq("id", id)
-      .eq("owner_id", user.id)
       .eq("status", "draft");
     if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/truck/${id}`);
@@ -175,7 +161,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     if (!user) throw new Error(t.err_auth);
     const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "paused" })
-      .eq("id", id).eq("owner_id", user.id).eq("status", "active");
+      .eq("id", id).eq("status", "active");
     if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/truck/${id}`);
   }
@@ -188,7 +174,7 @@ export default async function TruckManagePage({ params }: { params: Promise<{ id
     if (!user) throw new Error(t.err_auth);
     const { error } = await (supa as any).from("airfnb_trucks")
       .update({ status: "active" })
-      .eq("id", id).eq("owner_id", user.id).eq("status", "paused");
+      .eq("id", id).eq("status", "paused");
     if (error) throw new Error(error.message);
     revalidatePath(`/dashboard/truck/${id}`);
   }
